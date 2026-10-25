@@ -1,5 +1,7 @@
 (function(){
 'use strict';
+const APP_VERSION='v4.1';
+const APP_UPDATED='2026-10-25 22:38 (香港時間)';
 const M=window.MJ;
 const KEY='mj_hk_tw_v1';
 const WIND='東南西北';
@@ -25,8 +27,6 @@ const copyL=l=>l.map(r=>({from:r.from,to:r.to,amt:r.amt,k:r.k}));
 function balances(){ const b=[0,0,0,0]; S.history.forEach(r=>r.deltas.forEach((d,i)=>b[i]+=d)); return b; }
 function pendingBal(){ const b=[0,0,0,0]; S.ledger.forEach(r=>{ b[r.to]+=r.amt; b[r.from]-=r.amt; }); return b; }
 function toast(t){ const e=document.getElementById('toast'); e.textContent=t; e.className='show'; setTimeout(()=>{e.className='';},1800); }
-
-/* ===== 拉 / 踢半 / 結清 ===== */
 function mkTxns(ws,dealer,streak){
   const bonus=1+2*streak, base=S.cfg.fanValue*S.cfg.baseMult, fv=S.cfg.fanValue, tx=[];
   ws.forEach(w=>{
@@ -62,7 +62,6 @@ function evText(e){
   if(e.t==='surrender') return a+' 投降,付清 '+b+' $'+e.amt;
   return '';
 }
-
 function need(){ return (5-E.melds.length)*3+2; }
 function tileCount(t){
   let n=E.hand.filter(x=>x===t).length+(E.win===t?1:0);
@@ -208,7 +207,9 @@ function viewSettle(){
   return h;
 }
 function viewSettings(){
-  const c=S.cfg; let h='<h3>金額設定</h3><div class="grid2">';
+  const c=S.cfg;
+  let h='<h3>版本資訊</h3><div class="card"><div>版本:<b>'+APP_VERSION+'</b></div><div>更新時間:<b>'+APP_UPDATED+'</b></div><div class="hint">若更新時間與你最後一次上傳的時間不符,請完全關閉 App 後重開兩次。</div></div>';
+  h+='<h3>金額設定</h3><div class="grid2">';
   h+='<label>每番金額<input type="number" step="any" data-chg="cfg" data-k="fanValue" value="'+c.fanValue+'"></label>';
   h+='<label>底 = 番值 ×<input type="number" step="any" data-chg="cfg" data-k="baseMult" value="'+c.baseMult+'"></label>';
   h+='<label>最低胡牌番數<input type="number" data-chg="cfg" data-k="minFan" value="'+c.minFan+'"></label>';
