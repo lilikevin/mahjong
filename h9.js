@@ -1,0 +1,22 @@
+
+const handlers={};let html='';const store={};const props={};
+global.window={scrollY:0,scrollTo(){},addEventListener(){}};
+global.localStorage={getItem:k=>store[k]||null,setItem:(k,v)=>store[k]=v};global.navigator={};global.confirm=()=>true;
+global.fetch=async()=>({ok:true,json:async()=>({version:'v1.2'})});
+const heads=[];
+global.document={visibilityState:'visible',head:{appendChild:e=>heads.push(e)},body:{style:{},appendChild(){}},documentElement:{style:{setProperty:(k,v)=>props[k]=v}},querySelector:()=>null,getElementById:()=>({set innerHTML(v){html=v},set textContent(v){},set className(v){}}),addEventListener:(t,f)=>handlers[t]=f,createElement:()=>({})};
+const M=require('./output/engine.js'); window.MJ=M;
+require('./output/app.js');
+const click=(act,ds={})=>handlers.click({target:{closest:()=>({dataset:Object.assign({act},ds)})}});
+click('tab',{v:'calc'});
+click('mode',{v:'pung'});click('tile',{t:2});
+click('mode',{v:'chow'});click('tile',{t:9+3});
+click('mode',{v:'kong_closed'});click('tile',{t:31});
+const g=html.match(/class="mg"/g)||[];
+console.log('melds groups',g.length);
+const pung=html.match(/<div class="mg"><div class="row">((?:<span[^>]*>.*?<\/span>){3})<\/div><small>碰/);
+console.log('pung 3 tiles identical:',pung&&new Set(pung[1].match(/<b>[^<]*<\/b><i>[^<]*<\/i>/g)).size===1);
+console.log('kong closed has 2 back:',(html.match(/mt s\d back|mt hon h\d back/g)||[]).length);
+click('tab',{v:'settings'});click('themeSet',{k:'acc',c:'#3dd6c6'});console.log('acc var:',props['--acc'],props['--onacc']);
+click('scheme',{i:'2'});console.log('scheme card:',props['--card']);
+console.log('style injected:',heads.length);
