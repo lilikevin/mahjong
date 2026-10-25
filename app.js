@@ -87,7 +87,7 @@ function viewCalc(){
   if(!E.self){ h+='<div class="lbl">出銃者</div>'+winnerBtns('disc',E.disc); }
   h+='<h3>花牌</h3><div class="flowers">'+M.FLOWERS.map((f,i)=>'<button class="fl '+(E.flowers[i]?'on':'')+'" data-act="flower" data-i="'+i+'">'+f+'</button>').join('')+'</div>';
   h+='<h3>特殊情況</h3><div class="flags">'+[['ting','叮'],['qiangkong','搶槓'],['huashang','花上自摸'],['kongshang','槓上自摸'],['haidi','海底撈月'],['tianhu','天胡'],['dihu','地胡'],['renhu','人胡'],['tianting','天叮'],['shuangxiang','雙響'],['sanxiang','三響']].map(a=>'<label><input type="checkbox" data-chg="flag" data-k="'+a[0]+'"'+(E.flags[a[0]]?' checked':'')+'>'+a[1]+'</label>').join('')+'</div>';
-  h+='<h3>輸入牌</h3>';
+  h+='<h3>選牌區</h3>';
   h+='<div class="steps">'+[[1,'① 明牌','吃碰槓'],[2,'② 手牌','未露出'],[3,'③ 和牌','最後一張']].map(a=>'<button class="'+(st===a[0]?'on':'')+'" data-act="step" data-v="'+a[0]+'">'+a[1]+'<small>'+a[2]+'</small></button>').join('')+'</div>';
   if(st===1){
     h+='<div class="seg modes">'+[['chow','吃'],['pung','碰'],['kong_open','明槓'],['kong_closed','暗槓']].map(a=>'<button class="'+(E.mode===a[0]?'on':'')+'" data-act="mode" data-v="'+a[0]+'">'+a[1]+'</button>').join('')+'</div>';
@@ -95,14 +95,15 @@ function viewCalc(){
   } else if(st===2) h+='<p class="hint">輸入未露出的手牌(不含最後和的那張)。填滿後自動跳到③。</p>';
   else h+='<p class="hint">點選最後和的那一張牌。</p>';
   h+=palette();
-  h+='<h3>明牌區 <small>'+E.melds.length+' 組</small></h3>';
-  h+='<div class="zone">'+(E.melds.length?E.melds.map((m,i)=>'<span class="meld">'+meldTxt(m)+' <b data-act="rmMeld" data-i="'+i+'">✕</b></span>').join(''):'<span class="hint">無</span>')+'</div>';
-  h+='<h3>手牌區 <small>'+E.hand.length+' / '+(need()-1)+' 張(不含和牌)</small></h3>';
-  h+='<div class="zone">'+(E.hand.length?E.hand.slice().sort((a,b)=>a-b).map(t=>'<button class="t s'+M.suitOf(t)+'" data-act="rmHand" data-t="'+t+'">'+M.tName(t)+'</button>').join(''):'<span class="hint">未有手牌</span>')+'</div>';
-  h+='<p class="hint">點手牌可刪除該張</p>';
-  h+='<h3>和牌區</h3>';
-  h+='<div class="zone winzone">'+(E.win!=null?'<button class="t s'+M.suitOf(E.win)+' win" data-act="clearWin">'+M.tName(E.win)+'</button><span class="hint">點此清除</span>':'<span class="hint">切到「③ 和牌」後點選最後和的那一張</span>')+'</div>';
   h+='<div class="btnrow"><button data-act="undoTile">退一張</button><button data-act="clearHand">全部清空</button></div>';
+  h+='<h3>已輸入的牌型</h3><div class="card entered">';
+  h+='<div class="zl">明牌 <small>'+E.melds.length+' 組</small></div>';
+  h+='<div class="zone">'+(E.melds.length?E.melds.map((m,i)=>'<span class="meld">'+meldTxt(m)+' <b data-act="rmMeld" data-i="'+i+'">✕</b></span>').join(''):'<span class="hint">無</span>')+'</div>';
+  h+='<div class="zl">手牌 <small>'+E.hand.length+' / '+(need()-1)+' 張(不含和牌),點牌可刪除</small></div>';
+  h+='<div class="zone">'+(E.hand.length?E.hand.slice().sort((a,b)=>a-b).map(t=>'<button class="t s'+M.suitOf(t)+'" data-act="rmHand" data-t="'+t+'">'+M.tName(t)+'</button>').join(''):'<span class="hint">未有手牌</span>')+'</div>';
+  h+='<div class="zl">和牌 <small>點牌可清除</small></div>';
+  h+='<div class="zone winzone">'+(E.win!=null?'<button class="t s'+M.suitOf(E.win)+' win" data-act="clearWin">'+M.tName(E.win)+'</button>':'<span class="hint">未選和牌</span>')+'</div>';
+  h+='</div>';
   h+='<h3>番數結果</h3>';
   if(res&&res.error) h+='<div class="warn">'+esc(res.error)+'</div>';
   else if(!res) h+='<div class="hint">牌未輸入完整,暫以手動番種計算</div>';
@@ -293,7 +294,6 @@ function chg(k,el){
   }
   save(); render();
 }
-/* 觸控:在 touchend 即時處理點擊並阻止瀏覽器的雙擊放大;滑動不觸發 */
 let tStart=null, lastTouchAct=0;
 document.addEventListener('touchstart',e=>{ if(e.touches.length>1){ tStart=null; return; } const t=e.touches[0]; tStart={x:t.clientX,y:t.clientY}; },{passive:true});
 document.addEventListener('touchend',e=>{
