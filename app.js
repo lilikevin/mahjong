@@ -1,11 +1,13 @@
 (function(){
 'use strict';
-const APP_VERSION='v1.0';
-const APP_UPDATED='2026-10-25 22:47 (香港時間)';
+const APP_VERSION='v1.1';
+const APP_UPDATED='2026-10-26 07:19 (香港時間)';
 const M=window.MJ;
 const KEY='mj_hk_tw_v1';
+const PREV_KEY='mj_hk_tw_prev_game';
 const WIND='東南西北';
-const defState=()=>({names:['玩家1','玩家2','玩家3','玩家4'],seat:[0,1,2,3],dealerSeat:0,streak:0,wind:0,history:[],ledger:[],cfg:{fanValue:1,baseMult:5,minFan:0,drawKeeps:true,over:{}}});
+const BGS=[['深綠','#0f2a1f'],['深藍','#0f1f33'],['墨黑','#0b0b0b'],['酒紅','#2a0f14'],['深灰','#1e2226'],['深紫','#1f1630']];
+const defState=()=>({names:['玩家1','玩家2','玩家3','玩家4'],seat:[0,1,2,3],dealerSeat:0,streak:0,wind:0,history:[],ledger:[],cfg:{fanValue:1,baseMult:5,minFan:0,drawKeeps:true,over:{},bg:'#0f2a1f'}});
 function load(){
   try{ const j=JSON.parse(localStorage.getItem(KEY)); if(j&&j.names){ const d=defState(); return Object.assign(d,j,{cfg:Object.assign(d.cfg,j.cfg||{}),ledger:j.ledger||[]}); } }catch(e){}
   return defState();
@@ -28,8 +30,10 @@ const copyL=l=>l.map(r=>({from:r.from,to:r.to,amt:r.amt,k:r.k}));
 function balances(){ const b=[0,0,0,0]; S.history.forEach(r=>r.deltas.forEach((d,i)=>b[i]+=d)); return b; }
 function pendingBal(){ const b=[0,0,0,0]; S.ledger.forEach(r=>{ b[r.to]+=r.amt; b[r.from]-=r.amt; }); return b; }
 function toast(t){ const e=document.getElementById('toast'); e.textContent=t; e.className='show'; setTimeout(()=>{e.className='';},1800); }
-
-/* ===== 版本檢查 ===== */
+function applyTheme(){
+  const c=(S.cfg&&S.cfg.bg)||'#0f2a1f';
+  try{ document.body.style.background=c; document.documentElement.style.background=c; const m=document.querySelector('meta[name=theme-color]'); if(m) m.setAttribute('content',c); }catch(e){}
+}
 async function checkUpdate(manual){
   if(checking) return; checking=true;
   try{
@@ -50,7 +54,6 @@ async function doUpgrade(){
   }catch(e){}
   location.reload();
 }
-
 function mkTxns(ws,dealer,streak){
   const bonus=1+2*streak, base=S.cfg.fanValue*S.cfg.baseMult, fv=S.cfg.fanValue, tx=[];
   ws.forEach(w=>{
@@ -132,6 +135,7 @@ function updBanner(){
   if(!upd||updDismissed) return '';
   return '<div class="note"><b>發現新版本 '+esc(upd.version)+'</b>'+(upd.updated?'(更新時間 '+esc(upd.updated)+')':'')+'<br>目前版本 '+APP_VERSION+'。是否現在升級?升級不會影響你的紀錄。<div class="btnrow"><button class="primary" data-act="upgrade">立即升級</button><button data-act="dismissUpd">稍後</button></div></div>';
 }
+function hasPrev(){ try{ return !!localStorage.getItem(PREV_KEY); }catch(e){ return false; } }
 function viewTable(){
   const b=balances();
   const card=s=>{ const p=S.seat[s]; return '<div class="card seat '+(s===S.dealerSeat?'dealer':'')+'"><div class="sw">'+WIND[s]+'</div><div class="pn" data-act="rename" data-p="'+p+'">'+nm(p)+'</div><div class="mini">門風 '+windOf(p)+(s===S.dealerSeat?' · 莊':'')+'</div><div class="bal '+(b[p]>=0?'pos':'neg')+'">'+money(b[p])+'</div></div>'; };
@@ -147,13 +151,15 @@ function viewTable(){
   h+='<label>風圈<select data-chg="wind">'+[0,1,2,3].map(s=>'<option value="'+s+'"'+(S.wind===s?' selected':'')+'>'+WIND[s]+'風圈</option>').join('')+'</select></label>';
   h+='<div class="stepper">連莊次數(自動,必要時手動修正)<button data-act="streak" data-d="-1">−</button><b>'+S.streak+'</b><button data-act="streak" data-d="1">＋</button></div></div>';
   h+='<div class="btnrow"><button class="primary" data-act="tab" data-v="calc">開始算番</button><button data-act="draw">流局</button></div>';
+  h+='<h3>牌局管理</h3><div class="btnrow"><button class="danger" data-act="newGame">開始全新局</button>'+(hasPrev()?'<button data-act="restoreGame">還原上一場牌局</button>':'')+'</div><p class="hint">全新局會清空所有紀錄、未結算的拉、連莊與風圈,並由東風圈、東位坐莊重新開始。玩家名稱、座位與金額設定會保留。清空前會自動保存上一場,可用「還原上一場牌局」找回。</p>';
   return h;
 }
 function viewCalc(){
   const res=analyze(); const items=curItems(res); const total=items.reduce((a,x)=>a+x.total,0);
   if(E.winner==null) E.winner=S.seat[0];
   const st=stepOf(E.mode);
-  let h='';
+  let h='<div class="status">目前:<b>'+WIND[S.wind]+'風圈</b> · 莊家 '+nm(dealerPid())+' · 連莊 '+S.streak+' 次<br>胡牌者 '+nm(E.winner)+' 的門風:<b>'+windOf(E.winner)+'風</b>'+(E.winner===dealerPid()?'(莊家)':'')+'</div>';
+  h+='<div class="hint">各家門風:'+S.seat.map(p=>nm(p)+' '+windOf(p)).join(' · ')+'</div>';
   if(pending.length) h+='<div class="note">已加入 '+pending.length+' 位胡牌者:'+pending.map(w=>nm(w.p)+' '+w.total+'番').join('、')+'</div>';
   h+='<h3>胡牌者</h3>'+winnerBtns('winner',E.winner);
   h+='<div class="seg two"><button class="'+(E.self?'on':'')+'" data-act="self" data-v="1">自摸</button><button class="'+(!E.self?'on':'')+'" data-act="self" data-v="0">放槍</button></div>';
@@ -237,6 +243,8 @@ function viewSettle(){
 function viewSettings(){
   const c=S.cfg;
   let h='<h3>版本資訊</h3><div class="card"><div>目前版本:<b>'+APP_VERSION+'</b></div><div>更新時間:<b>'+APP_UPDATED+'</b></div>'+(upd?'<div class="pos">最新版本:<b>'+esc(upd.version)+'</b>'+(upd.updated?'('+esc(upd.updated)+')':'')+'</div>':'')+'<div class="btnrow">'+(upd?'<button class="primary" data-act="upgrade">立即升級</button>':'')+'<button data-act="checkUpd">'+(checking?'檢查中…':'檢查更新')+'</button></div><div class="hint">App 開啟時會自動檢查。升級只會更新程式,不會清除你的紀錄。</div></div>';
+  h+='<h3>背景顏色</h3><div class="swatches">'+BGS.map(b=>'<button class="sw2'+(c.bg===b[1]?' on':'')+'" style="background:'+b[1]+'" data-act="bg" data-c="'+b[1]+'">'+b[0]+'</button>').join('')+'</div>';
+  h+='<label>自訂顏色<input type="color" data-chg="bgc" value="'+(c.bg||'#0f2a1f')+'"></label><p class="hint">建議選擇較深的顏色,文字才看得清楚。</p>';
   h+='<h3>金額設定</h3><div class="grid2">';
   h+='<label>每番金額<input type="number" step="any" data-chg="cfg" data-k="fanValue" value="'+c.fanValue+'"></label>';
   h+='<label>底 = 番值 ×<input type="number" step="any" data-chg="cfg" data-k="baseMult" value="'+c.baseMult+'"></label>';
@@ -252,6 +260,7 @@ function viewSettings(){
 }
 function render(){
   const y=window.scrollY;
+  applyTheme();
   const views={table:viewTable,calc:viewCalc,history:viewHistory,settle:viewSettle,settings:viewSettings};
   const tabs=[['table','座位'],['calc','算番'],['history','歷史'],['settle','結算'],['settings','設定']];
   document.getElementById('app').innerHTML='<div class="body">'+updBanner()+views[tab]()+'</div><nav>'+tabs.map(t=>'<button class="'+(tab===t[0]?'on':'')+'" data-act="tab" data-v="'+t[0]+'">'+t[1]+'</button>').join('')+'</nav>';
@@ -277,6 +286,17 @@ function act(a,d){
     case 'upgrade': doUpgrade(); return;
     case 'dismissUpd': updDismissed=true; break;
     case 'checkUpd': checkUpdate(true); return;
+    case 'bg': S.cfg.bg=d.c; break;
+    case 'newGame': {
+      if(!confirm('開始全新局?\n\n目前的紀錄、未結算的拉、連莊與風圈都會清空(玩家名稱、座位與金額設定會保留)。\n系統會先保存上一場,可在座位頁還原。')) return;
+      try{ localStorage.setItem(PREV_KEY,JSON.stringify(S)); }catch(e){}
+      S.history=[]; S.ledger=[]; S.streak=0; S.wind=0; S.dealerSeat=0; E=newEntry(); pending=[]; tab='table'; toast('已開始全新局'); break; }
+    case 'restoreGame': {
+      let p=null; try{ p=JSON.parse(localStorage.getItem(PREV_KEY)); }catch(e){}
+      if(!p||!p.names){ toast('沒有可還原的牌局'); return; }
+      if(!confirm('還原上一場牌局?目前的紀錄會被取代。')) return;
+      try{ localStorage.setItem(PREV_KEY,JSON.stringify(S)); }catch(e){}
+      const d0=defState(); S=Object.assign(d0,p,{cfg:Object.assign(d0.cfg,p.cfg||{}),ledger:p.ledger||[]}); E=newEntry(); pending=[]; toast('已還原'); break; }
     case 'rename': { const p=+d.p; const n=prompt('玩家名稱',S.names[p]); if(n&&n.trim()) S.names[p]=n.trim().slice(0,10); break; }
     case 'streak': S.streak=Math.max(0,S.streak+(+d.d)); break;
     case 'draw': { if(!confirm('記錄本局為流局?')) return; pushRec({kind:'draw',deltas:[0,0,0,0],events:[]}); advance(S.cfg.drawKeeps); toast('已記錄流局'); break; }
@@ -385,6 +405,7 @@ function chg(k,el){
     case 'seat': { const s=+d.s, p=+v, old=S.seat[s], ps=S.seat.indexOf(p); S.seat[ps]=old; S.seat[s]=p; break; }
     case 'dealerSeat': S.dealerSeat=+v; break;
     case 'wind': S.wind=+v; break;
+    case 'bgc': S.cfg.bg=v; break;
     case 'flag': E.flags[d.k]=v; break;
     case 'excl': E.excl[d.id]=!v; break;
     case 'addId': if(v){ const f=E.extra.find(x=>x.id===v); if(f) f.n++; else E.extra.push({id:v,n:1}); } break;
