@@ -1,7 +1,7 @@
 (function(){
 'use strict';
-const APP_VERSION='v4.1';
-const APP_UPDATED='2026-10-25 22:38 (香港時間)';
+const APP_VERSION='v1.0';
+const APP_UPDATED='2026-10-25 22:47 (香港時間)';
 const M=window.MJ;
 const KEY='mj_hk_tw_v1';
 const WIND='東南西北';
@@ -15,6 +15,7 @@ const save=()=>{ try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){} };
 const newEntry=()=>({winner:null,self:true,disc:null,hand:[],melds:[],win:null,flowers:Array(8).fill(false),flags:{},mode:'chow',meldMode:'chow',excl:{},extra:[]});
 let E=newEntry(), pending=[], tab='table';
 let inst={id:'zhahu',mode:'one',payee:null,payer:null};
+let upd=null, updDismissed=false, checking=false;
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const seatOf=p=>S.seat.indexOf(p);
 const dealerPid=()=>S.seat[S.dealerSeat];
@@ -27,6 +28,29 @@ const copyL=l=>l.map(r=>({from:r.from,to:r.to,amt:r.amt,k:r.k}));
 function balances(){ const b=[0,0,0,0]; S.history.forEach(r=>r.deltas.forEach((d,i)=>b[i]+=d)); return b; }
 function pendingBal(){ const b=[0,0,0,0]; S.ledger.forEach(r=>{ b[r.to]+=r.amt; b[r.from]-=r.amt; }); return b; }
 function toast(t){ const e=document.getElementById('toast'); e.textContent=t; e.className='show'; setTimeout(()=>{e.className='';},1800); }
+
+/* ===== 版本檢查 ===== */
+async function checkUpdate(manual){
+  if(checking) return; checking=true;
+  try{
+    const r=await fetch('version.json?t='+Date.now(),{cache:'no-store'});
+    if(!r.ok) throw new Error('http');
+    const j=await r.json();
+    if(j&&j.version&&j.version!==APP_VERSION){ upd=j; updDismissed=false; if(manual) toast('發現新版本 '+j.version); }
+    else { upd=null; if(manual) toast('目前已是最新版本'); }
+  }catch(e){ if(manual) toast('無法檢查更新,請確認網絡'); }
+  checking=false; render();
+}
+async function doUpgrade(){
+  toast('正在更新…');
+  try{
+    if('serviceWorker' in navigator){ const rs=await navigator.serviceWorker.getRegistrations(); await Promise.all(rs.map(r=>r.unregister())); }
+    if(window.caches){ const ks=await caches.keys(); await Promise.all(ks.map(k=>caches.delete(k))); }
+    await Promise.all(['./','index.html','app.js','engine.js','manifest.json','sw.js','version.json','icon-192.png','icon-512.png'].map(f=>fetch(f,{cache:'reload'}).catch(()=>{})));
+  }catch(e){}
+  location.reload();
+}
+
 function mkTxns(ws,dealer,streak){
   const bonus=1+2*streak, base=S.cfg.fanValue*S.cfg.baseMult, fv=S.cfg.fanValue, tx=[];
   ws.forEach(w=>{
@@ -103,6 +127,10 @@ function winnerBtns(key,val){
 function ledgerHtml(withBtn){
   if(!S.ledger.length) return '<p class="hint">目前沒有未結算的拉</p>';
   return S.ledger.map((r,i)=>'<div class="tr">'+nm(r.from)+' 欠 '+nm(r.to)+' <b>$'+r.amt+'</b> <small>(拉'+r.k+'口)</small>'+(withBtn?' <button data-act="payoff" data-i="'+i+'">結清</button>':'')+'</div>').join('');
+}
+function updBanner(){
+  if(!upd||updDismissed) return '';
+  return '<div class="note"><b>發現新版本 '+esc(upd.version)+'</b>'+(upd.updated?'(更新時間 '+esc(upd.updated)+')':'')+'<br>目前版本 '+APP_VERSION+'。是否現在升級?升級不會影響你的紀錄。<div class="btnrow"><button class="primary" data-act="upgrade">立即升級</button><button data-act="dismissUpd">稍後</button></div></div>';
 }
 function viewTable(){
   const b=balances();
@@ -208,7 +236,7 @@ function viewSettle(){
 }
 function viewSettings(){
   const c=S.cfg;
-  let h='<h3>版本資訊</h3><div class="card"><div>版本:<b>'+APP_VERSION+'</b></div><div>更新時間:<b>'+APP_UPDATED+'</b></div><div class="hint">若更新時間與你最後一次上傳的時間不符,請完全關閉 App 後重開兩次。</div></div>';
+  let h='<h3>版本資訊</h3><div class="card"><div>目前版本:<b>'+APP_VERSION+'</b></div><div>更新時間:<b>'+APP_UPDATED+'</b></div>'+(upd?'<div class="pos">最新版本:<b>'+esc(upd.version)+'</b>'+(upd.updated?'('+esc(upd.updated)+')':'')+'</div>':'')+'<div class="btnrow">'+(upd?'<button class="primary" data-act="upgrade">立即升級</button>':'')+'<button data-act="checkUpd">'+(checking?'檢查中…':'檢查更新')+'</button></div><div class="hint">App 開啟時會自動檢查。升級只會更新程式,不會清除你的紀錄。</div></div>';
   h+='<h3>金額設定</h3><div class="grid2">';
   h+='<label>每番金額<input type="number" step="any" data-chg="cfg" data-k="fanValue" value="'+c.fanValue+'"></label>';
   h+='<label>底 = 番值 ×<input type="number" step="any" data-chg="cfg" data-k="baseMult" value="'+c.baseMult+'"></label>';
@@ -226,7 +254,7 @@ function render(){
   const y=window.scrollY;
   const views={table:viewTable,calc:viewCalc,history:viewHistory,settle:viewSettle,settings:viewSettings};
   const tabs=[['table','座位'],['calc','算番'],['history','歷史'],['settle','結算'],['settings','設定']];
-  document.getElementById('app').innerHTML='<div class="body">'+views[tab]()+'</div><nav>'+tabs.map(t=>'<button class="'+(tab===t[0]?'on':'')+'" data-act="tab" data-v="'+t[0]+'">'+t[1]+'</button>').join('')+'</nav>';
+  document.getElementById('app').innerHTML='<div class="body">'+updBanner()+views[tab]()+'</div><nav>'+tabs.map(t=>'<button class="'+(tab===t[0]?'on':'')+'" data-act="tab" data-v="'+t[0]+'">'+t[1]+'</button>').join('')+'</nav>';
   window.scrollTo(0,y);
 }
 function advance(keep){
@@ -246,6 +274,9 @@ function validateCur(){
 function act(a,d){
   switch(a){
     case 'tab': tab=d.v; break;
+    case 'upgrade': doUpgrade(); return;
+    case 'dismissUpd': updDismissed=true; break;
+    case 'checkUpd': checkUpdate(true); return;
     case 'rename': { const p=+d.p; const n=prompt('玩家名稱',S.names[p]); if(n&&n.trim()) S.names[p]=n.trim().slice(0,10); break; }
     case 'streak': S.streak=Math.max(0,S.streak+(+d.d)); break;
     case 'draw': { if(!confirm('記錄本局為流局?')) return; pushRec({kind:'draw',deltas:[0,0,0,0],events:[]}); advance(S.cfg.drawKeeps); toast('已記錄流局'); break; }
@@ -381,7 +412,9 @@ document.addEventListener('click',e=>{
 });
 document.addEventListener('change',e=>{ const el=e.target.closest('[data-chg]'); if(el) chg(el.dataset.chg,el); });
 ['gesturestart','gesturechange','gestureend','dblclick'].forEach(ev=>document.addEventListener(ev,e=>e.preventDefault()));
+document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='visible') checkUpdate(false); });
 if(navigator.storage&&navigator.storage.persist) navigator.storage.persist();
 if('serviceWorker' in navigator) window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
 render();
+setTimeout(()=>checkUpdate(false),1200);
 })();
