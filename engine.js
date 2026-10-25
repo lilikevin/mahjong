@@ -6,8 +6,6 @@ const suitOf=i=>i<27?((i/9)|0):3;
 const numOf=i=>i<27?(i%9+1):0;
 const isHon=i=>i>=27;
 const FLOWERS=['春','夏','秋','冬','梅','蘭','菊','竹'];
-
-// [id, 名稱, 番數(明), 番數(暗)]
 const RAW=[
 ['zimo','自摸',1],['menqing','門清',5],['menqing_zimo','門清自摸',10],['ting','叮',5],
 ['qiangkong','搶槓',1],['huashang','花上自摸',2],['kongshang','槓上自摸',2],['haidi','海底撈月',10],
@@ -15,7 +13,7 @@ const RAW=[
 ['zi','字(每組)',2],['hua','花(每隻)',2],
 ['wuzihua','無字花',10],['wuzihua_pinghu','無字花大平糊',20],['pinghu','平糊',5],
 ['quewu','缺五',10],['queyimen','缺一門',10],['wumen','五門齊',10],['qimen','七門齊',20],
-['duanyao','斷么九',10],['dudu','獨獨',2],['jiangyan','將眼',2],['duipeng','對碰',2],
+['duanyao','斷么九',10],['dudu','獨獨(真獨)',2],['jiadu','假獨',1],['jiangyan','將眼',2],['duipeng','對碰',2],
 ['minggang','明槓',1],['angang','暗槓',2],
 ['banggao','般高',5],['sanbanggao','三般高',30],['sibanggao','四般高',60],['wutongshun','五同順',50],
 ['sigui1','四歸一',5,10],['sigui2','四歸二',15,30],['sigui4','四歸四',40,80],
@@ -38,7 +36,6 @@ const RAW=[
 ];
 const MANUAL=['hundaix','dajie','zimoji','qizi','sizi','shizi','shiliubuda','shisanyao','kankan'];
 const FANS=RAW.map(r=>({id:r[0],name:r[1],fan:r[2],fanC:r[3]===undefined?null:r[3],manual:MANUAL.indexOf(r[0])>=0}));
-// [id, 名稱, 籌數, 預設模式 all=其餘三家各付收款人 / one=單一付款人]
 const INSTANT=[
 {id:'angang_i',name:'暗槓',amt:5,mode:'all'},{id:'yitaihua',name:'一台花',amt:5,mode:'all'},
 {id:'yitaicao',name:'一台草',amt:3,mode:'all'},{id:'qi_qiang_yi',name:'七搶一',amt:30,mode:'one'},
@@ -46,6 +43,33 @@ const INSTANT=[
 {id:'jiaocuopeng',name:'叫錯碰',amt:5,mode:'one'},{id:'cuogang',name:'錯槓糊',amt:10,mode:'one'},
 {id:'zhahu',name:'詐糊',amt:50,mode:'one'}
 ];
+const SUPPRESS={
+ ziyise:['duidui','hundaiyao','qingdaiyao','quewu','zi'],
+ qingdaiyao:['quewu','hundaiyao'],
+ hundaiyao:['quewu'],
+ an5:['duidui'],
+ lian5:['duidui'],
+ xlian6:['duidui','qingyise'],
+ qinglong:['laoshaoshang'],
+ quanqiu:['dudu','jiadu','banqiu'],
+ qimen:['wumen'],
+ wuzihua_pinghu:['pinghu','wuzihua'],
+ menqing_zimo:['zimo','menqing'],
+ tianhu:['zimo','menqing','menqing_zimo'],
+ dihu:['menqing'], renhu:['menqing'],
+ tianting:['ting'],
+ dudu:['jiadu']
+};
+function applySuppress(items,info){
+  const ids=new Set(items.map(i=>i.id));
+  const kill=new Set();
+  Object.keys(SUPPRESS).forEach(a=>{ if(ids.has(a)) SUPPRESS[a].forEach(b=>kill.add(b)); });
+  if(ids.has('ziyise')&&info.concealed) ['an2','an3','an4','an5'].forEach(b=>kill.add(b));
+  if(info.dx&&[1,2,8,9].indexOf(info.dx)>=0) kill.add('quewu');
+  let out=items.filter(i=>!kill.has(i.id));
+  if(ids.has('qingbubu')) out=out.map(i=>i.id==='zimei'?Object.assign({},i,{n:i.n-2}):i).filter(i=>i.n>0);
+  return out;
+}
 function buildRules(over){
   const R={};
   FANS.forEach(f=>{R[f.id]={id:f.id,name:f.name,fan:f.fan,fanC:f.fanC,manual:f.manual};});
@@ -53,7 +77,6 @@ function buildRules(over){
   return R;
 }
 function valueOf(R,it){ const r=R[it.id]; if(!r) return 0; const u=(it.closed&&r.fanC!=null)?r.fanC:r.fan; return u*(it.n===undefined?1:it.n); }
-
 function decompose(cnt,nSets){
   const res=[];
   for(let p=0;p<34;p++){
@@ -94,7 +117,6 @@ function placements(D,w){
   return out;
 }
 function perms3(){ return [[0,1,2],[0,2,1],[1,0,2],[1,2,0],[2,0,1],[2,1,0]]; }
-
 function common(ctx,items,tilesAll,concealed,o){
   const push=(id,n,closed)=>{ n=n===undefined?1:n; if(n>0) items.push({id,n,closed:!!closed}); };
   const hasHon=tilesAll.some(isHon);
@@ -119,7 +141,6 @@ function common(ctx,items,tilesAll,concealed,o){
   else if(suits.size===1&&!hasHon) push('qingyise');
   else if(suits.size===0) push('ziyise');
 }
-
 function evalStructure(ctx,sets,P,pl){
   const items=[]; const R=ctx.R;
   const push=(id,n,closed)=>{ n=n===undefined?1:n; if(n>0) items.push({id,n,closed:!!closed}); };
@@ -132,21 +153,19 @@ function evalStructure(ctx,sets,P,pl){
   const pinghu=trips.length===0&&!isHon(P);
   common(ctx,items,tilesAll,concealed,{pinghu});
   if(pinghu){ if(fl===0) push('wuzihua_pinghu'); else push('pinghu'); }
-  push('zi',trips.filter(s=>isHon(s.tile)).length);
   push('minggang',kongs.filter(s=>s.open).length);
   push('angang',kongs.filter(s=>!s.open).length);
   if(!isHon(P)&&[2,5,8].indexOf(numOf(P))>=0) push('jiangyan');
-  if(pl.kind==='edge'||pl.kind==='mid'||pl.kind==='pair') push('dudu');
-  if(pl.kind==='pung'&&ctx.getWaits()>=2) push('duipeng');
+  const waits=ctx.getWaits();
+  if(waits===1) push('dudu');
+  else if(pl.kind==='edge'||pl.kind==='mid'||pl.kind==='pair') push('jiadu');
+  if(pl.kind==='pung'&&waits>=2) push('duipeng');
   if(chows.length===0) push('duidui');
-
-  // chows
   const byS=[[],[],[]]; chows.forEach(s=>byS[suitOf(s.tile)].push(s));
   const cs=(su,num)=>byS[su].filter(s=>numOf(s.tile)===num);
   const closedOK=arrs=>arrs.every(a=>a.some(s=>!s.open));
   const kc={}; chows.forEach(s=>{kc[s.tile]=(kc[s.tile]||0)+1;});
-  let maxSame=0;
-  Object.keys(kc).forEach(k=>{ const c=kc[k]; if(c>maxSame) maxSame=c; if(c===2) push('banggao'); else if(c===3) push('sanbanggao'); else if(c===4) push('sibanggao'); else if(c>=5){ push('sibanggao'); push('wutongshun'); } });
+  Object.keys(kc).forEach(k=>{ const c=kc[k]; if(c===2) push('banggao'); else if(c===3) push('sanbanggao'); else if(c===4) push('sibanggao'); else if(c>=5){ push('sibanggao'); push('wutongshun'); } });
   for(let su=0;su<3;su++){
     const ns=Array.from(new Set(byS[su].map(s=>numOf(s.tile)))).sort((a,b)=>a-b);
     let pairs=0; for(let i=1;i<ns.length;i++) if(ns[i]-ns[i-1]===1) pairs++;
@@ -158,20 +177,15 @@ function evalStructure(ctx,sets,P,pl){
     const ns=Array.from(new Set(chows.map(s=>numOf(s.tile)))).sort((a,b)=>a-b);
     if(chows.every(s=>suitOf(s.tile)===su0)&&ns.length===5&&ns[4]-ns[0]===4) push('quanzimei');
   }
-  // 龍
   let dragon=null;
   for(let su=0;su<3&&!dragon;su++){ const a=[cs(su,1),cs(su,4),cs(su,7)]; if(a.every(x=>x.length)) dragon={id:'qinglong',closed:closedOK(a)}; }
   if(!dragon){ for(const p of perms3()){ const a=[cs(p[0],1),cs(p[1],4),cs(p[2],7)]; if(a.every(x=>x.length)){ dragon={id:'zalong',closed:closedOK(a)}; break; } } }
   if(dragon) push(dragon.id,1,dragon.closed);
-  // 三相逢
   for(let n=1;n<=7;n++){ const a=[cs(0,n),cs(1,n),cs(2,n)]; if(a.every(x=>x.length)) push('xiangfeng',1,closedOK(a)); }
-  // 步步高
   const bb=[];
   for(let su=0;su<3;su++) for(let n=1;n<=5;n++){ const a=[cs(su,n),cs(su,n+1),cs(su,n+2)]; if(a.every(x=>x.length)) bb.push({id:'qingbubu',n:1,closed:closedOK(a)}); }
   for(let n=1;n<=5;n++) for(const p of perms3()){ const a=[cs(p[0],n),cs(p[1],n+1),cs(p[2],n+2)]; if(a.every(x=>x.length)) bb.push({id:'zabubu',n:1,closed:closedOK(a)}); }
   pickMax(bb);
-
-  // pungs
   const tn=[{},{},{}]; trips.forEach(s=>{ if(s.tile<27) tn[suitOf(s.tile)][numOf(s.tile)]=true; });
   for(let su=0;su<3;su++) if(tn[su][1]&&tn[su][9]) push('laoshaopeng');
   let bp=false;
@@ -200,29 +214,24 @@ function evalStructure(ctx,sets,P,pl){
   pickMax(ln.filter(x=>R[x.id]));
   const ac=trips.filter(s=>!s.open&&!s.ronPung).length;
   if(ac>=2) push('an'+Math.min(ac,5));
-
-  // 帶么
   const groups=sets.map(tilesOf); groups.push([P,P]);
   const hasT=g=>g.some(t=>!isHon(t)&&(numOf(t)===1||numOf(t)===9));
   const hasTH=g=>g.some(t=>isHon(t)||numOf(t)===1||numOf(t)===9);
-  const dc=[];
+  const dc=[]; let dx=0;
   const hasHon=tilesAll.some(isHon);
   if(groups.every(hasT)) dc.push({id:'qingdaiyao',n:1});
   else if(groups.every(hasTH)&&hasHon) dc.push({id:'hundaiyao',n:1});
-  for(let x=1;x<=9;x++) if(groups.every(g=>g.some(t=>!isHon(t)&&numOf(t)===x))) dc.push({id:'quandaix',n:1});
+  for(let x=1;x<=9;x++) if(groups.every(g=>g.some(t=>!isHon(t)&&numOf(t)===x))) dc.push({id:'quandaix',n:1,x});
   pickMax(dc);
-
-  // 求人
+  const chosen=items.find(i=>i.id==='quandaix'); if(chosen) dx=chosen.x;
   const openN=sets.filter(s=>s.open).length;
   if(!ctx.selfDraw){ if(openN===5) push('quanqiu'); else if(openN===4) push('banqiu'); }
-
-  // 風 / 元
   const wt=trips.filter(s=>s.tile>=27&&s.tile<=30).length, pw=P>=27&&P<=30;
-  if(wt===4) push('daxixi'); else if(wt===3&&pw) push('xiaosixi'); else if(wt===3) push('dasanfeng'); else if(wt===2&&pw) push('xiaosanfeng');
+  let cov=0;
+  if(wt===4){ push('daxixi'); cov+=4; } else if(wt===3&&pw){ push('xiaosixi'); cov+=3; } else if(wt===3){ push('dasanfeng'); cov+=3; } else if(wt===2&&pw){ push('xiaosanfeng'); cov+=2; }
   const dt=trips.filter(s=>s.tile>=31).length, pdg=P>=31;
-  if(dt===3) push('dasanyuan'); else if(dt===2&&pdg) push('xiaosanyuan');
-
-  // 四歸
+  if(dt===3){ push('dasanyuan'); cov+=3; } else if(dt===2&&pdg){ push('xiaosanyuan'); cov+=2; }
+  push('zi',Math.max(0,trips.filter(s=>isHon(s.tile)).length-cov));
   const tc=Array(34).fill(0);
   sets.forEach(s=>{ if(s.t==='chow'){tc[s.tile]++;tc[s.tile+1]++;tc[s.tile+2]++;} else tc[s.tile]+=(s.t==='kong'?4:3); });
   tc[P]+=2;
@@ -237,9 +246,8 @@ function evalStructure(ctx,sets,P,pl){
     if(n===1) push('sigui1',1,closed); else if(n===2) push('sigui2',1,closed);
     else if(n===3){ push('sigui2',1,closed); push('sigui1',1,closed); } else push('sigui4',1,closed);
   }
-  return items;
+  return applySuppress(items,{concealed,dx});
 }
-
 function evalLik(ctx,cnt){
   const items=[]; const push=(id,n)=>{ n=n===undefined?1:n; if(n>0) items.push({id,n,closed:false}); };
   const tilesAll=[]; cnt.forEach((c,t)=>{ for(let i=0;i<c;i++) tilesAll.push(t); });
@@ -247,18 +255,17 @@ function evalLik(ctx,cnt){
   const trip=cnt.findIndex(c=>c===3);
   if(isHon(trip)) push('zi');
   push('likgu');
-  return items;
+  if(ctx.getWaits()===1) push('dudu');
+  return applySuppress(items,{concealed:true,dx:0});
 }
-
 function basic(inp){
   const ctx={flowers:inp.flowers||Array(8).fill(false),selfDraw:!!inp.selfDraw,flags:inp.flags||{}};
   const items=[]; const push=(id,n)=>{ if(n>0) items.push({id,n:n===undefined?1:n,closed:false}); };
   if(ctx.selfDraw) push('zimo',1);
   ['ting','qiangkong','huashang','kongshang','haidi','tianhu','dihu','renhu','tianting','shuangxiang','sanxiang'].forEach(k=>{ if(ctx.flags[k]) push(k,1); });
   push('hua',ctx.flowers.filter(Boolean).length);
-  return items;
+  return applySuppress(items,{concealed:false,dx:0});
 }
-
 function analyze(inp,over){
   const R=buildRules(over);
   const melds=inp.melds||[], hand=inp.hand||[];
@@ -271,7 +278,7 @@ function analyze(inp,over){
   melds.forEach(m=>{ if(m.t==='chow'){all[m.tile]++;all[m.tile+1]++;all[m.tile+2]++;} else all[m.tile]+=(m.t==='kong'?4:3); });
   if(all.some(c=>c>4)) return {error:'同一款牌多於4張'};
   const win=inp.win;
-  if(win==null||!cnt[win]) return {error:'請點選手牌中的糊張'};
+  if(win==null||!cnt[win]) return {error:'請選擇和牌'};
   const base={R,flowers:inp.flowers||Array(8).fill(false),selfDraw:!!inp.selfDraw,flags:inp.flags||{}};
   let wcache=null;
   base.getWaits=function(){
@@ -279,7 +286,7 @@ function analyze(inp,over){
     const b=cnt.slice(); b[win]--; let n=0;
     for(let w=0;w<34;w++){
       b[w]++;
-      if(b[w]<=4&&all[w]-(w===win?1:0)+1<=4&&(decompose(b,nSets).length||(melds.length===0&&isLik(b)))) n++;
+      if(all[w]-(w===win?1:0)+1<=4&&(decompose(b,nSets).length||(melds.length===0&&isLik(b)))) n++;
       b[w]--;
     }
     wcache=n; return n;
@@ -299,9 +306,8 @@ function analyze(inp,over){
   }
   if(!cands.length) return {error:'未能組成糊牌型(可略過牌型,改用手動選番)'};
   cands.sort((a,b)=>b.total-a.total);
-  return {items:cands[0].items,total:cands[0].total,count:cands.length};
+  return {items:cands[0].items,total:cands[0].total,count:cands.length,waits:base.getWaits()};
 }
-
 function settle(winners,dealer,streak,cfg){
   const d=[0,0,0,0], bonus=1+2*streak, base=cfg.fanValue*cfg.baseMult;
   winners.forEach(w=>{
@@ -332,6 +338,6 @@ function transfers(bal){
   }
   return res;
 }
-const API={tName,suitOf,numOf,isHon,FLOWERS,FANS,INSTANT,buildRules,valueOf,analyze,basic,settle,instantDeltas,transfers,decompose,isLik,SUITS,HON};
+const API={tName,suitOf,numOf,isHon,FLOWERS,FANS,INSTANT,SUPPRESS,buildRules,valueOf,analyze,basic,settle,instantDeltas,transfers,decompose,isLik,SUITS,HON};
 if(typeof module!=='undefined'&&module.exports) module.exports=API; else root.MJ=API;
 })(typeof window!=='undefined'?window:globalThis);

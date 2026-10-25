@@ -10,8 +10,8 @@ function load(){
 }
 let S=load();
 const save=()=>{ try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){} };
-const newEntry=()=>({winner:null,self:true,disc:null,hand:[],melds:[],win:null,flowers:Array(8).fill(false),flags:{},mode:'hand',excl:{},extra:[],addId:''});
-let E=newEntry(), pending=[], tab='table', swapSel=null;
+const newEntry=()=>({winner:null,self:true,disc:null,hand:[],melds:[],win:null,flowers:Array(8).fill(false),flags:{},mode:'chow',meldMode:'chow',excl:{},extra:[]});
+let E=newEntry(), pending=[], tab='table';
 let inst={id:'zhahu',mode:'one',payee:null,payer:null};
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const seatOf=p=>S.seat.indexOf(p);
@@ -20,17 +20,18 @@ const windOf=p=>WIND[(seatOf(p)-S.dealerSeat+4)%4];
 const nm=p=>esc(S.names[p]);
 const RL=()=>M.buildRules(S.cfg.over);
 const money=n=>(n>0?'+':'')+n;
+const stepOf=m=>m==='hand'?2:(m==='win'?3:1);
 function balances(){ const b=[0,0,0,0]; S.history.forEach(r=>r.deltas.forEach((d,i)=>b[i]+=d)); return b; }
-function toast(t){ const e=document.getElementById('toast'); e.textContent=t; e.className='show'; setTimeout(()=>e.className='',1800); }
+function toast(t){ const e=document.getElementById('toast'); e.textContent=t; e.className='show'; setTimeout(()=>{e.className='';},1800); }
 function need(){ return (5-E.melds.length)*3+2; }
 function tileCount(t){
-  let n=E.hand.filter(x=>x===t).length;
+  let n=E.hand.filter(x=>x===t).length+(E.win===t?1:0);
   E.melds.forEach(m=>{ if(m.t==='chow'){ if(t>=m.tile&&t<=m.tile+2) n++; } else if(m.tile===t) n+=(m.t==='kong'?4:3); });
   return n;
 }
 function analyze(){
-  if(E.hand.length!==need()||E.win==null) return null;
-  return M.analyze({hand:E.hand,melds:E.melds,win:E.win,flowers:E.flowers,selfDraw:E.self,flags:E.flags},S.cfg.over);
+  if(E.hand.length!==need()-1||E.win==null) return null;
+  return M.analyze({hand:E.hand.concat([E.win]),melds:E.melds,win:E.win,flowers:E.flowers,selfDraw:E.self,flags:E.flags},S.cfg.over);
 }
 function curItems(res){
   const r=RL(); let it;
@@ -42,10 +43,7 @@ function curItems(res){
     return {id:x.id,name:f.name+(f.fanC!=null?(c?'(暗)':'(明)'):''),n:x.n,unit,total:unit*x.n};
   });
 }
-function tileBtn(t,extra){
-  const su=M.suitOf(t); const cls='t s'+su+(extra||'');
-  return '<button class="'+cls+'" data-act="tile" data-t="'+t+'">'+M.tName(t)+'</button>';
-}
+function tileBtn(t){ return '<button class="t s'+M.suitOf(t)+'" data-act="tile" data-t="'+t+'">'+M.tName(t)+'</button>'; }
 function palette(){
   let h='<div class="pal">';
   for(let su=0;su<3;su++){ h+='<div class="row">'; for(let n=1;n<=9;n++) h+=tileBtn(su*9+n-1); h+='</div>'; }
@@ -54,23 +52,23 @@ function palette(){
 }
 function meldTxt(m){
   const n=M.tName(m.tile);
-  if(m.t==='chow') return '吃 '+n+M.tName(m.tile+1)[0]+M.tName(m.tile+2)[0]+M.SUITS[M.suitOf(m.tile)].slice(0,0);
+  if(m.t==='chow'){ const k=M.numOf(m.tile); return '吃 '+k+(k+1)+(k+2)+M.SUITS[M.suitOf(m.tile)]; }
   if(m.t==='pung') return '碰 '+n;
   return (m.open===false?'暗槓 ':'明槓 ')+n;
 }
-function winnerBtns(key,val,allowNone){
+function winnerBtns(key,val){
   let h='<div class="seg">';
   S.seat.forEach(p=>{ h+='<button class="'+(val===p?'on':'')+'" data-act="'+key+'" data-p="'+p+'">'+nm(p)+'<small>'+windOf(p)+'</small></button>'; });
   return h+'</div>';
 }
 function viewTable(){
-  const b=balances(); const pos=[['','n',''],['w','','e'],['','s','']];
+  const b=balances();
   const card=s=>{ const p=S.seat[s]; return '<div class="card seat '+(s===S.dealerSeat?'dealer':'')+'"><div class="sw">'+WIND[s]+'</div><div class="pn" data-act="rename" data-p="'+p+'">'+nm(p)+'</div><div class="mini">門風 '+windOf(p)+(s===S.dealerSeat?' · 莊':'')+'</div><div class="bal '+(b[p]>=0?'pos':'neg')+'">'+money(b[p])+'</div></div>'; };
   let h='<div class="status">'+WIND[S.wind]+'風圈 · 莊家 '+nm(dealerPid())+' · 連莊 '+S.streak+' (莊家番 +'+(1+2*S.streak)+')</div>';
-  h+='<div class="cross"><div></div>'+card(3)+'<div></div>'+card(2)+'<div class="center">座位<br><small>(座位為實際位置)</small></div>'+card(0)+'<div></div>'+card(1)+'<div></div></div>';
+  h+='<div class="cross"><div></div>'+card(3)+'<div></div>'+card(2)+'<div class="center">座位<br><small>(實際位置)</small></div>'+card(0)+'<div></div>'+card(1)+'<div></div></div>';
   h+='<h3>座位安排</h3><div class="grid2">';
   for(let s=0;s<4;s++){ h+='<label>'+WIND[s]+'位<select data-chg="seat" data-s="'+s+'">'+[0,1,2,3].map(p=>'<option value="'+p+'"'+(S.seat[s]===p?' selected':'')+'>'+nm(p)+'</option>').join('')+'</select></label>'; }
-  h+='</div><p class="hint">點玩家名稱可改名。換座位時系統會自動與原本坐該位置的人對調。</p>';
+  h+='</div><p class="hint">點玩家名稱可改名。換座位時會自動與原本坐該位置的人對調。</p>';
   h+='<h3>莊家與風圈</h3><div class="grid2">';
   h+='<label>莊家座位<select data-chg="dealerSeat">'+[0,1,2,3].map(s=>'<option value="'+s+'"'+(S.dealerSeat===s?' selected':'')+'>'+WIND[s]+'位 '+nm(S.seat[s])+'</option>').join('')+'</select></label>';
   h+='<label>風圈<select data-chg="wind">'+[0,1,2,3].map(s=>'<option value="'+s+'"'+(S.wind===s?' selected':'')+'>'+WIND[s]+'風圈</option>').join('')+'</select></label>';
@@ -81,6 +79,7 @@ function viewTable(){
 function viewCalc(){
   const res=analyze(); const items=curItems(res); const total=items.reduce((a,x)=>a+x.total,0);
   if(E.winner==null) E.winner=S.seat[0];
+  const st=stepOf(E.mode);
   let h='';
   if(pending.length) h+='<div class="note">已加入 '+pending.length+' 位食糊者:'+pending.map(w=>nm(w.p)+' '+w.total+'番').join('、')+'</div>';
   h+='<h3>食糊者</h3>'+winnerBtns('winner',E.winner);
@@ -88,20 +87,27 @@ function viewCalc(){
   if(!E.self){ h+='<div class="lbl">出銃者</div>'+winnerBtns('disc',E.disc); }
   h+='<h3>花牌</h3><div class="flowers">'+M.FLOWERS.map((f,i)=>'<button class="fl '+(E.flowers[i]?'on':'')+'" data-act="flower" data-i="'+i+'">'+f+'</button>').join('')+'</div>';
   h+='<h3>特殊情況</h3><div class="flags">'+[['ting','叮'],['qiangkong','搶槓'],['huashang','花上自摸'],['kongshang','槓上自摸'],['haidi','海底撈月'],['tianhu','天胡'],['dihu','地胡'],['renhu','人胡'],['tianting','天叮'],['shuangxiang','雙響'],['sanxiang','三響']].map(a=>'<label><input type="checkbox" data-chg="flag" data-k="'+a[0]+'"'+(E.flags[a[0]]?' checked':'')+'>'+a[1]+'</label>').join('')+'</div>';
-  h+='<h3>輸入牌 <small>'+E.hand.length+' / '+need()+' 張</small></h3>';
-  h+='<div class="seg modes">'+[['hand','手牌'],['chow','吃'],['pung','碰'],['kong_open','明槓'],['kong_closed','暗槓']].map(a=>'<button class="'+(E.mode===a[0]?'on':'')+'" data-act="mode" data-v="'+a[0]+'">'+a[1]+'</button>').join('')+'</div>';
-  if(E.mode==='chow') h+='<p class="hint">吃:點順子的最細一張(如 345 點 3)</p>';
-  if(E.mode==='kong_open'||E.mode==='kong_closed') h+='<p class="hint">槓牌只計一組,不用再輸入手牌</p>';
+  h+='<h3>輸入牌</h3>';
+  h+='<div class="steps">'+[[1,'① 明牌','吃碰槓'],[2,'② 手牌','未露出'],[3,'③ 和牌','最後一張']].map(a=>'<button class="'+(st===a[0]?'on':'')+'" data-act="step" data-v="'+a[0]+'">'+a[1]+'<small>'+a[2]+'</small></button>').join('')+'</div>';
+  if(st===1){
+    h+='<div class="seg modes">'+[['chow','吃'],['pung','碰'],['kong_open','明槓'],['kong_closed','暗槓']].map(a=>'<button class="'+(E.mode===a[0]?'on':'')+'" data-act="mode" data-v="'+a[0]+'">'+a[1]+'</button>').join('')+'</div>';
+    h+='<p class="hint">'+({chow:'吃:點順子最細的一張(如 345 點 3)',pung:'碰:點該款牌',kong_open:'明槓:點該款牌(算一組)',kong_closed:'暗槓:點該款牌(算一組,不破壞門清)'})[E.mode]+'。沒有明牌可直接按「② 手牌」。</p>';
+  } else if(st===2) h+='<p class="hint">輸入未露出的手牌(不含最後和的那張)。填滿後自動跳到③。</p>';
+  else h+='<p class="hint">點選最後和的那一張牌。</p>';
   h+=palette();
-  if(E.melds.length) h+='<div class="melds">'+E.melds.map((m,i)=>'<span class="meld">'+meldTxt(m)+' <b data-act="rmMeld" data-i="'+i+'">✕</b></span>').join('')+'</div>';
-  h+='<div class="hand">'+(E.hand.length?E.hand.slice().sort((a,b)=>a-b).map(t=>'<button class="t s'+M.suitOf(t)+(E.win===t?' win':'')+'" data-act="selwin" data-t="'+t+'">'+M.tName(t)+'</button>').join(''):'<span class="hint">請點上方牌面加入手牌(包括糊的那一張)</span>')+'</div>';
-  h+='<div class="btnrow"><button data-act="undoTile">退一張</button><button data-act="clearHand">清空牌</button></div>';
-  h+='<p class="hint">點手牌中的牌可設為「糊張」(金框)。未輸入牌型時只計花、自摸及特殊情況,其餘用下方手動加番。</p>';
+  h+='<h3>明牌區 <small>'+E.melds.length+' 組</small></h3>';
+  h+='<div class="zone">'+(E.melds.length?E.melds.map((m,i)=>'<span class="meld">'+meldTxt(m)+' <b data-act="rmMeld" data-i="'+i+'">✕</b></span>').join(''):'<span class="hint">無</span>')+'</div>';
+  h+='<h3>手牌區 <small>'+E.hand.length+' / '+(need()-1)+' 張(不含和牌)</small></h3>';
+  h+='<div class="zone">'+(E.hand.length?E.hand.slice().sort((a,b)=>a-b).map(t=>'<button class="t s'+M.suitOf(t)+'" data-act="rmHand" data-t="'+t+'">'+M.tName(t)+'</button>').join(''):'<span class="hint">未有手牌</span>')+'</div>';
+  h+='<p class="hint">點手牌可刪除該張</p>';
+  h+='<h3>和牌區</h3>';
+  h+='<div class="zone winzone">'+(E.win!=null?'<button class="t s'+M.suitOf(E.win)+' win" data-act="clearWin">'+M.tName(E.win)+'</button><span class="hint">點此清除</span>':'<span class="hint">切到「③ 和牌」後點選最後和的那一張</span>')+'</div>';
+  h+='<div class="btnrow"><button data-act="undoTile">退一張</button><button data-act="clearHand">全部清空</button></div>';
   h+='<h3>番數結果</h3>';
   if(res&&res.error) h+='<div class="warn">'+esc(res.error)+'</div>';
-  else if(!res) h+='<div class="hint">手牌未齊,暫以手動番種計算</div>';
-  else h+='<div class="ok">已自動分析(共 '+res.count+' 種拆法,取最高番)</div>';
-  h+='<div class="fans">'+items.map((x,i)=>'<div class="fan"><label><input type="checkbox" data-chg="excl" data-id="'+x.id+'" checked> '+x.name+(x.n>1?' ×'+x.n:'')+'</label><span>'+x.total+'</span></div>').join('')+'</div>';
+  else if(!res) h+='<div class="hint">牌未輸入完整,暫以手動番種計算</div>';
+  else h+='<div class="ok">已自動分析(共 '+res.count+' 種拆法,取最高番;聽 '+res.waits+' 隻牌)</div>';
+  h+='<div class="fans">'+items.map(x=>'<div class="fan"><label><input type="checkbox" data-chg="excl" data-id="'+x.id+'" checked> '+x.name+(x.n>1?' ×'+x.n:'')+'</label><span>'+x.total+'</span></div>').join('')+'</div>';
   const exl=Object.keys(E.excl).filter(k=>E.excl[k]);
   if(exl.length){ const r=RL(); h+='<div class="hint">已取消:'+exl.map(k=>'<a data-act="unexcl" data-id="'+k+'">'+r[k].name+'(恢復)</a>').join(' ')+'</div>'; }
   if(E.extra.length) h+='<div class="extras">'+E.extra.map((x,i)=>'<span class="meld">'+RL()[x.id].name+' ×'+x.n+' <b data-act="extraN" data-i="'+i+'" data-d="1">＋</b> <b data-act="extraN" data-i="'+i+'" data-d="-1">−</b> <b data-act="rmExtra" data-i="'+i+'">✕</b></span>').join('')+'</div>';
@@ -115,7 +121,8 @@ function viewCalc(){
   h+='<div class="btnrow"><button class="primary" data-act="confirm">確認入帳</button><button data-act="addWinner">再加一位食糊者(雙/三響)</button><button data-act="clearEntry">重設本鋪</button></div>';
   h+='<h3>即時收籌 / 罰則</h3>';
   const I=M.INSTANT.find(x=>x.id===inst.id);
-  if(inst.payee==null) inst.payee=S.seat[0]; if(inst.payer==null) inst.payer=S.seat[1];
+  if(inst.payee==null) inst.payee=S.seat[0];
+  if(inst.payer==null) inst.payer=S.seat[1];
   h+='<div class="grid2"><label>項目<select data-chg="instId">'+M.INSTANT.map(x=>'<option value="'+x.id+'"'+(x.id===inst.id?' selected':'')+'>'+x.name+' ('+x.amt+')</option>').join('')+'</select></label>';
   h+='<label>模式<select data-chg="instMode"><option value="all"'+(inst.mode==='all'?' selected':'')+'>其餘三家各付</option><option value="one"'+(inst.mode==='one'?' selected':'')+'>單一付款人</option></select></label>';
   h+='<label>收款人<select data-chg="instPayee">'+[0,1,2,3].map(p=>'<option value="'+p+'"'+(inst.payee===p?' selected':'')+'>'+nm(p)+'</option>').join('')+'</select></label>';
@@ -142,7 +149,7 @@ function summaryText(){
 }
 function viewSettle(){
   const b=balances(); const tr=M.transfers(b);
-  let h='<h3>累計輸贏</h3><table><tr><th>玩家</th><th>鋪數贏</th><th>淨額</th></tr>';
+  let h='<h3>累計輸贏</h3><table><tr><th>玩家</th><th>食糊鋪數</th><th>淨額</th></tr>';
   S.seat.forEach(p=>{ const wins=S.history.filter(r=>r.kind==='win'&&r.winners.some(w=>w.p===p)).length; h+='<tr><td>'+nm(p)+'</td><td>'+wins+'</td><td class="'+(b[p]>=0?'pos':'neg')+'"><b>'+money(b[p])+'</b></td></tr>'; });
   h+='</table><h3>建議轉帳</h3>';
   h+=tr.length?tr.map(x=>'<div class="tr">'+nm(x.from)+' → '+nm(x.to)+' <b>$'+x.amt+'</b></div>').join(''):'<p class="hint">暫時無需轉帳</p>';
@@ -157,7 +164,7 @@ function viewSettings(){
   h+='<label>流局後<select data-chg="drawKeeps"><option value="1"'+(c.drawKeeps?' selected':'')+'>莊家連莊</option><option value="0"'+(!c.drawKeeps?' selected':'')+'>輪莊</option></select></label></div>';
   h+='<p class="hint">目前底 $'+(c.fanValue*c.baseMult)+'。每家支付 = 底 + 番數 × 每番金額。</p>';
   h+='<h3>備份</h3><div class="btnrow"><button data-act="exportCopy">複製備份</button><button data-act="exportFile">下載備份檔</button><button data-act="importPaste">貼上匯入</button><button class="danger" data-act="resetAll">清除全部資料</button></div>';
-  h+='<h3>番數表(可修改)</h3><p class="hint">灰色底表示無法自動偵測、只能手動加番。括號內為暗(門清)時的番數。</p><div class="fanTable">';
+  h+='<h3>番數表(可修改)</h3><p class="hint">灰色底表示無法自動偵測、只能手動加番。右邊欄為暗(門清)時的番數。</p><div class="fanTable">';
   const R=RL();
   M.FANS.forEach(f=>{ h+='<div class="frow'+(f.manual?' man':'')+'"><span>'+f.name+'</span><input type="number" data-chg="rule" data-id="'+f.id+'" data-f="fan" value="'+R[f.id].fan+'">'+(f.fanC!=null?'<input type="number" data-chg="rule" data-id="'+f.id+'" data-f="fanC" value="'+R[f.id].fanC+'">':'<i></i>')+'</div>'; });
   h+='</div><div class="btnrow"><button data-act="resetRules">還原預設番數</button></div>';
@@ -175,7 +182,6 @@ function advance(keep){
   else { S.streak=0; S.dealerSeat=(S.dealerSeat+1)%4; if(S.dealerSeat===0) S.wind=(S.wind+1)%4; }
 }
 function before(){ return {dealerSeat:S.dealerSeat,streak:S.streak,wind:S.wind}; }
-function resetEntryKeep(){ const w=E.winner; E=newEntry(); E.winner=w; }
 function collectCurrent(){
   const res=analyze(); const items=curItems(res); const total=items.reduce((a,x)=>a+x.total,0);
   return {p:E.winner,self:E.self,disc:E.disc,total,fans:items};
@@ -184,7 +190,7 @@ function validateCur(){
   if(!E.self){ if(E.disc==null){ toast('請選擇出銃者'); return false; } if(E.disc===E.winner){ toast('出銃者不能是食糊者'); return false; } }
   return true;
 }
-function act(a,d,el){
+function act(a,d){
   switch(a){
     case 'tab': tab=d.v; break;
     case 'rename': { const p=+d.p; const n=prompt('玩家名稱',S.names[p]); if(n&&n.trim()) S.names[p]=n.trim().slice(0,10); break; }
@@ -194,26 +200,33 @@ function act(a,d,el){
     case 'disc': E.disc=+d.p; break;
     case 'self': E.self=d.v==='1'; break;
     case 'flower': E.flowers[+d.i]=!E.flowers[+d.i]; break;
-    case 'mode': E.mode=d.v; break;
+    case 'step': { const v=+d.v; E.mode=v===1?E.meldMode:(v===2?'hand':'win'); break; }
+    case 'mode': E.mode=d.v; E.meldMode=d.v; break;
     case 'tile': {
       const t=+d.t;
-      if(E.mode==='hand'){
-        if(E.hand.length>=need()){ toast('手牌已滿'); return; }
-        if(tileCount(t)>=4){ toast('這款牌已有4張'); return; }
-        E.hand.push(t); E.win=t; E.excl={};
+      if(E.mode==='hand'||E.mode==='win'){
+        if(tileCount(t)-(E.mode==='win'&&E.win===t?1:0)>=4){ toast('這款牌已有4張'); return; }
+        if(E.mode==='win') E.win=t;
+        else {
+          if(E.hand.length>=need()-1){ toast('手牌已滿,請點和牌'); E.mode='win'; break; }
+          E.hand.push(t);
+          if(E.hand.length>=need()-1&&E.win==null) E.mode='win';
+        }
+        E.excl={};
       } else {
-        if(E.melds.length>=5){ toast('副露已滿'); return; }
+        if(E.melds.length>=5){ toast('明牌已滿'); return; }
+        const cntT=tileCount(t);
         if(E.mode==='chow'){ if(t>=27||M.numOf(t)>7){ toast('順子起始牌須為1至7'); return; } E.melds.push({t:'chow',tile:t,open:true}); }
-        else if(E.mode==='pung') E.melds.push({t:'pung',tile:t,open:true});
-        else E.melds.push({t:'kong',tile:t,open:E.mode==='kong_open'});
-        while(E.hand.length>need()) E.hand.pop();
-        if(E.win!=null&&E.hand.indexOf(E.win)<0) E.win=E.hand.length?E.hand[E.hand.length-1]:null;
+        else if(E.mode==='pung'){ if(cntT>1){ toast('這款牌已不夠3張'); return; } E.melds.push({t:'pung',tile:t,open:true}); }
+        else { if(cntT>0){ toast('這款牌已不夠4張'); return; } E.melds.push({t:'kong',tile:t,open:E.mode==='kong_open'}); }
+        while(E.hand.length>need()-1) E.hand.pop();
         E.excl={};
       }
       break; }
-    case 'selwin': E.win=+d.t; E.excl={}; break;
-    case 'undoTile': E.hand.pop(); if(E.win!=null&&E.hand.indexOf(E.win)<0) E.win=E.hand.length?E.hand[E.hand.length-1]:null; E.excl={}; break;
-    case 'clearHand': E.hand=[]; E.melds=[]; E.win=null; E.excl={}; break;
+    case 'rmHand': { const i=E.hand.indexOf(+d.t); if(i>=0) E.hand.splice(i,1); E.excl={}; break; }
+    case 'clearWin': E.win=null; E.mode='win'; E.excl={}; break;
+    case 'undoTile': if(E.mode==='win'||(!E.hand.length&&E.win!=null)) E.win=null; else if(E.mode==='hand'&&E.hand.length) E.hand.pop(); else if(E.melds.length) E.melds.pop(); E.excl={}; break;
+    case 'clearHand': E.hand=[]; E.melds=[]; E.win=null; E.mode='chow'; E.meldMode='chow'; E.excl={}; break;
     case 'rmMeld': E.melds.splice(+d.i,1); E.excl={}; break;
     case 'unexcl': delete E.excl[d.id]; break;
     case 'extraN': { const x=E.extra[+d.i]; x.n+=+d.d; if(x.n<1) E.extra.splice(+d.i,1); break; }
@@ -248,10 +261,10 @@ function act(a,d,el){
     case 'exportCopy': copy(JSON.stringify(S)); break;
     case 'exportFile': {
       const blob=new Blob([JSON.stringify(S)],{type:'application/json'}); const u=URL.createObjectURL(blob);
-      const a=document.createElement('a'); a.href=u; a.download='mahjong-backup-'+new Date().toISOString().slice(0,10)+'.json'; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(u),2000); break; }
+      const a2=document.createElement('a'); a2.href=u; a2.download='mahjong-backup-'+new Date().toISOString().slice(0,10)+'.json'; document.body.appendChild(a2); a2.click(); a2.remove(); setTimeout(()=>URL.revokeObjectURL(u),2000); break; }
     case 'importPaste': {
       const t=prompt('貼上備份 JSON(會覆蓋現有資料)'); if(!t) return;
-      try{ const j=JSON.parse(t); if(!j.names||!j.history) throw 0; const d=defState(); S=Object.assign(d,j,{cfg:Object.assign(d.cfg,j.cfg||{})}); toast('匯入成功'); }catch(e){ toast('格式錯誤'); return; } break; }
+      try{ const j=JSON.parse(t); if(!j.names||!j.history) throw 0; const d2=defState(); S=Object.assign(d2,j,{cfg:Object.assign(d2.cfg,j.cfg||{})}); toast('匯入成功'); }catch(e){ toast('格式錯誤'); return; } break; }
     case 'resetAll': if(confirm('確定清除全部玩家、紀錄與設定?此操作無法還原')){ S=defState(); E=newEntry(); pending=[]; } else return; break;
     case 'resetRules': S.cfg.over={}; break;
   }
@@ -280,8 +293,21 @@ function chg(k,el){
   }
   save(); render();
 }
-document.addEventListener('click',e=>{ const el=e.target.closest('[data-act]'); if(el) act(el.dataset.act,el.dataset,el); });
+/* 觸控:在 touchend 即時處理點擊並阻止瀏覽器的雙擊放大;滑動不觸發 */
+let tStart=null, lastTouchAct=0;
+document.addEventListener('touchstart',e=>{ if(e.touches.length>1){ tStart=null; return; } const t=e.touches[0]; tStart={x:t.clientX,y:t.clientY}; },{passive:true});
+document.addEventListener('touchend',e=>{
+  if(!tStart) return; const t=e.changedTouches[0];
+  const moved=Math.abs(t.clientX-tStart.x)+Math.abs(t.clientY-tStart.y); tStart=null;
+  const el=e.target.closest&&e.target.closest('[data-act]');
+  if(el&&moved<10){ e.preventDefault(); lastTouchAct=Date.now(); act(el.dataset.act,el.dataset); }
+},{passive:false});
+document.addEventListener('click',e=>{
+  if(Date.now()-lastTouchAct<700) return;
+  const el=e.target.closest('[data-act]'); if(el) act(el.dataset.act,el.dataset);
+});
 document.addEventListener('change',e=>{ const el=e.target.closest('[data-chg]'); if(el) chg(el.dataset.chg,el); });
+['gesturestart','gesturechange','gestureend','dblclick'].forEach(ev=>document.addEventListener(ev,e=>e.preventDefault()));
 if(navigator.storage&&navigator.storage.persist) navigator.storage.persist();
 if('serviceWorker' in navigator) window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
 render();

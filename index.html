@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="zh-Hant"><head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,minimum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="麻雀計番">
@@ -10,8 +10,11 @@
 <link rel="apple-touch-icon" href="icon-192.png">
 <title>港式台灣麻雀計番</title>
 <style>
-*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{touch-action:manipulation;-ms-touch-action:manipulation;overscroll-behavior-y:contain}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+html{-webkit-text-size-adjust:100%}
 body{margin:0;font-family:-apple-system,"PingFang HK","Noto Sans TC",sans-serif;background:#0f2a1f;color:#eef5ef;font-size:15px}
+button,nav,.pal,.zone,.steps{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
 .body{padding:12px 12px 90px;max-width:620px;margin:auto}
 h3{margin:18px 0 8px;font-size:15px;color:#9fe0b8}h3 small{color:#9db;font-weight:normal}
 button,select,input{font:inherit}
@@ -19,10 +22,12 @@ button{background:#1d4a38;color:#eef5ef;border:1px solid #2f6a52;border-radius:8
 button.on{background:#e6b422;color:#222;border-color:#e6b422}
 button.primary{background:#e6b422;color:#222;border-color:#e6b422;font-weight:600}
 button.danger{background:#7a2b2b}
-select,input[type=number]{width:100%;background:#16382b;color:#eef5ef;border:1px solid #2f6a52;border-radius:8px;padding:8px}
+select,input,input[type=number]{font-size:16px!important;width:100%;background:#16382b;color:#eef5ef;border:1px solid #2f6a52;border-radius:8px;padding:8px}
+input[type=checkbox]{width:auto}
 label{display:block;font-size:13px;color:#b9d6c4}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .seg{display:flex;gap:6px;margin:6px 0}.seg button{flex:1;padding:8px 2px;line-height:1.2}.seg small{display:block;font-size:11px;opacity:.7}
+.steps{display:flex;gap:6px;margin:6px 0}.steps button{flex:1;padding:10px 2px;line-height:1.25;font-weight:600}.steps small{display:block;font-size:11px;font-weight:normal;opacity:.75}
 .btnrow{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}.btnrow button{flex:1;min-width:110px}
 .card{background:#16382b;border:1px solid #2f6a52;border-radius:12px;padding:10px;margin:8px 0}
 .cross{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin:10px 0}
@@ -34,11 +39,13 @@ label{display:block;font-size:13px;color:#b9d6c4}
 .hint{font-size:12px;color:#8fb09c;margin:6px 0}.hint a{color:#e6b422;margin-right:8px}
 .note{background:#2a4a38;padding:8px;border-radius:8px;font-size:13px}
 .warn{background:#5a2d2d;padding:8px;border-radius:8px;font-size:13px}.ok{background:#1e4a30;padding:8px;border-radius:8px;font-size:13px}
-.pal .row,.hand,.melds,.extras,.flowers,.flags{display:flex;flex-wrap:wrap;gap:4px;margin:4px 0}
-.t{min-width:34px;padding:8px 2px;font-size:14px;background:#f7f3e3;color:#222;border:1px solid #bbb;flex:1 0 9%}
+.pal .row,.extras,.flowers,.flags{display:flex;flex-wrap:wrap;gap:4px;margin:4px 0}
+.t{min-width:34px;padding:10px 2px;font-size:14px;background:#f7f3e3;color:#222;border:1px solid #bbb;flex:1 0 9%}
 .t.s0{color:#a0201a}.t.s1{color:#1c4fa0}.t.s2{color:#1a7a3a}.t.s3{color:#222}
-.hand .t{flex:0 0 auto;min-width:40px}.t.win{outline:3px solid #e6b422;background:#fff3b0}
-.meld{background:#2a4a38;border-radius:8px;padding:6px 8px;font-size:13px}.meld b{padding:0 4px;cursor:pointer}
+.zone{min-height:56px;display:flex;flex-wrap:wrap;gap:4px;align-items:center;background:#102e22;border:2px dashed #2f6a52;border-radius:10px;padding:8px}
+.zone .t{flex:0 0 auto;min-width:40px}
+.winzone{border-color:#e6b422;background:#2b2a12}.t.win{outline:3px solid #e6b422;background:#fff3b0}
+.meld{background:#2a4a38;border-radius:8px;padding:6px 8px;font-size:13px}.meld b{padding:0 6px;cursor:pointer}
 .flowers .fl{flex:1;padding:8px 0}
 .flags label{background:#16382b;padding:6px 8px;border-radius:8px;color:#eef5ef}.flags input{margin-right:4px}
 .fans .fan{display:flex;justify-content:space-between;padding:7px 4px;border-bottom:1px solid #254a3a}
