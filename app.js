@@ -1,18 +1,12 @@
 (function(){
 'use strict';
-const APP_VERSION='v1.2';
-const APP_UPDATED='2026-10-26 07:32 (香港時間)';
+const APP_VERSION='v1.3';
+const APP_UPDATED='2026-10-26 07:54 (香港時間)';
 const M=window.MJ;
 const KEY='mj_hk_tw_v1';
 const PREV_KEY='mj_hk_tw_prev_game';
 const WIND='東南西北';
 const DEFAULT_THEME={bg:'#0f2a1f',card:'#16382b',btn:'#1d4a38',acc:'#e6b422'};
-const PRESETS={
- bg:[['深綠','#0f2a1f'],['深藍','#0f1f33'],['墨黑','#0b0b0b'],['酒紅','#2a0f14'],['深灰','#1e2226'],['深紫','#1f1630']],
- card:[['深綠','#16382b'],['深藍','#172b45'],['墨灰','#202020'],['酒紅','#3a1a20'],['深灰','#2a2f35'],['深紫','#2c2142']],
- btn:[['綠','#1d4a38'],['藍','#1f3d63'],['灰','#333b42'],['紅','#5a2530'],['紫','#43336b'],['棕','#5a4325']],
- acc:[['金','#e6b422'],['橙','#ff8a3d'],['青','#3dd6c6'],['粉','#ff7eb6'],['白','#f0f0f0'],['紅','#ff5a5a']]
-};
 const SCHEMES=[
  ['經典綠',{bg:'#0f2a1f',card:'#16382b',btn:'#1d4a38',acc:'#e6b422'}],
  ['夜藍',{bg:'#0f1f33',card:'#172b45',btn:'#1f3d63',acc:'#3dd6c6'}],
@@ -20,7 +14,7 @@ const SCHEMES=[
  ['黑金',{bg:'#0b0b0b',card:'#202020',btn:'#333b42',acc:'#e6b422'}],
  ['紫夜',{bg:'#1f1630',card:'#2c2142',btn:'#43336b',acc:'#ff7eb6'}]
 ];
-const THEME_LABEL={bg:'頁面背景',card:'格子 / 卡片',btn:'按鈕',acc:'強調色(選中、金額)'};
+const THEME_LABEL={bg:'頁面背景',card:'格子 / 卡片',btn:'按鈕',acc:'強調色(選中、金額、標題)'};
 const defState=()=>({names:['玩家1','玩家2','玩家3','玩家4'],seat:[0,1,2,3],dealerSeat:0,streak:0,wind:0,history:[],ledger:[],cfg:{fanValue:1,baseMult:5,minFan:0,drawKeeps:true,over:{},theme:Object.assign({},DEFAULT_THEME)}});
 function norm(j){
   const d=defState(); const s=Object.assign(d,j,{cfg:Object.assign(d.cfg,j.cfg||{}),ledger:j.ledger||[]});
@@ -51,7 +45,6 @@ function balances(){ const b=[0,0,0,0]; S.history.forEach(r=>r.deltas.forEach((d
 function pendingBal(){ const b=[0,0,0,0]; S.ledger.forEach(r=>{ b[r.to]+=r.amt; b[r.from]-=r.amt; }); return b; }
 function toast(t){ const e=document.getElementById('toast'); e.textContent=t; e.className='show'; setTimeout(()=>{e.className='';},1800); }
 
-/* ===== 顏色主題 ===== */
 function hex2rgb(h){ h=(h||'#000000').replace('#',''); if(h.length===3) h=h.split('').map(c=>c+c).join(''); const n=parseInt(h,16); return [(n>>16)&255,(n>>8)&255,n&255]; }
 function rgb2hex(a){ return '#'+a.map(v=>Math.max(0,Math.min(255,Math.round(v))).toString(16).padStart(2,'0')).join(''); }
 function mix(c,t,f){ const a=hex2rgb(c), b=hex2rgb(t); return rgb2hex(a.map((v,i)=>v+(b[i]-v)*f)); }
@@ -60,9 +53,12 @@ const STATIC_CSS=`
 .zl{font-size:13px;color:#9db;margin:10px 0 4px}
 .swatches{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0}
 .swatches button{flex:1 0 28%;padding:10px 4px;border:2px solid rgba(255,255,255,.25)}
-.swatches button.on{outline:3px solid var(--acc);outline-offset:1px}
-.colorrow{margin:12px 0 4px;font-weight:600;color:var(--acc)}
-input[type=color]{height:44px;padding:2px}
+.colorrow{margin:14px 0 4px;font-weight:600;color:var(--acc)}
+.pick{position:relative;display:flex!important;align-items:center;gap:10px;background:var(--card);border:1px solid var(--bd);border-radius:10px;padding:8px 10px;color:#eef5ef!important;font-size:14px!important}
+.pick .chip{width:38px;height:38px;border-radius:8px;border:2px solid rgba(255,255,255,.55);flex:0 0 auto}
+.pick .hexv{flex:1;font-family:ui-monospace,Menlo,monospace;font-size:14px}
+.pick .pbtn{background:var(--btn2);border:1px solid var(--bd);border-radius:8px;padding:8px 12px;font-size:14px}
+.pick input[type=color]{position:absolute;left:0;top:0;width:100%;height:100%;opacity:0;border:0;padding:0;cursor:pointer}
 .mt{display:inline-flex;flex-direction:column;align-items:center;justify-content:center;width:32px;height:44px;padding:0!important;background:#f7f3e3!important;color:#222;border:1px solid #bbb!important;border-bottom:4px solid #2f8f57!important;border-radius:5px;line-height:1;font-weight:700;box-shadow:0 1px 3px #0007;font-family:inherit}
 .mt b{font-size:19px;font-weight:700}.mt i{font-style:normal;font-size:12px;margin-top:2px}
 .mt.s0{color:#a0201a}.mt.s1{color:#1c4fa0}.mt.s2{color:#1a7a3a}
@@ -113,7 +109,6 @@ function applyTheme(){
   }catch(e){}
 }
 
-/* ===== 麻雀牌圖示 ===== */
 const NUMCH=['','1','2','3','4','5','6','7','8','9'];
 function mt(t,o){
   o=o||{}; const tag=o.tag||'span';
@@ -130,7 +125,6 @@ function meldGroup(m,i){
   return '<div class="mg"><div class="row">'+tiles+'</div><small>'+cap+' <b data-act="rmMeld" data-i="'+i+'">✕</b></small></div>';
 }
 
-/* ===== 版本檢查 ===== */
 async function checkUpdate(manual){
   if(checking) return; checking=true;
   try{
@@ -331,18 +325,16 @@ function viewSettle(){
   h+='<div class="btnrow"><button class="primary" data-act="copySum">複製結算文字</button>'+(S.ledger.length?'<button data-act="payAll">結清全部拉數</button>':'')+'</div>';
   return h;
 }
-function colorBlock(k){
+function colorPick(k){
   const cur=S.cfg.theme[k];
-  let h='<div class="colorrow">'+THEME_LABEL[k]+'</div><div class="swatches">'+PRESETS[k].map(b=>'<button class="'+(cur===b[1]?'on':'')+'" style="background:'+b[1]+'!important;color:'+(lum(b[1])>0.4?'#111':'#fff')+'" data-act="themeSet" data-k="'+k+'" data-c="'+b[1]+'">'+b[0]+'</button>').join('')+'</div>';
-  h+='<label>自訂<input type="color" data-chg="theme" data-k="'+k+'" value="'+cur+'"></label>';
-  return h;
+  return '<div class="colorrow">'+THEME_LABEL[k]+'</div><label class="pick"><span class="chip" style="background:'+cur+'"></span><span class="hexv">現時顏色 '+cur.toUpperCase()+'</span><span class="pbtn">選擇顏色</span><input type="color" data-chg="theme" data-k="'+k+'" value="'+cur+'"></label>';
 }
 function viewSettings(){
   const c=S.cfg;
   let h='<h3>版本資訊</h3><div class="card"><div>目前版本:<b>'+APP_VERSION+'</b></div><div>更新時間:<b>'+APP_UPDATED+'</b></div>'+(upd?'<div class="pos">最新版本:<b>'+esc(upd.version)+'</b>'+(upd.updated?'('+esc(upd.updated)+')':'')+'</div>':'')+'<div class="btnrow">'+(upd?'<button class="primary" data-act="upgrade">立即升級</button>':'')+'<button data-act="checkUpd">'+(checking?'檢查中…':'檢查更新')+'</button></div><div class="hint">App 開啟時會自動檢查。升級只會更新程式,不會清除你的紀錄。</div></div>';
   h+='<h3>顏色設定</h3><div class="colorrow">一鍵配色</div><div class="swatches">'+SCHEMES.map((s,i)=>'<button style="background:'+s[1].card+'!important;border-color:'+s[1].acc+'!important;color:'+s[1].acc+'" data-act="scheme" data-i="'+i+'">'+s[0]+'</button>').join('')+'</div>';
-  ['bg','card','btn','acc'].forEach(k=>{ h+=colorBlock(k); });
-  h+='<p class="hint">建議頁面背景與格子選深色,文字才清楚。強調色用於選中的按鈕、金額與標題。</p><div class="btnrow"><button data-act="themeReset">還原預設顏色</button></div>';
+  ['bg','card','btn','acc'].forEach(k=>{ h+=colorPick(k); });
+  h+='<p class="hint">點「選擇顏色」會打開手機的顏色庫。建議頁面背景與格子選深色,文字才清楚。</p><div class="btnrow"><button data-act="themeReset">還原預設顏色</button></div>';
   h+='<h3>金額設定</h3><div class="grid2">';
   h+='<label>每番金額<input type="number" step="any" data-chg="cfg" data-k="fanValue" value="'+c.fanValue+'"></label>';
   h+='<label>底 = 番值 ×<input type="number" step="any" data-chg="cfg" data-k="baseMult" value="'+c.baseMult+'"></label>';
@@ -384,7 +376,6 @@ function act(a,d){
     case 'upgrade': doUpgrade(); return;
     case 'dismissUpd': updDismissed=true; break;
     case 'checkUpd': checkUpdate(true); return;
-    case 'themeSet': S.cfg.theme[d.k]=d.c; break;
     case 'scheme': S.cfg.theme=Object.assign({},DEFAULT_THEME,SCHEMES[+d.i][1]); break;
     case 'themeReset': S.cfg.theme=Object.assign({},DEFAULT_THEME); break;
     case 'newGame': {
