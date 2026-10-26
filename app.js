@@ -1,6 +1,6 @@
 (function(){
 'use strict';
-const APP_VERSION='v1.6-wild-beta';
+const APP_VERSION='v1.2-wild-beta';
 const APP_UPDATED='2026-10-26 22:00 (香港時間)';
 const DEV_IG='kevinli999';
 let M=window.MJ;
