@@ -1,7 +1,7 @@
 (function(){
 'use strict';
 const APP_VERSION='v1.2';
-const APP_UPDATED='2026-10-26 14:21 (香港時間)';
+const APP_UPDATED='2026-10-26 14:26 (香港時間)';
 const DEV_IG='kevinli999';
 let M=window.MJ;
 const KEY='mj_hk_tw_v1';
@@ -18,7 +18,7 @@ const SCHEMES=[
  ['紫夜',{bg:'#1f1630',card:'#2c2142',btn:'#43336b',acc:'#ff7eb6'}]
 ];
 const THEME_LABEL={bg:'頁面背景',card:'格子 / 卡片',btn:'按鈕',acc:'強調色(選中、金額、標題)'};
-const PRESET_NAME={1:'預設 #1 舊番表(陶源麻雀王大賽)',2:'預設 #2 香港麻雀協會總例(2025-07-28 修訂)',3:'預設 #3 台牌百搭番數表'};
+const PRESET_NAME={1:'預設 #1 陶源麻雀王大賽番數表',2:'預設 #2 香港麻雀協會總例(2025-07-28 修訂)',3:'預設 #3 台牌百搭番數表'};
 const PH_FANS=[
  ['guanshou','冚手糊'],['gsg','槓上槓摸'],['ggg','槓槓槓摸'],['hedi','河底撈魚'],['haidi1','海底撈月(一筒)'],
  ['wuhua','無花'],['wuzi','無字'],['dayu5','大於五'],['xiaoyu5','小於五'],['lanyise','藍一色'],['lvyise','綠一色'],
@@ -409,7 +409,7 @@ function viewSettings(){
   const c=S.cfg;
   let h='<h3>版本資訊</h3><div class="card"><div>目前版本:<b>'+APP_VERSION+'</b></div><div>更新時間:<b>'+APP_UPDATED+'</b></div>'+(upd?'<div class="pos">最新版本:<b>'+esc(upd.version)+'</b>'+(upd.updated?'('+esc(upd.updated)+')':'')+'</div>':'')+'<div class="dev">開發者:Instagram <a href="https://www.instagram.com/'+DEV_IG+'/" target="_blank" rel="noopener">@'+DEV_IG+'</a></div><div class="btnrow">'+(upd?'<button class="primary" data-act="upgrade">立即升級</button>':'')+'<button data-act="checkUpd">'+(checking?'檢查中…':'檢查更新')+'</button></div><div class="hint">App 開啟時會自動檢查。升級只會更新程式,不會清除你的紀錄。</div></div>';
   h+='<h3>番表預設</h3><div class="presetbtns">'
-    +'<button class="'+(c.preset===1?'on':'')+'" data-act="preset" data-v="1">預設 #1:舊番表<small>陶源麻雀王大賽番數表</small></button>'
+    +'<button class="'+(c.preset===1?'on':'')+'" data-act="preset" data-v="1">預設 #1:陶源麻雀王大賽番數表</button>'
     +'<button class="'+(c.preset===2?'on':'')+'" data-act="preset" data-v="2">預設 #2:香港麻雀協會總例<small>《港式十六張新章麻雀總例》2025-07-28 修訂版番種詳述</small></button>'
     +'<button class="'+(c.preset===3?'on':'')+'" data-act="preset" data-v="3">預設 #3:台牌百搭番數表</button></div>';
   if(!window.MJ2) h+='<div class="warn">未能載入預設 #2 的番表檔(engine2.js)。請確認已上傳該檔案。</div>';
