@@ -1,10 +1,11 @@
 (function(){
 'use strict';
-const APP_VERSION='v1.3';
-const APP_UPDATED='2026-10-26 07:54 (香港時間)';
+const APP_VERSION='v1.4';
+const APP_UPDATED='2026-10-26 08:15 (香港時間)';
 const M=window.MJ;
 const KEY='mj_hk_tw_v1';
 const PREV_KEY='mj_hk_tw_prev_game';
+const A2HS_KEY='mj_a2hs_never';
 const WIND='東南西北';
 const DEFAULT_THEME={bg:'#0f2a1f',card:'#16382b',btn:'#1d4a38',acc:'#e6b422'};
 const SCHEMES=[
@@ -31,7 +32,7 @@ const save=()=>{ try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){} };
 const newEntry=()=>({winner:null,self:true,disc:null,hand:[],melds:[],win:null,flowers:Array(8).fill(false),flags:{},mode:'chow',meldMode:'chow',excl:{},extra:[]});
 let E=newEntry(), pending=[], tab='table';
 let inst={id:'zhahu',mode:'one',payee:null,payer:null};
-let upd=null, updDismissed=false, checking=false;
+let upd=null, updDismissed=false, checking=false, a2hsHidden=false;
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const seatOf=p=>S.seat.indexOf(p);
 const dealerPid=()=>S.seat[S.dealerSeat];
@@ -45,12 +46,30 @@ function balances(){ const b=[0,0,0,0]; S.history.forEach(r=>r.deltas.forEach((d
 function pendingBal(){ const b=[0,0,0,0]; S.ledger.forEach(r=>{ b[r.to]+=r.amt; b[r.from]-=r.amt; }); return b; }
 function toast(t){ const e=document.getElementById('toast'); e.textContent=t; e.className='show'; setTimeout(()=>{e.className='';},1800); }
 
+/* ===== 蘋果裝置:加入主畫面提示 ===== */
+function isApple(){
+  try{ const ua=navigator.userAgent||''; return /iPad|iPhone|iPod/.test(ua)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1); }catch(e){ return false; }
+}
+function isStandalone(){
+  try{ return navigator.standalone===true||(window.matchMedia&&window.matchMedia('(display-mode: standalone)').matches); }catch(e){ return false; }
+}
+function isSafariApple(){ try{ const ua=navigator.userAgent||''; return !/CriOS|FxiOS|EdgiOS|OPiOS|GSA\//.test(ua); }catch(e){ return true; } }
+function a2hsSteps(){
+  return '<ol class="steps-list"><li>'+(isSafariApple()?'用 <b>Safari</b> 打開本頁。':'建議改用 <b>Safari</b> 打開本頁(其他瀏覽器的選單位置可能不同)。')+'</li><li>點瀏覽器的<b>分享按鈕</b>(方框加向上箭頭 ⬆︎,在畫面底部或右上角)。</li><li>在選單中往下找,點<b>「加入主畫面」</b>。</li><li>按右上角<b>「加入」</b>,之後從主畫面圖示開啟即可。</li></ol><div class="hint">注意:主畫面 App 的資料與 Safari 是分開存放的。如果你已在 Safari 記錄過資料,請先到「設定 → 複製備份」,打開主畫面 App 後再用「貼上匯入」。</div>';
+}
+function a2hsBanner(){
+  if(!isApple()||isStandalone()||a2hsHidden) return '';
+  try{ if(localStorage.getItem(A2HS_KEY)) return ''; }catch(e){}
+  return '<div class="note"><b>建議加入主畫面</b><br>加入主畫面後會像一般 App 全螢幕運行,沒有網址列,也更穩定。'+a2hsSteps()+'<div class="btnrow"><button class="primary" data-act="a2hsLater">我知道了</button><button data-act="a2hsNever">不再提示</button></div></div>';
+}
+
 function hex2rgb(h){ h=(h||'#000000').replace('#',''); if(h.length===3) h=h.split('').map(c=>c+c).join(''); const n=parseInt(h,16); return [(n>>16)&255,(n>>8)&255,n&255]; }
 function rgb2hex(a){ return '#'+a.map(v=>Math.max(0,Math.min(255,Math.round(v))).toString(16).padStart(2,'0')).join(''); }
 function mix(c,t,f){ const a=hex2rgb(c), b=hex2rgb(t); return rgb2hex(a.map((v,i)=>v+(b[i]-v)*f)); }
 function lum(c){ const a=hex2rgb(c).map(v=>{ v/=255; return v<=0.03928?v/12.92:Math.pow((v+0.055)/1.055,2.4); }); return 0.2126*a[0]+0.7152*a[1]+0.0722*a[2]; }
 const STATIC_CSS=`
 .zl{font-size:13px;color:#9db;margin:10px 0 4px}
+.steps-list{margin:8px 0 8px 18px;padding:0;font-size:14px;line-height:1.6}
 .swatches{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0}
 .swatches button{flex:1 0 28%;padding:10px 4px;border:2px solid rgba(255,255,255,.25)}
 .colorrow{margin:14px 0 4px;font-weight:600;color:var(--acc)}
@@ -332,6 +351,9 @@ function colorPick(k){
 function viewSettings(){
   const c=S.cfg;
   let h='<h3>版本資訊</h3><div class="card"><div>目前版本:<b>'+APP_VERSION+'</b></div><div>更新時間:<b>'+APP_UPDATED+'</b></div>'+(upd?'<div class="pos">最新版本:<b>'+esc(upd.version)+'</b>'+(upd.updated?'('+esc(upd.updated)+')':'')+'</div>':'')+'<div class="btnrow">'+(upd?'<button class="primary" data-act="upgrade">立即升級</button>':'')+'<button data-act="checkUpd">'+(checking?'檢查中…':'檢查更新')+'</button></div><div class="hint">App 開啟時會自動檢查。升級只會更新程式,不會清除你的紀錄。</div></div>';
+  if(isApple()){
+    h+='<h3>加入主畫面</h3><div class="card">'+(isStandalone()?'<div class="pos">目前已以主畫面 App 模式運行 ✓</div>':'<div>目前在瀏覽器中運行。加入主畫面後可全螢幕使用:</div>'+a2hsSteps()+'<div class="btnrow"><button data-act="a2hsReset">重新顯示開機提示</button></div>')+'</div>';
+  }
   h+='<h3>顏色設定</h3><div class="colorrow">一鍵配色</div><div class="swatches">'+SCHEMES.map((s,i)=>'<button style="background:'+s[1].card+'!important;border-color:'+s[1].acc+'!important;color:'+s[1].acc+'" data-act="scheme" data-i="'+i+'">'+s[0]+'</button>').join('')+'</div>';
   ['bg','card','btn','acc'].forEach(k=>{ h+=colorPick(k); });
   h+='<p class="hint">點「選擇顏色」會打開手機的顏色庫。建議頁面背景與格子選深色,文字才清楚。</p><div class="btnrow"><button data-act="themeReset">還原預設顏色</button></div>';
@@ -353,7 +375,7 @@ function render(){
   applyTheme();
   const views={table:viewTable,calc:viewCalc,history:viewHistory,settle:viewSettle,settings:viewSettings};
   const tabs=[['table','座位'],['calc','算番'],['history','歷史'],['settle','結算'],['settings','設定']];
-  document.getElementById('app').innerHTML='<div class="body">'+updBanner()+views[tab]()+'</div><nav>'+tabs.map(t=>'<button class="'+(tab===t[0]?'on':'')+'" data-act="tab" data-v="'+t[0]+'">'+t[1]+'</button>').join('')+'</nav>';
+  document.getElementById('app').innerHTML='<div class="body">'+updBanner()+a2hsBanner()+views[tab]()+'</div><nav>'+tabs.map(t=>'<button class="'+(tab===t[0]?'on':'')+'" data-act="tab" data-v="'+t[0]+'">'+t[1]+'</button>').join('')+'</nav>';
   window.scrollTo(0,y);
 }
 function advance(keep){
@@ -376,6 +398,9 @@ function act(a,d){
     case 'upgrade': doUpgrade(); return;
     case 'dismissUpd': updDismissed=true; break;
     case 'checkUpd': checkUpdate(true); return;
+    case 'a2hsLater': a2hsHidden=true; break;
+    case 'a2hsNever': a2hsHidden=true; try{ localStorage.setItem(A2HS_KEY,'1'); }catch(e){} toast('之後不再自動提示,可在設定頁查看教學'); break;
+    case 'a2hsReset': try{ localStorage.removeItem(A2HS_KEY); }catch(e){} a2hsHidden=false; toast('下次開啟會再次提示'); break;
     case 'scheme': S.cfg.theme=Object.assign({},DEFAULT_THEME,SCHEMES[+d.i][1]); break;
     case 'themeReset': S.cfg.theme=Object.assign({},DEFAULT_THEME); break;
     case 'newGame': {
