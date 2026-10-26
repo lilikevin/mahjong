@@ -1,7 +1,7 @@
 (function(){
 'use strict';
 const APP_VERSION='v1.3';
-const APP_UPDATED='2026-10-26 17:45 (香港時間)';
+const APP_UPDATED='2026-10-26 18:17 (香港時間)';
 const DEV_IG='kevinli999';
 let M=window.MJ;
 const KEY='mj_hk_tw_v1';
@@ -356,14 +356,42 @@ function derive(){
   E.hand=hand;
 }
 function ctxExtra(){ const x={useFlowers:isHK()?!!S.cfg.hk.flowers:true}; if(E.winner!=null){ x.roundWind=S.wind; x.seatWind=windIdx(E.winner); } return x; }
+/* 廣東牌:只需選齊全部牌。槓由牌數推算(每多一張=一個槓);食糊牌自動取最高番;門前清由用戶在「特殊情況」自行勾選 */
+function combos(arr,k){ const res=[]; (function r(i,cur){ if(cur.length===k){ res.push(cur.slice()); return; } for(let j=i;j<arr.length;j++){ cur.push(arr[j]); r(j+1,cur); cur.pop(); } })(0,[]); return res; }
+function analyzeHK(){
+  const N=E.all.length;
+  if(!N) return null;
+  const k=N-14;
+  if(k<0) return {error:'牌數不足:現有 '+N+' 張,廣東牌需要 14 張(有槓每槓多 1 張)'};
+  if(k>4) return {error:'牌數過多:現有 '+N+' 張'};
+  const ac=allCounts(); const quad=[]; for(let t=0;t<34;t++) if(ac[t]===4) quad.push(t);
+  if(k>quad.length) return {error:'現有 '+N+' 張,即有 '+k+' 個槓,但只有 '+quad.length+' 款牌有 4 張'};
+  const R=RL(); let best=null, cnt=0;
+  combos(quad,k).forEach(cb=>{
+    const melds=cb.map(t=>({t:'kong',tile:t,open:true}));
+    const c=ac.slice(); cb.forEach(t=>{ c[t]-=4; });
+    const hand=[]; for(let t=0;t<34;t++) for(let i=0;i<c[t];i++) hand.push(t);
+    const seen={};
+    hand.forEach(w=>{
+      if(seen[w]) return; seen[w]=1;
+      let r=null;
+      try{ r=M.analyze(Object.assign({hand:hand,melds:melds,win:w,flowers:E.flowers,selfDraw:E.self,flags:E.flags,concealed:!!E.flags.menqing},ctxExtra()),OV()); }catch(e){}
+      cnt++;
+      if(r&&!r.error&&r.items){ let tot=0; r.items.forEach(x=>{ tot+=M.valueOf(R,x); }); if(!best||tot>best.total) best={items:r.items,total:tot,count:0,waits:r.waits}; }
+    });
+  });
+  if(!best) return {error:'這副牌組不成食糊牌形'};
+  best.count=cnt; return best;
+}
 function analyze(){
+  if(isHK()) return analyzeHK();
   if(E.win==null||E.hand.length!==need()-1) return null;
   return M.analyze(Object.assign({hand:E.hand.concat([E.win]),melds:E.melds,win:E.win,flowers:E.flowers,selfDraw:E.self,flags:E.flags},ctxExtra()),OV());
 }
 function curItems(res){
   const r=RL(); let it;
   if(res&&res.items) it=res.items.filter(x=>!E.excl[x.id]);
-  else it=M.basic(Object.assign({flowers:E.flowers,selfDraw:E.self,flags:E.flags},ctxExtra())).filter(x=>!E.excl[x.id]);
+  else it=M.basic(Object.assign({flowers:E.flowers,selfDraw:E.self,flags:E.flags,concealed:!!E.flags.menqing},ctxExtra())).filter(x=>!E.excl[x.id]);
   if(!isHK()) HUAHU.forEach(h=>{ if(E.flags[h[0]]&&!E.excl[h[0]]) it.push({id:h[0],n:1,closed:false}); });
   it=it.concat(E.extra.map(x=>({id:x.id,n:x.n,closed:false})));
   return it.map(x=>{
@@ -425,11 +453,10 @@ function dragonExposed(){ return E.melds.filter(m=>m.tile>=31&&m.t!=='chow').len
 function baoVisible(){
   if(!isHK()||!E.self) return false;
   const h=S.cfg.hk;
-  return (h.bao12&&E.melds.length>=4)||(h.baoSan&&dragonExposed()>=3);
+  return !!(h.bao12||h.baoSan);
 }
-/* 輸入區:牌盤、模式列、牌堆、牌型確認(明牌/食糊牌)。
-   連續點選時,牌盤以上的內容完全不變;只有牌堆與其下方的內容會隨牌數增減。 */
 function inputSection(){
+  if(isHK()) return inputSectionHK();
   const md=E.mode;
   const tip=md==='pick'?'① 選牌:點上方牌盤加牌,點牌堆裡的牌可刪除。選齊後,點下面「明牌」框的空白處。'
     :(md==='meld'?'② 選明牌:點牌堆裡已上(吃)、碰、槓出來的牌(再點可取消)。沒有明牌就直接點「食糊牌」框的空白處。'
@@ -455,7 +482,22 @@ function inputSection(){
   h+='</div>';
   return h;
 }
+function inputSectionHK(){
+  let h='<h3>輸入牌</h3>';
+  h+='<div class="modebar">選牌:點上方牌盤選齊全部的牌(有槓時,每個槓多一張),點牌堆裡的牌可刪除。不用標明牌和食糊牌。</div>';
+  h+=palette();
+  h+='<div class="zl">牌堆 <small>共 '+E.all.length+' 張</small></div>';
+  h+='<div class="zone poolbox"><div class="tiles">'+(E.all.length?E.all.slice().sort((a,b)=>a-b).map(t=>mt(t,{tag:'button',attrs:'data-act="poolTap" data-t="'+t+'"'})).join(''):'<span class="hint">點上方牌盤選牌</span>')+'</div></div>';
+  h+='<div class="btnrow"><button data-act="undoTile">退一張</button><button data-act="clearHand">全部清空</button></div>';
+  return h;
+}
 function resultHint(res){
+  if(isHK()){
+    if(!E.all.length) return '<div class="hint">請先用牌盤選牌。</div>';
+    if(res&&res.error) return '<div class="warn">這副牌可能輸入有誤,或是詐糊。('+esc(res.error)+')</div>';
+    if(!res) return '<div class="hint">請先用牌盤選牌。</div>';
+    return '<div class="ok">已自動分析(共 '+res.count+' 種讀法,取最高番)</div>';
+  }
   if(E.win==null) return '<div class="hint">未指名食糊牌:請點「食糊牌」框的空白處,再點牌堆裡最後食糊的那張,即可自動算番。</div>';
   if(E.partBad) return '<div class="warn">明牌標記無法組成'+CHI+'、碰或槓(每組3張,槓4張),可能輸入有誤。</div>';
   if(res&&res.error) return '<div class="warn">這副牌可能輸入有誤,或是詐糊。('+esc(res.error)+')</div>';
@@ -474,7 +516,8 @@ function viewCalc(){
   if(!isHK()||S.cfg.hk.flowers) h+='<h3>花牌</h3><div class="flowers">'+M.FLOWERS.map((f,i)=>'<button class="fl '+(E.flowers[i]?'on':'')+'" data-act="flower" data-i="'+i+'">'+f+'</button>').join('')+'</div>';
   const flagList=(M.FLAGS||DEFAULT_FLAGS).concat(isHK()?[]:HUAHU.map(h2=>[h2[0],h2[1]]));
   h+='<h3>特殊情況</h3><div class="flags">'+flagList.map(a=>'<label><input type="checkbox" data-chg="flag" data-k="'+a[0]+'"'+(E.flags[a[0]]?' checked':'')+'>'+a[1]+'</label>').join('')+'</div>';
-  if(!isHK()) h+='<p class="hint">勾選「花糊」:其番數直接加在本局食糊者的番數上,一併按本局結算,不另外拉落下一鋪。</p>';
+  if(isHK()) h+='<p class="hint">門前清:胡牌前沒有上、碰、槓過任何牌就勾選(影響門前清、坎坎糊、九子連環)。</p>';
+  else h+='<p class="hint">勾選「花糊」:其番數直接加在本局食糊者的番數上,一併按本局結算,不另外拉落下一鋪。</p>';
   h+=inputSection();
   h+='<h3>番數結果</h3>';
   h+=resultHint(res);

@@ -20,7 +20,8 @@ const RAW=[
 ];
 const MANUAL=['xiaohuahu','dahuahu'];
 const FANS=RAW.map(r=>({id:r[0],name:r[1],fan:r[2],fanC:null,manual:MANUAL.indexOf(r[0])>=0}));
-const FLAGS=[['qiangkong','搶槓'],['kongshang','槓上自摸'],['haidi','海底撈月'],['gsg','槓上槓自摸'],['tianhu','天糊'],['dihu','地糊']];
+/* 門前清由用戶自行勾選(沒有上、碰、槓過牌) */
+const FLAGS=[['menqing','門前清'],['qiangkong','搶槓'],['kongshang','槓上自摸'],['haidi','海底撈月'],['gsg','槓上槓自摸'],['tianhu','天糊'],['dihu','地糊']];
 const INSTANT=[
  {id:'zhahu',name:'詐糊(扣例牌分,不加給他家)',amt:'cap',mode:'burn'},
  {id:'penalty',name:'犯規罰分(自訂,扣分)',amt:0,mode:'burn'}
@@ -89,7 +90,7 @@ function evalBasic(ctx,sets,P,pl){
   const R=ctx.R, items=[]; const push=(id,n)=>{ n=n===undefined?1:n; if(n>0&&R[id]) items.push({id,n,closed:false}); };
   const chows=sets.filter(s=>s.t==='chow'), trips=sets.filter(s=>s.t!=='chow'), kongs=sets.filter(s=>s.t==='kong');
   const tilesAll=[]; sets.forEach(s=>{ if(s.t==='chow'){ tilesAll.push(s.tile,s.tile+1,s.tile+2); } else tilesAll.push(s.tile,s.tile,s.tile); }); tilesAll.push(P,P);
-  const concealedAll=sets.every(s=>!s.open&&s.t!=='kong');
+  const concealedAll=(ctx.concealed!=null)?!!ctx.concealed:sets.every(s=>!s.open&&s.t!=='kong');
   stateItems(ctx,items,concealedAll);
   if(chows.length===4) push('pinghu');
   if(chows.length===0) push('duidui');
@@ -109,13 +110,13 @@ function evalBasic(ctx,sets,P,pl){
   if(tilesAll.every(t=>isHon(t)||numOf(t)===1||numOf(t)===9)) push('huayao');
   if(tilesAll.every(t=>!isHon(t)&&(numOf(t)===1||numOf(t)===9))) push('qingyaojiu');
   if(kongs.length===4) push('shibaluohan');
-  const ac=trips.filter(s=>!s.open&&!s.ronPung&&s.t!=='kong').length;
-  if(trips.length===4&&kongs.length===0&&ac===4&&sets.every(s=>!s.open)) push('kankan');
+  const ac=trips.filter(s=>!s.ronPung&&s.t!=='kong').length;
+  if(trips.length===4&&kongs.length===0&&ac===4&&concealedAll) push('kankan');
   return items;
 }
 function basic(inp){
   const ctx={R:buildRules(null),flowers:inp.flowers,selfDraw:!!inp.selfDraw,flags:inp.flags||{},seatWind:inp.seatWind,useFlowers:!!inp.useFlowers};
-  const items=[]; stateItems(ctx,items,false);
+  const items=[]; stateItems(ctx,items,!!inp.concealed);
   return items;
 }
 function analyze(inp,over){
@@ -131,7 +132,7 @@ function analyze(inp,over){
   if(all.some(c=>c>4)) return {error:'同一款牌多於4張'};
   const win=inp.win;
   if(win==null||!cnt[win]) return {error:'請選擇食糊牌'};
-  const base={R,flowers:inp.flowers||Array(8).fill(false),selfDraw:!!inp.selfDraw,flags:inp.flags||{},seatWind:inp.seatWind,roundWind:inp.roundWind,useFlowers:!!inp.useFlowers};
+  const base={R,flowers:inp.flowers||Array(8).fill(false),selfDraw:!!inp.selfDraw,flags:inp.flags||{},seatWind:inp.seatWind,roundWind:inp.roundWind,useFlowers:!!inp.useFlowers,concealed:(inp.concealed!=null)?!!inp.concealed:null};
   const noMelds=melds.length===0;
   const complete=c=>decompose(c,nSets).length>0||(noMelds&&(isShisan(c)||isJiuzi(c)));
   let wc=null;
@@ -146,9 +147,10 @@ function analyze(inp,over){
       cands.push({items,total:tot(items)});
     });
   });
+  const conSpecial=(base.concealed==null)?true:base.concealed;
   if(noMelds){
-    if(isShisan(cnt)){ const it=[]; stateItems(base,it,true); if(R.shisanyao) it.push({id:'shisanyao',n:1,closed:false}); cands.push({items:it,total:tot(it)}); }
-    if(isJiuzi(cnt)&&(base.selfDraw||waits()===9)){ const it=[]; stateItems(base,it,true); if(R.jiuzi) it.push({id:'jiuzi',n:1,closed:false}); cands.push({items:it,total:tot(it)}); }
+    if(isShisan(cnt)){ const it=[]; stateItems(base,it,conSpecial); if(R.shisanyao) it.push({id:'shisanyao',n:1,closed:false}); cands.push({items:it,total:tot(it)}); }
+    if(isJiuzi(cnt)&&conSpecial&&(base.selfDraw||waits()===9)){ const it=[]; stateItems(base,it,true); if(R.jiuzi) it.push({id:'jiuzi',n:1,closed:false}); cands.push({items:it,total:tot(it)}); }
   }
   if(!cands.length) return {error:'未能組成食糊牌形(可改用手動選番)'};
   cands.sort((a,b)=>b.total-a.total);
