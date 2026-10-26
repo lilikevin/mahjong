@@ -2,7 +2,7 @@
 importScripts('engine_wild.js');
 let ready,ENGINE;
 async function loadEngines(){
- for(const file of ['engine.js','engine2.js']){
+ for(const file of ['engine.js','engine2.js','engine4.js']){
   const r=await fetch(file);if(!r.ok)throw Error('無法讀取 '+file);
   let src=await r.text();
   const anchor='base.getWaits=function(){';
@@ -36,11 +36,12 @@ onmessage=async e=>{
  try{
   if(!ready)ready=loadEngines();await ready;
   const {inp,over,excluded}=e.data;
-  ENGINE=inp.preset===2?globalThis.MJ2:inp.preset===3?globalThis.MJ3:globalThis.MJ;
+  ENGINE=inp.preset===4?globalThis.MJ4:inp.preset===2?globalThis.MJ2:inp.preset===3?globalThis.MJ3:globalThis.MJ;
   if(!ENGINE)throw Error('未能載入所選番表');
   const raw=inp.hand.concat(inp.groups.flatMap(g=>g.physical));
   if(raw.some(t=>!Number.isInteger(t)||t<0||t>34))throw Error('無效牌');
   if(raw.filter(t=>t===34).length>inp.limit)throw Error('百搭數超過開局設定');
+  if(!inp.wildMeld&&inp.groups.some(g=>g.physical.includes(34)))throw Error('目前規則:百搭不能用於上、碰、槓');
   if(MJW.count(raw.filter(t=>t<34)).some(v=>v>4))throw Error('同款真牌多於四張');
   const n=5-inp.groups.length;
   if(n<0||inp.hand.length!==3*n+2)throw Error('手牌連食糊牌應有 '+(3*n+2)+' 張');

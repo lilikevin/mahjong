@@ -1,7 +1,7 @@
 (function(){
 'use strict';
 const APP_VERSION='v1.2 beta';
-const APP_UPDATED='2026-10-26 22:45 (香港時間)';
+const APP_UPDATED='2026-10-26 23:50 (香港時間)';
 const DEV_IG='kevinli999';
 let M=window.MJ;
 const KEY='mj_hk_tw_v1';
@@ -19,7 +19,7 @@ const SCHEMES=[
  ['紫夜',{bg:'#1f1630',card:'#2c2142',btn:'#43336b',acc:'#ff7eb6'}]
 ];
 const THEME_LABEL={bg:'頁面背景',card:'格子 / 卡片',btn:'按鈕',acc:'強調色(選中、金額、標題)'};
-const PRESET_NAME={1:'預設 #1 陶源麻雀王大賽番數表',2:'預設 #2 香港麻雀協會總例(2025-07-28 修訂)',3:'預設 #3 台牌百搭番數表'};
+const PRESET_NAME={1:'預設 #1 陶源麻雀王大賽番數表',2:'預設 #2 香港麻雀協會總例(2025-07-28 修訂)',3:'預設 #3 台牌百搭番數表',4:'預設 #4 港式台牌 app 預設(hoitoi.hk)'};
 const HK_PRESETS={'8-64':{name:'8番64',cap:8,scale:1},'10-128':{name:'10番128(二五雞)',cap:10,scale:1},'10-256':{name:'10番256(五一)',cap:10,scale:2}};
 const HK_BASE={1:2,2:4,3:8,4:16,5:24,6:32,7:48,8:64,9:96,10:128};
 const PH_FANS=[
@@ -36,7 +36,7 @@ const OPT_INST=[
  {id:'zhuifan',name:'追番子(付其餘三家)',mode:'payall'},{id:'zhuikai',name:'追開章(付其餘三家)',mode:'payall'}
 ];
 const defHK=()=>({preset:'10-128',minFan:3,bao12:true,baoSan:true,flowers:false,renzhuang:true,ratio:0.5,over:{}});
-const defState=()=>({game:null,names:['玩家1','玩家2','玩家3','玩家4'],seat:[0,1,2,3],dealerSeat:0,streak:0,wind:0,history:[],ledger:[],cfg:{fanValue:1,baseMult:5,minFan:0,drawKeeps:true,preset:1,wildLimit:4,wildPreset:3,overs:{1:{},2:{},3:{},hk:{}},instAmts:{1:{},2:{},3:{},hk:{}},hk:defHK(),theme:Object.assign({},DEFAULT_THEME)}});
+const defState=()=>({game:null,names:['玩家1','玩家2','玩家3','玩家4'],seat:[0,1,2,3],dealerSeat:0,streak:0,wind:0,history:[],ledger:[],cfg:{fanValue:1,baseMult:5,minFan:0,drawKeeps:true,preset:1,wildLimit:4,wildPreset:3,wildMeld:false,wildNoMult:true,wildMultN:3,overs:{1:{},2:{},3:{},4:{},hk:{}},instAmts:{1:{},2:{},3:{},4:{},hk:{}},hk:defHK(),theme:Object.assign({},DEFAULT_THEME)}});
 function norm(j){
   const d=defState(); const s=Object.assign(d,j,{cfg:Object.assign(d.cfg,j.cfg||{}),ledger:j.ledger||[]});
   const th=Object.assign({},DEFAULT_THEME,(j.cfg&&j.cfg.theme)||{});
@@ -44,14 +44,16 @@ function norm(j){
   s.cfg.theme=th;
   const c=s.cfg;
   if(!c.overs||typeof c.overs!=='object') c.overs={1:(j.cfg&&j.cfg.over)||{},2:{},3:{}};
-  ['1','2','3','hk','wild1','wild2','wild3'].forEach(k=>{ if(!c.overs[k]) c.overs[k]={}; });
+  ['1','2','3','4','hk','wild1','wild2','wild3','wild4'].forEach(k=>{ if(!c.overs[k]) c.overs[k]={}; });
   if(!c.instAmts||typeof c.instAmts!=='object') c.instAmts={};
-  ['1','2','3','hk','wild1','wild2','wild3'].forEach(k=>{ if(!c.instAmts[k]) c.instAmts[k]={}; });
+  ['1','2','3','4','hk','wild1','wild2','wild3','wild4'].forEach(k=>{ if(!c.instAmts[k]) c.instAmts[k]={}; });
   c.hk=Object.assign(defHK(),c.hk||{}); if(!c.hk.over) c.hk.over={};
   if(!HK_PRESETS[c.hk.preset]) c.hk.preset='10-128';
-  if([1,2,3].indexOf(c.preset)<0) c.preset=1;
-  c.wildLimit=[4,5,6,7,8].includes(+c.wildLimit)?+c.wildLimit:4;
-  c.wildPreset=[1,2,3].includes(+c.wildPreset)?+c.wildPreset:3;
+  if([1,2,3,4].indexOf(c.preset)<0) c.preset=1;
+  c.wildLimit=(Number.isInteger(+c.wildLimit)&&+c.wildLimit>=1&&+c.wildLimit<=50)?+c.wildLimit:4;
+  c.wildPreset=[1,2,3,4].includes(+c.wildPreset)?+c.wildPreset:3;
+  c.wildMeld=!!c.wildMeld; c.wildNoMult=c.wildNoMult!==false;
+  c.wildMultN=(Number.isFinite(+c.wildMultN)&&+c.wildMultN>=1&&+c.wildMultN<=100)?+c.wildMultN:3;
   if(s.game!=='tw'&&s.game!=='hk'&&s.game!=='wild') s.game=(s.history&&s.history.length)?'tw':null;
   return s;
 }
@@ -62,13 +64,16 @@ function load(){
 let S=load();
 const isHK=()=>S.game==='hk';
 const isWild=()=>S.game==='wild';
+const curPreset=()=>isWild()?S.cfg.wildPreset:S.cfg.preset;
+const baseFan=()=>curPreset()===4?0:S.cfg.baseMult;
 const SETS=()=>isHK()?4:5;
 function pickM(){
   if(S.game==='hk'&&window.MJHK){ M=window.MJHK; return; }
   const p=isWild()?S.cfg.wildPreset:S.cfg.preset;
-  M=(p===2&&window.MJ2)?window.MJ2:(p===3&&window.MJ3)?window.MJ3:window.MJ;
+  M=(p===2&&window.MJ2)?window.MJ2:(p===3&&window.MJ3)?window.MJ3:(p===4&&window.MJ4)?window.MJ4:window.MJ;
 }
 pickM();
+if(!window.MJ4){ try{ const sc=document.createElement('script'); sc.src='engine4.js'; sc.onload=()=>{ pickM(); render(); }; document.head.appendChild(sc); }catch(e){} }
 const save=()=>{ try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){} };
 const newEntry=()=>({winner:null,self:true,disc:null,all:[],wildGroups:[],wildSelect:[],marks:Array(34).fill(0),kongOpen:{},melds:[],hand:[],win:null,partBad:false,mode:'pick',flowers:Array(8).fill(false),flags:{},excl:{},extra:[],bao:null});
 let E=newEntry(), pending=[], tab='table', wildPick=false;
@@ -82,9 +87,9 @@ const windOf=p=>WIND[windIdx(p)];
 const nm=p=>esc(S.names[p]);
 const pkey=()=>isHK()?'hk':isWild()?'wild'+S.cfg.wildPreset:String(S.cfg.preset);
 const OV=()=>S.cfg.overs[pkey()]||(S.cfg.overs[pkey()]={});
-function phList(){ return isHK()?[]:PH_FANS.filter(p=>!M.FANS.some(f=>f.id===p.id)); }
-function huahuList(){ return isHK()?[]:HUAHU.map(h=>({id:h[0],name:h[1]})); }
-function huahuDef(id){ const d=HUAHU.find(x=>x[0]===id); return ((isWild()?S.cfg.wildPreset:S.cfg.preset)===2&&d)?d[2]:0; }
+function phList(){ return (isHK()||curPreset()===4)?[]:PH_FANS.filter(p=>!M.FANS.some(f=>f.id===p.id)); }
+function huahuList(){ return (isHK()||curPreset()===4)?[]:HUAHU.map(h=>({id:h[0],name:h[1]})); }
+function huahuDef(id){ const d=HUAHU.find(x=>x[0]===id); return (curPreset()===2&&d)?d[2]:0; }
 function fanList(){
   return M.FANS.concat(phList().map(p=>({id:p.id,name:p.name,fan:0,fanC:null,manual:true})))
     .concat(huahuList().map(h=>({id:h.id,name:h.name,fan:huahuDef(h.id),fanC:null,manual:true})));
@@ -257,15 +262,15 @@ async function doUpgrade(){
   try{
     if('serviceWorker' in navigator){ const rs=await navigator.serviceWorker.getRegistrations(); await Promise.all(rs.map(r=>r.unregister())); }
     if(window.caches){ const ks=await caches.keys(); await Promise.all(ks.map(k=>caches.delete(k))); }
-    await Promise.all(['./','index.html','app.js','engine.js','engine2.js','engine_hk.js','engine_wild.js','wild-worker.js','manifest.json','sw.js','version.json','icon-192.png','icon-512.png'].map(f=>fetch(f,{cache:'reload'}).catch(()=>{})));
+    await Promise.all(['./','index.html','app.js','engine.js','engine2.js','engine_hk.js','engine4.js','engine_wild.js','wild-worker.js','manifest.json','sw.js','version.json','icon-192.png','icon-512.png'].map(f=>fetch(f,{cache:'reload'}).catch(()=>{})));
   }catch(e){}
   location.reload();
 }
 function mkTxns(ws,dealer,streak){
-  const bonus=1+2*streak, base=S.cfg.fanValue*S.cfg.baseMult, fv=S.cfg.fanValue, tx=[];
+  const bonus=1+2*streak, bf=baseFan(), fv=S.cfg.fanValue, tx=[];
   ws.forEach(w=>{
     const payers=w.self?[0,1,2,3].filter(i=>i!==w.p):[w.disc];
-    payers.forEach(q=>{ const fan=w.total+((q===dealer||w.p===dealer)?bonus:0); tx.push({w:w.p,l:q,amt:Math.round(base+fan*fv)}); });
+    payers.forEach(q=>{ const fan=w.total+((q===dealer||w.p===dealer)?bonus:0); tx.push({w:w.p,l:q,amt:Math.round((bf+fan)*(w.mult||1)*fv)}); });
   });
   return tx;
 }
@@ -400,7 +405,7 @@ function curItems(res){
   const r=RL(); let it;
   if(res&&res.items) it=res.items.filter(x=>!E.excl[x.id]);
   else it=M.basic(Object.assign({flowers:E.flowers,selfDraw:E.self,flags:E.flags,concealed:!!E.flags.menqing},ctxExtra())).filter(x=>!E.excl[x.id]);
-  if(!isHK()) HUAHU.forEach(h=>{ if(E.flags[h[0]]&&!E.excl[h[0]]) it.push({id:h[0],n:1,closed:false}); });
+  if(!isHK()&&curPreset()!==4) HUAHU.forEach(h=>{ if(E.flags[h[0]]&&!E.excl[h[0]]) it.push({id:h[0],n:1,closed:false}); });
   it=it.concat(E.extra.map(x=>({id:x.id,n:x.n,closed:false})));
   it=hkFlowerAdjust(it,r);
   return it.map(x=>{
@@ -434,9 +439,17 @@ function gameLabel(v){ return v==='wild'?'港式台牌（通用百搭）':v==='h
 function gameName(){ if(isWild()) return '港式台牌（通用百搭）· 加'+S.cfg.wildLimit+'張 · '+PRESET_NAME[S.cfg.wildPreset]; return isHK()?('廣東牌 · '+HK_PRESETS[S.cfg.hk.preset].name):('港式台牌（無百搭）· '+PRESET_NAME[S.cfg.preset]); }
 function viewChooser(){
   let h='<div class="chooser"><h2>麻雀計番</h2><div class="sub">請選擇玩法</div>';
-  h+='<button data-act="game" data-v="tw">港式台牌（無百搭）<small>16張；五組面子加一對眼，有拉、踢半、斬拉，三套番表預設</small></button>';
-  h+='<button data-act="game" data-v="wild">港式台牌（通用百搭）<small>16張；開局選加4至8張通用百搭，自動搜尋最高番</small></button>';
-  if(wildPick) h+='<div class="card askcard"><div class="zl" style="margin-top:0">本場牌組加入幾張通用百搭？</div><div class="seg">'+[4,5,6,7,8].map(n=>'<button style="text-align:center;padding:14px 4px;margin:0" class="'+(S.cfg.wildLimit===n?'on':'')+'" data-act="game" data-v="wild" data-n="'+n+'">'+n+'張</button>').join('')+'</div><div class="hint">這是整副牌加入的百搭數量，不是你手持的張數。</div></div>';
+  h+='<button data-act="game" data-v="tw">港式台牌（無百搭）<small>16張；五組面子加一對眼，有拉、踢半、斬拉，四套番表預設</small></button>';
+  h+='<button data-act="game" data-v="wild">港式台牌（通用百搭）<small>16張；開局選百搭數量，自動搜尋最高番</small></button>';
+  if(wildPick){
+    const c=S.cfg, onoff=(k,v)=>'<div class="seg"><button style="padding:12px 4px;margin:0;text-align:center" class="'+(!c[k]?'on':'')+'" data-act="wildOpt" data-k="'+k+'" data-v="0">關</button><button style="padding:12px 4px;margin:0;text-align:center" class="'+(c[k]?'on':'')+'" data-act="wildOpt" data-k="'+k+'" data-v="1">開</button></div>';
+    h+='<div class="card askcard"><div class="zl" style="margin-top:0">百搭可用於上／碰／槓(預設關:百搭只可在自己手牌內當牌)</div>'+onoff('wildMeld')
+      +'<div class="zl">冇用百搭，全部番數加倍</div>'+onoff('wildNoMult')
+      +'<label>倍數(乘全部番數,包括底、莊家及連莊)<input type="number" min="1" max="100" step="1" data-chg="wildMultN" value="'+c.wildMultN+'"></label>'
+      +'<div class="zl">本場牌組加入幾張通用百搭？(整副牌的數量，不是你手持的張數)</div><div class="seg">'+[2,4,6,8,16].map(n=>'<button style="text-align:center;padding:14px 2px;margin:0" class="'+(c.wildLimit===n?'on':'')+'" data-act="game" data-v="wild" data-n="'+n+'">'+n+'</button>').join('')+'</div>'
+      +'<div class="grid2" style="margin-top:8px"><label>自訂數量(1至50)<input type="number" min="1" max="50" step="1" data-chg="wildN" value="'+c.wildLimit+'"></label><button class="primary" style="margin-top:18px;text-align:center" data-act="game" data-v="wild" data-n="'+c.wildLimit+'">用 '+c.wildLimit+' 張開始</button></div>'
+      +'<div class="hint">百搭愈多，搜尋最高番愈慢；16張以上可能要等較久。</div></div>';
+  }
   h+='<button data-act="game" data-v="hk">廣東牌（13張）<small>四組面子加一對眼，三番起糊，10番封頂，二五雞・半辣上等計分表；可輸入花牌自動判斷</small></button>';
   if(!window.MJHK) h+='<div class="warn">未能載入廣東牌檔案(engine_hk.js),請確認已上傳。</div>';
   if(S.game) h+='<div class="btnrow"><button data-act="tab" data-v="table" style="text-align:center;font-size:15px">返回目前牌局(現為'+gameLabel(S.game)+')</button></div>';
@@ -534,16 +547,16 @@ function viewCalc(){
   h+='<div class="seg two"><button class="'+(E.self?'on':'')+'" data-act="self" data-v="1">自摸</button><button class="'+(!E.self?'on':'')+'" data-act="self" data-v="0">出銃(放槍)</button></div>';
   if(!E.self){ h+='<div class="lbl">出銃者(放槍)</div>'+winnerBtns('disc',E.disc); }
   if(!isHK()) h+='<h3>花牌</h3><div class="flowers">'+M.FLOWERS.map((f,i)=>'<button class="fl '+(E.flowers[i]?'on':'')+'" data-act="flower" data-i="'+i+'">'+f+'</button>').join('')+'</div>';
-  const flagList=(M.FLAGS||DEFAULT_FLAGS).filter(a=>!(isHK()&&a[0]==='menqing')).concat(isHK()?[]:HUAHU.map(h2=>[h2[0],h2[1]]));
+  const flagList=(M.FLAGS||DEFAULT_FLAGS).filter(a=>!(isHK()&&a[0]==='menqing')).concat((isHK()||curPreset()===4)?[]:HUAHU.map(h2=>[h2[0],h2[1]]));
   h+='<h3>特殊情況</h3><div class="flags">'+flagList.map(a=>'<label><input type="checkbox" data-chg="flag" data-k="'+a[0]+'"'+(E.flags[a[0]]?' checked':'')+'>'+a[1]+'</label>').join('')+'</div>';
-  if(!isHK()) h+='<p class="hint">勾選「花糊」:其番數直接加在本局食糊者的番數上,一併按本局結算,不另外拉落下一鋪。</p>';
+  if(!isHK()&&curPreset()!==4) h+='<p class="hint">勾選「花糊」:其番數直接加在本局食糊者的番數上,一併按本局結算,不另外拉落下一鋪。</p>';
   h+=inputSection();
   h+='<h3>番數結果</h3>';
   h+=resultHint(res);
   if(baoVisible()){
     h+='<h3>包牌(自摸時由供牌者包付三家)</h3><label>包牌者<select data-chg="bao"><option value="">無</option>'+S.seat.filter(p=>p!==E.winner).map(p=>'<option value="'+p+'"'+(E.bao===p?' selected':'')+'>'+nm(p)+'</option>').join('')+'</select></label><p class="hint">十二章包:供給第四組明章(明坎、上、任何槓)的一家包付;第四組是暗槓則無人包。大三元包:供給第三組三元牌明章的一家包付。包後不包先,只計一家。</p>';
   }
-  h+='<div class="fans">'+items.map(x=>'<div class="fan"><label><input type="checkbox" data-chg="excl" data-id="'+x.id+'" checked> '+x.name+(x.n>1?' ×'+x.n:'')+'</label><span>'+x.total+'</span></div>').join('')+(isHK()?'':lockedFanRows())+'</div>';
+  h+='<div class="fans">'+items.map(x=>'<div class="fan"><label>'+(x.id==='di'?'🔒 ':'<input type="checkbox" data-chg="excl" data-id="'+x.id+'" checked> ')+x.name+(x.n>1?' ×'+x.n:'')+'</label><span>'+x.total+'</span></div>').join('')+(isHK()?'':lockedFanRows(rawTotal))+'</div>';
   const exl=Object.keys(E.excl).filter(k=>E.excl[k]);
   if(exl.length){ const r=RL(); h+='<div class="hint">已取消:'+exl.map(k=>'<a data-act="unexcl" data-id="'+k+'">'+(r[k]?r[k].name:k)+'(恢復)</a>').join(' ')+'</div>'; }
   if(E.extra.length){ const r=RL(); h+='<div class="extras">'+E.extra.map((x,i)=>'<span class="meld">'+(r[x.id]?r[x.id].name:x.id)+' ×'+x.n+' <b data-act="extraN" data-i="'+i+'" data-d="1">＋</b> <b data-act="extraN" data-i="'+i+'" data-d="-1">−</b> <b data-act="rmExtra" data-i="'+i+'">✕</b></span>').join('')+'</div>'; }
@@ -557,7 +570,7 @@ function viewCalc(){
       h+='<h3>本局計分預覽</h3><div class="prev">'+S.seat.map(p=>'<div><small>'+nm(p)+'</small><b class="'+(d[p]>=0?'pos':'neg')+'">'+money(d[p])+'</b></div>').join('')+'</div><p class="hint">'+HK_PRESETS[S.cfg.hk.preset].name+':'+total+' 番出銃 '+hkRon(total)+' 分,自摸每家 '+hkShare(total)+' 分。</p>';
     }
   } else if(E.self||E.disc!=null){
-    const ws=pending.map(w=>({p:w.p,self:false,disc:w.disc,total:w.total})).concat([{p:E.winner,self:E.self,disc:E.disc,total}]);
+    const ws=pending.map(w=>({p:w.p,self:false,disc:w.disc,total:w.total,mult:w.mult})).concat([{p:E.winner,self:E.self,disc:E.disc,total,mult:wildMult()}]);
     const out=applyHand(S.ledger,mkTxns(ws,dealerPid(),S.streak),true);
     h+='<h3>本局記帳預覽</h3><div class="prev">'+S.seat.map(p=>'<div><small>'+nm(p)+'</small><b class="'+(out.cash[p]>=0?'pos':'neg')+'">'+money(out.cash[p])+'</b></div>').join('')+'</div><p class="hint">上方為本局實際收付的現金;新的食糊金額先記入「拉」,不立即收付。</p>';
     h+=out.ev.map(e=>'<div class="hint">• '+evText(e)+'</div>').join('');
@@ -568,7 +581,7 @@ function viewCalc(){
   if(!I){ I=lst[0]; inst.id=I.id; inst.mode=I.mode; }
   if(inst.payee==null) inst.payee=S.seat[0];
   if(inst.payer==null) inst.payer=S.seat[1];
-  const baseAmt=S.cfg.fanValue*S.cfg.baseMult;
+  const baseAmt=S.cfg.fanValue*baseFan();
   h+='<div class="grid2"><label>項目<select data-chg="instId">'+lst.map(x=>'<option value="'+x.id+'"'+(x.id===inst.id?' selected':'')+'>'+x.name+'</option>').join('')+'</select></label>';
   h+='<label>金額(每份)<input type="number" step="any" data-chg="instAmt" value="'+instAmt(I)+'"></label>';
   h+='<label>模式<select data-chg="instMode"><option value="all"'+(inst.mode==='all'?' selected':'')+'>其餘三家付給收款人</option><option value="one"'+(inst.mode==='one'?' selected':'')+'>單一付款人付給單一收款人</option><option value="payall"'+(inst.mode==='payall'?' selected':'')+'>付款人付給其餘三家</option><option value="burn"'+(inst.mode==='burn'?' selected':'')+'>付款人扣分(不加給他家)</option></select></label>';
@@ -632,15 +645,17 @@ function viewSettings(){
   const c=S.cfg;
   let h='<h3>版本資訊</h3><div class="card"><div>目前版本:<b>'+APP_VERSION+'</b></div><div>更新時間:<b>'+APP_UPDATED+'</b></div>'+(upd?'<div class="pos">最新版本:<b>'+esc(upd.version)+'</b>'+(upd.updated?'('+esc(upd.updated)+')':'')+'</div>':'')+'<div class="dev">開發者:Instagram <a href="https://www.instagram.com/'+DEV_IG+'/" target="_blank" rel="noopener">@'+DEV_IG+'</a></div><div class="btnrow">'+(upd?'<button class="primary" data-act="upgrade">立即升級</button>':'')+'<button data-act="checkUpd">'+(checking?'檢查中…':'檢查更新')+'</button></div><div class="hint">App 開啟時會自動檢查。升級只會更新程式,不會清除你的紀錄。</div></div>';
   h+='<h3>玩法</h3><div class="card"><div>目前玩法:<b>'+gameLabel(S.game)+'</b></div><div class="btnrow"><button data-act="toChooser">更換玩法</button></div></div>';
-  if(isWild()) h+='<div class="note">本場牌組加 '+S.cfg.wildLimit+' 張通用百搭。百搭可代34種非花牌；真白板仍是白板。代入後同款牌連副露最多4張；不額外加百搭番。已宣告副露中的百搭用途固定。要改百搭數量，請到「更換玩法」重新選擇。</div>';
+  if(isWild()) h+='<h3>百搭設定</h3><div class="card"><div class="note">本場牌組加 '+S.cfg.wildLimit+' 張通用百搭;要改數量,請到「更換玩法」重新選擇。百搭可代34種非花牌,真白板仍是白板;代入後同款牌連明牌最多4張;不額外加百搭番。</div><div class="zl">百搭可用於上／碰／槓</div><div class="seg"><button class="'+(!S.cfg.wildMeld?'on':'')+'" data-act="wildOpt" data-k="wildMeld" data-v="0">關</button><button class="'+(S.cfg.wildMeld?'on':'')+'" data-act="wildOpt" data-k="wildMeld" data-v="1">開</button></div><div class="zl">冇用百搭,全部番數加倍</div><div class="seg"><button class="'+(!S.cfg.wildNoMult?'on':'')+'" data-act="wildOpt" data-k="wildNoMult" data-v="0">關</button><button class="'+(S.cfg.wildNoMult?'on':'')+'" data-act="wildOpt" data-k="wildNoMult" data-v="1">開</button></div><label>倍數(乘全部番數,包括底、莊家及連莊)<input type="number" min="1" max="100" step="1" data-chg="wildMultN" value="'+S.cfg.wildMultN+'"></label></div>';
   if(isHK()) h+=hkSettings();
   else {
     h+='<h3>番表預設</h3><div class="presetbtns">'
       +'<button class="'+((isWild()?c.wildPreset:c.preset)===1?'on':'')+'" data-act="preset" data-v="1">預設 #1:陶源麻雀王大賽番數表</button>'
       +'<button class="'+((isWild()?c.wildPreset:c.preset)===2?'on':'')+'" data-act="preset" data-v="2">預設 #2:香港麻雀協會總例<small>《港式十六張新章麻雀總例》2025-07-28 修訂版番種詳述</small></button>'
-      +'<button class="'+((isWild()?c.wildPreset:c.preset)===3?'on':'')+'" data-act="preset" data-v="3">預設 #3:台牌百搭番數表</button></div>';
+      +'<button class="'+((isWild()?c.wildPreset:c.preset)===3?'on':'')+'" data-act="preset" data-v="3">預設 #3:台牌百搭番數表</button>'
+      +'<button class="'+((isWild()?c.wildPreset:c.preset)===4?'on':'')+'" data-act="preset" data-v="4">預設 #4:港式台牌 app 預設<small>hoitoi.hk 番數表;底5番是番數表的一行</small></button></div>';
     if(!window.MJ2) h+='<div class="warn">未能載入預設 #2 的番表檔(engine2.js)。請確認已上傳該檔案。</div>';
     if(!window.MJ3) h+='<div class="warn">未能載入預設 #3 的番表(engine.js 版本過舊)。請更新 engine.js。</div>';
+    if(!window.MJ4) h+='<div class="warn">未能載入預設 #4 的番表檔(engine4.js)。請確認已上傳。</div>';
     h+='<p class="hint">三套預設各自記住你修改過的番數和即時籌碼金額,切換不會互相影響。切換時,本局正在輸入的手動番種會被清除。</p>';
   }
   if(isApple()){
@@ -652,10 +667,10 @@ function viewSettings(){
   if(!isHK()){
     h+='<h3>金額設定</h3><div class="grid2">';
     h+='<label>每番金額<input type="number" step="any" data-chg="cfg" data-k="fanValue" value="'+c.fanValue+'"></label>';
-    h+='<label>底 = 番值 ×<input type="number" step="any" data-chg="cfg" data-k="baseMult" value="'+c.baseMult+'"></label>';
+    h+=curPreset()===4?'<label>底<input disabled value="在番數表「底」那一行修改"></label>':'<label>底 = 番值 ×<input type="number" step="any" data-chg="cfg" data-k="baseMult" value="'+c.baseMult+'"></label>';
     h+='<label>最低食糊番數(胡牌)<input type="number" data-chg="cfg" data-k="minFan" value="'+c.minFan+'"></label>';
     h+='<label>流局後<select data-chg="drawKeeps"><option value="1"'+(c.drawKeeps?' selected':'')+'>莊家繼續做莊</option><option value="0"'+(!c.drawKeeps?' selected':'')+'>輪莊</option></select></label></div>';
-    h+='<p class="hint">目前底 $'+(c.fanValue*c.baseMult)+'。每家支付 = 底 + 番數 × 每番金額。同一家被同一人拉滿 3、6、9… 口時,會詢問是否斬拉(投降)。</p>';
+    h+='<p class="hint">'+(curPreset()===4?'預設 #4:底5番已經是番數表的一行,每家支付 = 番數 × 每番金額。':'目前底 $'+(c.fanValue*c.baseMult)+'。每家支付 = 底 + 番數 × 每番金額。')+'同一家被同一人拉滿 3、6、9… 口時,會詢問是否斬拉(投降)。</p>';
   }
   h+='<h3>備份</h3><div class="btnrow"><button data-act="exportCopy">複製備份</button><button data-act="exportFile">下載備份檔</button><button data-act="importPaste">貼上匯入</button><button class="danger" data-act="resetAll">清除全部資料</button></div>';
   h+='<h3>番數表(可修改)</h3><p class="hint">目前:'+gameName()+'。灰色底表示無法自動偵測,只能手動加番。'+(isHK()?'':'右邊欄為暗(門清)時的番數。')+'</p><div class="fanTable">';
@@ -686,10 +701,10 @@ function collectCurrent(){
   derive();
   const res=analyze(); const items=curItems(res); const raw=items.reduce((a,x)=>a+x.total,0);
   const total=isHK()?Math.min(raw,hkCap()):raw;
-  return {wild:isWild()?{limit:S.cfg.wildLimit,preset:S.cfg.wildPreset,physical:E.all.slice(),groups:E.wildGroups,replacements:res.replacements,assigned:res.assigned,win:res.win}:null,p:E.winner,self:E.self,disc:E.disc,total,raw,fans:items,qiang:!!E.flags.qiangkong&&!E.self,bao:baoVisible()?E.bao:null};
+  return {wild:isWild()?{limit:S.cfg.wildLimit,preset:S.cfg.wildPreset,physical:E.all.slice(),groups:E.wildGroups,replacements:res.replacements,assigned:res.assigned,win:res.win}:null,mult:wildMult(),p:E.winner,self:E.self,disc:E.disc,total,raw,fans:wildMult()>1?items.concat([{id:'nojoker',name:'冇用百搭 全部番數',n:1,total:'×'+wildMult()}]):items,qiang:!!E.flags.qiangkong&&!E.self,bao:baoVisible()?E.bao:null};
 }
 function validateCur(){
-  if(isWild()){const r=wildResult();if(!r||r.error||!r.complete){toast('請先完成百搭最高番搜尋');return false;}if(E.wildSelect.length){toast('請先完成或取消正在選取的副露');return false;}}
+  if(isWild()){const r=wildResult();if(!r||r.error||!r.complete){toast('請先完成百搭最高番搜尋');return false;}if(E.wildSelect.length){toast('請先完成或取消正在選取的明牌');return false;}}
   if(!E.self){ if(E.disc==null){ toast('請選擇出銃者(放槍)'); return false; } if(E.disc===E.winner){ toast('出銃者不能是食糊者'); return false; } }
   return true;
 }
@@ -710,7 +725,7 @@ function act(a,d){
       let wl=S.cfg.wildLimit;
       if(v==='wild'){
         wl=Number(d.n);
-        if(!Number.isInteger(wl)||wl<4||wl>8){ toast('百搭數量只可選4至8張'); return; }
+        if(!Number.isInteger(wl)||wl<1||wl>50){ toast('百搭數量請輸入1至50'); return; }
         if(!window.MJ3){ toast('找不到台牌百搭番表,請先更新 engine.js'); return; }
         if(!window.Worker){ toast('此瀏覽器不支援背景計算'); return; }
       }
@@ -722,6 +737,13 @@ function act(a,d){
       wildPick=false; S.game=v; S.cfg.wildLimit=wl; pickM(); E=newEntry(); pending=[];
       const l0=instList()[0]; inst.id=l0.id; inst.mode=l0.mode; inst.mult=1;
       tab='table'; toast('已選擇:'+gameLabel(v)); break; }
+    case 'wildOpt': {
+      S.cfg[d.k]=(d.v==='1');
+      if(d.k==='wildMeld'&&!S.cfg.wildMeld&&isWild()){
+        E.wildGroups=E.wildGroups.filter(g=>{ if(g.physical.includes(34)){ E.all.push(...g.physical); return false; } return true; });
+        E.wildSelect=[];
+      }
+      break; }
     case 'hkPreset': S.cfg.hk.preset=d.v; break;
     case 'hkResetTable': S.cfg.hk.over={}; break;
     case 'upgrade': doUpgrade(); return;
@@ -730,6 +752,7 @@ function act(a,d){
     case 'preset': {
       const v=+d.v;
       if(v===2&&!window.MJ2){ toast('找不到 engine2.js,請先上傳'); return; }
+      if(v===4&&!window.MJ4){ toast('找不到 engine4.js,請先上傳'); return; }
       if(v===3&&!window.MJ3){ toast('engine.js 版本過舊,請先更新'); return; }
       if(isWild()) S.cfg.wildPreset=v; else S.cfg.preset=v; pickM(); E.excl={}; E.extra=[]; E.flags={};
       const l0=instList()[0]; inst.id=l0.id; inst.mode=l0.mode; inst.mult=1;
@@ -831,7 +854,7 @@ function act(a,d){
         }
       });
       const lb=copyL(S.ledger);
-      S.history.push({id:Date.now(),time:Date.now(),kind:'win',dealer,streak:S.streak,wind:S.wind,winners:ws.map(w=>({p:w.p,self:w.self,disc:w.disc,total:w.total,fans:w.fans,wild:w.wild})),deltas:cash,events:ev,before:before(),ledgerBefore:lb});
+      S.history.push({id:Date.now(),time:Date.now(),kind:'win',dealer,streak:S.streak,wind:S.wind,winners:ws.map(w=>({p:w.p,self:w.self,disc:w.disc,total:w.total,mult:w.mult,fans:w.fans,wild:w.wild})),deltas:cash,events:ev,before:before(),ledgerBefore:lb});
       S.ledger=copyL(ledger);
       advance(ws.some(w=>w.p===dealer),false);
       E=newEntry(); pending=[]; tab='history'; toast('已記錄'); break; }
@@ -849,7 +872,7 @@ function act(a,d){
     case 'instSave': {
       if(inst.mode==='one'&&inst.payer===inst.payee){ toast('付款人與收款人不能相同'); return; }
       const lst=instList(); const I=lst.find(x=>x.id===inst.id)||lst[0];
-      let amt=instAmt(I)+(I.plusBase?S.cfg.fanValue*S.cfg.baseMult:0);
+      let amt=instAmt(I)+(I.plusBase?S.cfg.fanValue*baseFan():0);
       amt=amt*(inst.mult||1);
       const deltas=instDeltas({amt:amt,mode:inst.mode,payee:inst.payee,payer:inst.payer},1);
       pushRec({kind:'instant',name:I.name+(inst.mult>1?' ×'+inst.mult:''),deltas,events:[]});
@@ -897,6 +920,8 @@ function chg(k,el){
     case 'hkn': { const n=parseFloat(v); S.cfg.hk[d.k]=isNaN(n)?0:n; break; }
     case 'hkb': S.cfg.hk[d.k]=v==='1'; break;
     case 'hkrow': { const n=parseFloat(v); if(!isNaN(n)) S.cfg.hk.over[d.f]=n; break; }
+    case 'wildN': { const n=Math.floor(Number(v)); S.cfg.wildLimit=(n>=1&&n<=50)?n:S.cfg.wildLimit; break; }
+    case 'wildMultN': { const n=Math.floor(Number(v)); S.cfg.wildMultN=(n>=1&&n<=100)?n:S.cfg.wildMultN; break; }
     case 'rule': { const o=OV(); const q=o[d.id]=o[d.id]||{}; q[d.f]=parseFloat(v); break; }
   }
   save(); render();
@@ -927,37 +952,44 @@ function hkFlowerAdjust(it,r){
   if(!it.some(x=>x.id==='xiaohuahu')) it=it.concat([{id:'xiaohuahu',n:1,closed:false}]);
   return it;
 }
-
+function noJoker(){ return !E.all.includes(34)&&!E.wildGroups.some(g=>g.physical.includes(34)); }
+function wildMult(){ return (isWild()&&S.cfg.wildNoMult&&S.cfg.wildMultN>1&&noJoker())?S.cfg.wildMultN:1; }
 function payRows(total){
   if(!E.self&&E.disc==null) return [];
-  const dealer=dealerPid(),bonus=1+2*S.streak,fv=S.cfg.fanValue;
+  const dealer=dealerPid(),bonus=1+2*S.streak,fv=S.cfg.fanValue,m=wildMult();
   const payers=E.self?[0,1,2,3].filter(p=>p!==E.winner):[E.disc];
   return payers.map(q=>{
-    const extra=(q===dealer||E.winner===dealer)?bonus:0,fan=S.cfg.baseMult+total+extra;
-    return {payer:q,pattern:total,base:S.cfg.baseMult,dealerFan:extra?1:0,streakFan:extra?2*S.streak:0,fan:fan,amount:Math.round(fan*fv)};
+    const extra=(q===dealer||E.winner===dealer)?bonus:0,fan=(baseFan()+total+extra)*m;
+    return {payer:q,pattern:total,base:baseFan(),dealerFan:extra?1:0,streakFan:extra?2*S.streak:0,mult:m,fan:fan,amount:Math.round(fan*fv)};
   });
 }
-function lockedFanRows(){
-  const dealer=dealerPid(),streak=S.streak,fv=S.cfg.fanValue;
-  const row=(name,fan,note)=>'<div class="fan" style="opacity:.92"><label>🔒 '+name+(note?' <small>'+note+'</small>':'')+'</label><span>'+(fan>0?'+':'')+fan+'</span></div>';
+function lockedFanRows(raw){
+  const dealer=dealerPid(),streak=S.streak,fv=S.cfg.fanValue,m=wildMult();
+  const row=(name,fan,note)=>'<div class="fan" style="opacity:.92"><label>🔒 '+name+(note?' <small>'+note+'</small>':'')+'</label><span>'+fan+'</span></div>';
   let scope;
   if(E.winner===dealer) scope='莊家食糊:每位付款人都加';
   else if(E.self) scope='閒家自摸:只加在莊家的一份';
   else if(E.disc==null) scope='出銃時:莊家食糊或莊家出銃才加';
   else scope=E.disc===dealer?'莊家出銃:適用':'本局不適用';
   const applies=E.self||E.disc!=null?(E.winner===dealer||E.self||E.disc===dealer):true;
-  return row('底(固定,不能刪除)',S.cfg.baseMult,fv===1?'每付款人一份':'每付款人一份,每番 $'+fv)+row('莊家加番(固定)',applies?1:0,scope)+row('連莊加番 2 × '+streak+'(固定)',applies?2*streak:0,scope)+'<div class="hint">底及莊家加番只在這份清單計算一次;下方合計與記帳預覽不會再重複加。</div>';
+  let h='';
+  if(curPreset()!==4) h+=row('底(固定,不能刪除)','+'+S.cfg.baseMult,fv===1?'每付款人一份':'每付款人一份,每番 $'+fv);
+  h+=row('莊家加番(固定)','+'+(applies?1:0),scope)+row('連莊加番 2 × '+streak+'(固定)','+'+(applies?2*streak:0),scope);
+  if(m>1) h+=row('冇用百搭,全部番數 ×'+m+'(固定)','×'+m,'每位付款人的合計番數都乘 '+m);
+  h+='<div class="hint">'+(curPreset()===4?'預設 #4 的底在番數表內計一次(🔒);':'')+'底及莊家加番只在這份清單計算一次;下方合計與記帳預覽不會再重複加。</div>';
+  return h;
 }
 function finalTotals(total){
   const rows=payRows(total);
   if(!rows.length) return '合計 <b>'+total+'</b> 番(選自摸或出銃者後,會顯示含底及莊家的應付合計)';
   const groups=[];
   rows.forEach(r=>{let g=groups.find(x=>x.fan===r.fan);if(!g){g={fan:r.fan,amount:r.amount,names:[]};groups.push(g);}g.names.push(nm(r.payer));});
-  if(groups.length===1) return '每位付款人應付 <b>'+groups[0].fan+'</b> 番 = <b>$'+groups[0].amount+'</b>';
-  return groups.map(g=>g.names.join('、')+' 付 <b>'+g.fan+'</b> 番 = <b>$'+g.amount+'</b>').join('<br>');
+  const mt2=rows[0].mult>1?'(已乘 ×'+rows[0].mult+')':'';
+  if(groups.length===1) return '每位付款人應付 <b>'+groups[0].fan+'</b> 番 = <b>$'+groups[0].amount+'</b>'+mt2;
+  return groups.map(g=>g.names.join('、')+' 付 <b>'+g.fan+'</b> 番 = <b>$'+g.amount+'</b>').join('<br>')+mt2;
 }
 let wildJob=null,wildKey='',wildDone=null,wildBusy=false,wildProgress=0;
-function wildInput(){return {hand:E.all.slice(),groups:JSON.parse(JSON.stringify(E.wildGroups)),win:E.win,selfDraw:E.self,flags:E.flags,flowers:E.flowers,limit:S.cfg.wildLimit,preset:S.cfg.wildPreset,...ctxExtra()};}
+function wildInput(){return {hand:E.all.slice(),groups:JSON.parse(JSON.stringify(E.wildGroups)),win:E.win,selfDraw:E.self,flags:E.flags,flowers:E.flowers,limit:S.cfg.wildLimit,preset:S.cfg.wildPreset,wildMeld:S.cfg.wildMeld,...ctxExtra()};}
 function wildSignature(){return JSON.stringify([wildInput(),OV(),E.excl]);}
 function wildStop(){if(wildJob)wildJob.terminate();wildJob=null;wildBusy=false;}
 function wildResult(){
@@ -974,7 +1006,7 @@ function wildStart(){
   const job=wildJob=new Worker('wild-worker.js');
   job.onmessage=e=>{if(wildJob!==job)return;const d=e.data;if(d.progress!=null){wildProgress=d.progress;const el=document.getElementById('wild-progress');if(el)el.textContent='已評估 '+wildProgress+' 種代入及食糊牌組合'+(d.best!=null?',目前最高 '+d.best+' 番':'');return;}
    if(d.done){wildDone=d.result;wildBusy=false;job.terminate();wildJob=null;render();}};
-  job.onerror=e=>{if(wildJob!==job)return;wildDone={error:e.message||'無法載入背景計番,請檢查已上傳 wild-worker.js、engine_wild.js'};wildStop();render();};
+  job.onerror=e=>{if(wildJob!==job)return;wildDone={error:e.message||'無法載入背景計番,請檢查已上傳 wild-worker.js、engine_wild.js、engine4.js'};wildStop();render();};
   job.postMessage({inp,over:OV(),excluded:Object.keys(E.excl).filter(k=>E.excl[k])});
  }catch(e){wildBusy=false;wildDone={error:String(e)};}
 }
@@ -990,17 +1022,18 @@ function wildAction(a,d){
  }
  if(a==='wildCancelGroup'){E.wildSelect=[];return true;}
  if(a==='wildGroup'){
-  if(E.wildGroups.length>=5){toast('最多五組副露');return true;}
+  if(E.wildGroups.length>=5){toast('最多五組明牌');return true;}
   const physical=E.wildSelect.map(i=>E.all[i]),kind=d.v,sz=kind==='kong'?4:3;
   const g={t:kind,physical,open:d.open!=='0'};
   if(physical.length!==sz){toast('請在牌堆選'+sz+'張牌');return true;}
+  if(physical.includes(34)&&!S.cfg.wildMeld){toast('目前規則:百搭不能用於上、碰、槓(可在設定打開)');return true;}
   let target=kind==='chow'?0:physical.find(t=>t!==34);if(target==null)target=0;
   const text=prompt(kind==='chow'?'此組上牌起始牌:輸入1m至7m／1p至7p／1s至7s(m萬 p筒 s索)':'此組碰／槓代表哪款牌?輸入1m至9s或東南西北中發白',wildCode(target));
   if(text===null)return true;
   const tile=wildParse(text.trim());
   if(tile==null||(kind==='chow'&&(tile>=27||tile%9>6))){toast('牌名格式不正確');return true;}
   g.tile=tile;const expected=kind==='chow'?[tile,tile+1,tile+2]:Array(sz).fill(tile),left=expected.slice();
-  for(const t of physical.filter(t=>t!==34)){const j=left.indexOf(t);if(j<0){toast('真牌與指定副露不相符');return true;}left.splice(j,1);}
+  for(const t of physical.filter(t=>t!==34)){const j=left.indexOf(t);if(j<0){toast('真牌與指定明牌不相符');return true;}left.splice(j,1);}
   E.wildGroups.push(g);for(const i of E.wildSelect.slice().sort((a,b)=>b-a))E.all.splice(i,1);
   E.wildSelect=[];E.win=null;E.mode='pick';return true;
  }
@@ -1017,14 +1050,14 @@ function wildAction(a,d){
 function wildCode(t){return t<27?(t%9+1)+['m','p','s'][Math.floor(t/9)]:'東南西北中發白'[t-27];}
 function wildParse(v){const z='東南西北中發白'.indexOf(v);if(v.length===1&&z>=0)return 27+z;const m=/^([1-9])([mps])$/i.exec(v);return m?['m','p','s'].indexOf(m[2].toLowerCase())*9+Number(m[1])-1:null;}
 function inputWild(){
- let h='<div class="warn">通用百搭版為測試版,正式記帳前請人工核對。只含通用百搭,不含越南分類百搭。</div><h3>輸入牌(含百搭)</h3><div class="note">手牌與食糊牌放入牌堆;副露逐組加入。百搭用專用「百搭」鍵,白板仍作真白板。本場共加 '+S.cfg.wildLimit+' 張百搭,不代表你的手牌必須有這麼多張。</div>';
+ let h='<div class="warn">通用百搭版為測試版,正式記帳前請人工核對。只含通用百搭,不含越南分類百搭。</div><h3>輸入牌(含百搭)</h3><div class="note">手牌與食糊牌放入牌堆;明牌(已上、碰、槓)逐組加入。百搭用專用「百搭」鍵,白板仍作真白板。本場共加 '+S.cfg.wildLimit+' 張百搭,不代表你的手牌必須有這麼多張。'+(S.cfg.wildMeld?'':'目前規則:百搭不能用於上、碰、槓。')+'</div>';
  h+=palette()+'<div class="btnrow"><button data-act="tile" data-t="34">＋ 百搭</button></div>';
- h+='<div class="seg"><button data-act="mode" data-v="pick" class="'+(E.mode==='pick'?'on':'')+'">刪牌</button><button data-act="mode" data-v="meld" class="'+(E.mode==='meld'?'on':'')+'">選副露</button><button data-act="mode" data-v="win" class="'+(E.mode==='win'?'on':'')+'">選食糊牌</button></div>';
+ h+='<div class="seg"><button data-act="mode" data-v="pick" class="'+(E.mode==='pick'?'on':'')+'">刪牌</button><button data-act="mode" data-v="meld" class="'+(E.mode==='meld'?'on':'')+'">選明牌</button><button data-act="mode" data-v="win" class="'+(E.mode==='win'?'on':'')+'">選食糊牌</button></div>';
  h+='<div class="hint">'+(E.mode==='meld'?'點選3或4張,再按下方組別按鈕。':'點「選食糊牌」再點最後食糊的一張;刪牌模式點牌即刪除。')+'</div>';
  h+='<div class="zl">手牌連食糊牌 '+E.all.length+' 張(應 '+((5-E.wildGroups.length)*3+2)+' 張)</div><div class="zone tiles">'+E.all.map((t,i)=>mt(t,{tag:'button',cls:E.wildSelect.includes(i)?'mk2':t===E.win?'mark':'',attrs:'data-act="wildPool" data-i="'+i+'"'})).join('')+'</div>';
  if(E.mode==='meld') h+='<div class="btnrow"><button data-act="wildGroup" data-v="chow">加入上牌</button><button data-act="wildGroup" data-v="pung">加入碰牌</button><button data-act="wildGroup" data-v="kong" data-open="1">加入明槓</button><button data-act="wildGroup" data-v="kong" data-open="0">加入暗槓</button><button data-act="wildCancelGroup">取消選取</button></div>';
- h+='<div class="btnrow"><button data-act="undoTile">退一張手牌</button><button data-act="clearHand">全部清空</button></div><h3>副露／槓(已宣告的百搭用途固定)</h3>';
- h+=E.wildGroups.map((g,i)=>'<div class="card">'+g.physical.map(t=>mt(t)).join('')+' → '+(g.t==='chow'?'上':g.t==='pung'?'碰':g.open?'明槓':'暗槓')+' '+M.tName(g.tile)+(g.physical.includes(34)?'(含百搭)':'')+' <button data-act="wildRemoveGroup" data-i="'+i+'">退回手牌</button></div>').join('');
+ h+='<div class="btnrow"><button data-act="undoTile">退一張手牌</button><button data-act="clearHand">全部清空</button></div><h3>明牌(已上、碰、槓)</h3>';
+ h+=E.wildGroups.map((g,i)=>'<div class="card">'+g.physical.map(t=>mt(t)).join('')+' → '+(g.t==='chow'?'上':g.t==='pung'?'碰':g.open?'明槓':'暗槓')+' '+M.tName(g.tile)+(g.physical.includes(34)?'(含百搭)':'')+' <button data-act="wildRemoveGroup" data-i="'+i+'">退回手牌</button></div>').join('')||'<div class="hint">沒有明牌</div>';
  h+='<div class="hint">食糊牌:'+(E.win==null?'未選':E.win===34?'百搭(只限自摸)':M.tName(E.win))+'。百搭不能代花牌;代入後同款牌最多4張。假碰優先權屬牌桌規則,本計番器不裁定搶碰。</div>';
  h+='<div class="btnrow"><button class="primary" data-act="wildRun">搜尋最高番</button>'+(wildBusy?'<button data-act="wildStop">取消搜尋</button>':'')+'</div><div id="wild-progress" class="hint">'+(wildBusy?'正在完整搜尋,已評估 '+wildProgress+' 種;未完成前不能記錄。':'變更牌、花牌、番表或特殊情況後,請重新搜尋。')+'</div>';
  return h;
