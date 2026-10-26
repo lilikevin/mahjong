@@ -1,7 +1,7 @@
 (function(){
 'use strict';
 const APP_VERSION='v1.2 beta';
-const APP_UPDATED='2026-10-26 22:20 (香港時間)';
+const APP_UPDATED='2026-10-26 22:45 (香港時間)';
 const DEV_IG='kevinli999';
 let M=window.MJ;
 const KEY='mj_hk_tw_v1';
@@ -549,8 +549,7 @@ function viewCalc(){
   if(E.extra.length){ const r=RL(); h+='<div class="extras">'+E.extra.map((x,i)=>'<span class="meld">'+(r[x.id]?r[x.id].name:x.id)+' ×'+x.n+' <b data-act="extraN" data-i="'+i+'" data-d="1">＋</b> <b data-act="extraN" data-i="'+i+'" data-d="-1">−</b> <b data-act="rmExtra" data-i="'+i+'">✕</b></span>').join('')+'</div>'; }
   h+='<div class="addfan"><select data-chg="addId"><option value="">＋ 手動加番種…</option>'+fanList().map(f=>'<option value="'+f.id+'">'+f.name+' ('+f.fan+(f.fanC!=null?'/'+f.fanC:'')+')</option>').join('')+'</select></div>';
   const minF=isHK()?S.cfg.hk.minFan:S.cfg.minFan;
-  h+='<div class="total">'+(isHK()?'合計':'牌型合計(未計底及莊)')+' <b>'+total+'</b> 番'+(isHK()&&rawTotal>hkCap()?' <span class="hint">(疊加 '+rawTotal+' 番,封頂 '+hkCap()+' 番)</span>':'')+(minF>0&&total<minF?' <span class="neg">('+(isHK()?'不足 '+minF+' 番,記錄時當詐糊':'低於起糊 '+minF+' 番')+')</span>':'')+'</div>';
-  if(!isHK()) h+=payBreakdown(total);
+  h+='<div class="total">'+(isHK()?'合計 <b>'+total+'</b> 番':finalTotals(total))+(isHK()&&rawTotal>hkCap()?' <span class="hint">(疊加 '+rawTotal+' 番,封頂 '+hkCap()+' 番)</span>':'')+(minF>0&&total<minF?' <span class="neg">('+(isHK()?'不足 '+minF+' 番,記錄時當詐糊':'低於起糊 '+minF+' 番')+')</span>':'')+'</div>';
   if(isHK()){
     if(E.self||E.disc!=null){
       const w0={p:E.winner,self:E.self,disc:E.disc,total:total,qiang:!!E.flags.qiangkong&&!E.self,bao:E.bao};
@@ -947,15 +946,15 @@ function lockedFanRows(){
   else if(E.disc==null) scope='出銃時:莊家食糊或莊家出銃才加';
   else scope=E.disc===dealer?'莊家出銃:適用':'本局不適用';
   const applies=E.self||E.disc!=null?(E.winner===dealer||E.self||E.disc===dealer):true;
-  return row('底(固定,不能刪除)',S.cfg.baseMult,fv===1?'每付款人一份':'每付款人一份,每番 $'+fv)+row('莊家加番(固定)',applies?1:0,scope)+row('連莊加番 2 × '+streak+'(固定)',applies?2*streak:0,scope);
+  return row('底(固定,不能刪除)',S.cfg.baseMult,fv===1?'每付款人一份':'每付款人一份,每番 $'+fv)+row('莊家加番(固定)',applies?1:0,scope)+row('連莊加番 2 × '+streak+'(固定)',applies?2*streak:0,scope)+'<div class="hint">底及莊家加番只在這份清單計算一次;下方合計與記帳預覽不會再重複加。</div>';
 }
-function payBreakdown(total){
-  const rows=payRows(total),fv=S.cfg.fanValue;
-  let h='<h3>每家應付合計</h3>';
-  if(!rows.length) return h+'<div class="hint">請先選擇自摸,或選出銃者,才會顯示每家應付金額。</div>';
-  h+='<table><tr><th>付款人</th><th>牌型</th><th>底</th><th>莊／連莊</th><th>合計</th></tr>'+rows.map(r=>'<tr><td>'+nm(r.payer)+'</td><td>'+r.pattern+'番</td><td>+'+r.base+'番</td><td>'+((r.dealerFan||r.streakFan)?'+'+(r.dealerFan+r.streakFan)+'番':'—')+'</td><td><b>'+r.fan+'番 = $'+r.amount+'</b></td></tr>').join('')+'</table>';
-  h+='<div class="hint">每番 $'+fv+(fv===1?',所以番數 = 金額':',金額 = 番數 × 每番金額')+'。上方 🔒 項目是固定項目,不能刪除。此為本局新增拉數;是否即時收付以下方「本局記帳預覽」為準。'+(pending.length?' 雙響／三響時,這裡只顯示目前輸入的食糊者。':'')+'</div>';
-  return h;
+function finalTotals(total){
+  const rows=payRows(total);
+  if(!rows.length) return '合計 <b>'+total+'</b> 番(選自摸或出銃者後,會顯示含底及莊家的應付合計)';
+  const groups=[];
+  rows.forEach(r=>{let g=groups.find(x=>x.fan===r.fan);if(!g){g={fan:r.fan,amount:r.amount,names:[]};groups.push(g);}g.names.push(nm(r.payer));});
+  if(groups.length===1) return '每位付款人應付 <b>'+groups[0].fan+'</b> 番 = <b>$'+groups[0].amount+'</b>';
+  return groups.map(g=>g.names.join('、')+' 付 <b>'+g.fan+'</b> 番 = <b>$'+g.amount+'</b>').join('<br>');
 }
 let wildJob=null,wildKey='',wildDone=null,wildBusy=false,wildProgress=0;
 function wildInput(){return {hand:E.all.slice(),groups:JSON.parse(JSON.stringify(E.wildGroups)),win:E.win,selfDraw:E.self,flags:E.flags,flowers:E.flowers,limit:S.cfg.wildLimit,preset:S.cfg.wildPreset,...ctxExtra()};}
