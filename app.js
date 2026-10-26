@@ -1,7 +1,7 @@
 (function(){
 'use strict';
 const APP_VERSION='v1.3';
-const APP_UPDATED='2026-10-26 18:17 (香港時間)';
+const APP_UPDATED='2026-10-26 18:51 (香港時間)';
 const DEV_IG='kevinli999';
 let M=window.MJ;
 const KEY='mj_hk_tw_v1';
@@ -181,6 +181,8 @@ const STATIC_CSS=`
 .zone.tap{cursor:pointer;min-height:70px}
 .modebar{min-height:58px;display:flex;align-items:center;background:var(--card);border:1px solid var(--bd);border-radius:10px;padding:8px 10px;font-size:13px;line-height:1.45;color:#eef5ef;margin:6px 0}
 .poolbox{min-height:60px}
+.askcard{margin:10px 0}
+.askcard .seg button{padding:14px 4px;font-size:16px;font-weight:600}
 `;
 const DYN_CSS=`
 body{background:var(--bg)!important}
@@ -356,8 +358,8 @@ function derive(){
   E.hand=hand;
 }
 function ctxExtra(){ const x={useFlowers:isHK()?!!S.cfg.hk.flowers:true}; if(E.winner!=null){ x.roundWind=S.wind; x.seatWind=windIdx(E.winner); } return x; }
-/* 廣東牌:只需選齊全部牌。槓由牌數推算(每多一張=一個槓);食糊牌自動取最高番;門前清由用戶在「特殊情況」自行勾選 */
 function combos(arr,k){ const res=[]; (function r(i,cur){ if(cur.length===k){ res.push(cur.slice()); return; } for(let j=i;j<arr.length;j++){ cur.push(arr[j]); r(j+1,cur); cur.pop(); } })(0,[]); return res; }
+/* 廣東牌:只需選齊全部牌。槓由牌數推算;食糊牌自動取最高番;門前清由牌堆下方的問題回答 */
 function analyzeHK(){
   const N=E.all.length;
   if(!N) return null;
@@ -449,7 +451,6 @@ function viewTable(){
   h+='<h3>牌局管理</h3><div class="btnrow"><button class="danger" data-act="newGame">開始全新局</button>'+(hasPrev()?'<button data-act="restoreGame">還原上一場牌局</button>':'')+'</div><p class="hint">全新局會清空所有紀錄、未結算的拉、連莊與風圈,並由東風圈、東位坐莊重新開始。玩家名稱、座位與設定會保留。清空前會自動保存上一場,可用「還原上一場牌局」找回。</p>';
   return h;
 }
-function dragonExposed(){ return E.melds.filter(m=>m.tile>=31&&m.t!=='chow').length; }
 function baoVisible(){
   if(!isHK()||!E.self) return false;
   const h=S.cfg.hk;
@@ -483,12 +484,16 @@ function inputSection(){
   return h;
 }
 function inputSectionHK(){
+  const mq=E.flags.menqing;
   let h='<h3>輸入牌</h3>';
   h+='<div class="modebar">選牌:點上方牌盤選齊全部的牌(有槓時,每個槓多一張),點牌堆裡的牌可刪除。不用標明牌和食糊牌。</div>';
   h+=palette();
   h+='<div class="zl">牌堆 <small>共 '+E.all.length+' 張</small></div>';
   h+='<div class="zone poolbox"><div class="tiles">'+(E.all.length?E.all.slice().sort((a,b)=>a-b).map(t=>mt(t,{tag:'button',attrs:'data-act="poolTap" data-t="'+t+'"'})).join(''):'<span class="hint">點上方牌盤選牌</span>')+'</div></div>';
   h+='<div class="btnrow"><button data-act="undoTile">退一張</button><button data-act="clearHand">全部清空</button></div>';
+  h+='<div class="card askcard"><div class="zl" style="margin-top:0">是不是門前清?(胡牌前沒有上、碰、槓過牌)</div>'
+    +'<div class="seg two"><button class="'+(mq===true?'on':'')+'" data-act="menqing" data-v="1">是(門前清)</button><button class="'+(mq===false?'on':'')+'" data-act="menqing" data-v="0">否(有上、碰、槓過)</button></div>'
+    +'<div class="hint">選「是」才會計門前清、坎坎糊、九子連環;未選擇時按「否」計算(只計對對糊)。</div></div>';
   return h;
 }
 function resultHint(res){
@@ -505,7 +510,9 @@ function resultHint(res){
   return '<div class="ok">已自動分析(共 '+res.count+' 種拆法,取最高番;聽 '+res.waits+' 張牌)</div>';
 }
 function viewCalc(){
-  const res=analyze(); const items=curItems(res); const total=items.reduce((a,x)=>a+x.total,0);
+  const res=analyze(); const items=curItems(res);
+  const rawTotal=items.reduce((a,x)=>a+x.total,0);
+  const total=isHK()?Math.min(rawTotal,hkCap()):rawTotal;
   if(E.winner==null) E.winner=S.seat[0];
   let h='<div class="status">目前:<b>'+WIND[S.wind]+'風圈</b> · 莊家 '+nm(dealerPid())+' · 連莊 '+S.streak+' 次<br>食糊者(胡牌)'+nm(E.winner)+' 的門風:<b>'+windOf(E.winner)+'風</b>'+(E.winner===dealerPid()?'(莊家)':'')+'</div>';
   h+='<div class="hint">各家門風:'+S.seat.map(p=>nm(p)+' '+windOf(p)).join(' · ')+'<br>玩法:'+gameName()+'</div>';
@@ -514,10 +521,9 @@ function viewCalc(){
   h+='<div class="seg two"><button class="'+(E.self?'on':'')+'" data-act="self" data-v="1">自摸</button><button class="'+(!E.self?'on':'')+'" data-act="self" data-v="0">出銃(放槍)</button></div>';
   if(!E.self){ h+='<div class="lbl">出銃者(放槍)</div>'+winnerBtns('disc',E.disc); }
   if(!isHK()||S.cfg.hk.flowers) h+='<h3>花牌</h3><div class="flowers">'+M.FLOWERS.map((f,i)=>'<button class="fl '+(E.flowers[i]?'on':'')+'" data-act="flower" data-i="'+i+'">'+f+'</button>').join('')+'</div>';
-  const flagList=(M.FLAGS||DEFAULT_FLAGS).concat(isHK()?[]:HUAHU.map(h2=>[h2[0],h2[1]]));
+  const flagList=(M.FLAGS||DEFAULT_FLAGS).filter(a=>!(isHK()&&a[0]==='menqing')).concat(isHK()?[]:HUAHU.map(h2=>[h2[0],h2[1]]));
   h+='<h3>特殊情況</h3><div class="flags">'+flagList.map(a=>'<label><input type="checkbox" data-chg="flag" data-k="'+a[0]+'"'+(E.flags[a[0]]?' checked':'')+'>'+a[1]+'</label>').join('')+'</div>';
-  if(isHK()) h+='<p class="hint">門前清:胡牌前沒有上、碰、槓過任何牌就勾選(影響門前清、坎坎糊、九子連環)。</p>';
-  else h+='<p class="hint">勾選「花糊」:其番數直接加在本局食糊者的番數上,一併按本局結算,不另外拉落下一鋪。</p>';
+  if(!isHK()) h+='<p class="hint">勾選「花糊」:其番數直接加在本局食糊者的番數上,一併按本局結算,不另外拉落下一鋪。</p>';
   h+=inputSection();
   h+='<h3>番數結果</h3>';
   h+=resultHint(res);
@@ -530,12 +536,12 @@ function viewCalc(){
   if(E.extra.length){ const r=RL(); h+='<div class="extras">'+E.extra.map((x,i)=>'<span class="meld">'+(r[x.id]?r[x.id].name:x.id)+' ×'+x.n+' <b data-act="extraN" data-i="'+i+'" data-d="1">＋</b> <b data-act="extraN" data-i="'+i+'" data-d="-1">−</b> <b data-act="rmExtra" data-i="'+i+'">✕</b></span>').join('')+'</div>'; }
   h+='<div class="addfan"><select data-chg="addId"><option value="">＋ 手動加番種…</option>'+fanList().map(f=>'<option value="'+f.id+'">'+f.name+' ('+f.fan+(f.fanC!=null?'/'+f.fanC:'')+')</option>').join('')+'</select></div>';
   const minF=isHK()?S.cfg.hk.minFan:S.cfg.minFan;
-  h+='<div class="total">合計 <b>'+total+'</b> 番'+(isHK()&&total>hkCap()?' <span class="hint">(封頂 '+hkCap()+' 番)</span>':'')+(minF>0&&total<minF?' <span class="neg">('+(isHK()?'不足 '+minF+' 番,記錄時當詐糊':'低於起糊 '+minF+' 番')+')</span>':'')+'</div>';
+  h+='<div class="total">合計 <b>'+total+'</b> 番'+(isHK()&&rawTotal>hkCap()?' <span class="hint">(疊加 '+rawTotal+' 番,封頂 '+hkCap()+' 番)</span>':'')+(minF>0&&total<minF?' <span class="neg">('+(isHK()?'不足 '+minF+' 番,記錄時當詐糊':'低於起糊 '+minF+' 番')+')</span>':'')+'</div>';
   if(isHK()){
     if(E.self||E.disc!=null){
       const w0={p:E.winner,self:E.self,disc:E.disc,total:total,qiang:!!E.flags.qiangkong&&!E.self,bao:E.bao};
       const d=settleHK(pending.concat([w0]));
-      h+='<h3>本局計分預覽</h3><div class="prev">'+S.seat.map(p=>'<div><small>'+nm(p)+'</small><b class="'+(d[p]>=0?'pos':'neg')+'">'+money(d[p])+'</b></div>').join('')+'</div><p class="hint">'+HK_PRESETS[S.cfg.hk.preset].name+':'+Math.min(total,hkCap())+' 番出銃 '+hkRon(total)+' 分,自摸每家 '+hkShare(total)+' 分。</p>';
+      h+='<h3>本局計分預覽</h3><div class="prev">'+S.seat.map(p=>'<div><small>'+nm(p)+'</small><b class="'+(d[p]>=0?'pos':'neg')+'">'+money(d[p])+'</b></div>').join('')+'</div><p class="hint">'+HK_PRESETS[S.cfg.hk.preset].name+':'+total+' 番出銃 '+hkRon(total)+' 分,自摸每家 '+hkShare(total)+' 分。</p>';
     }
   } else if(E.self||E.disc!=null){
     const ws=pending.map(w=>({p:w.p,self:false,disc:w.disc,total:w.total})).concat([{p:E.winner,self:E.self,disc:E.disc,total}]);
@@ -565,7 +571,7 @@ function viewHistory(){
   S.history.slice().reverse().forEach((r,ri)=>{
     const no=S.history.length-ri; const t=new Date(r.time);
     h+='<div class="card rec"><div class="rh"><b>#'+no+'</b> '+(r.kind==='win'?'食糊':r.kind==='draw'?'流局':r.kind==='settle'?esc(r.name||'結清'):'籌碼:'+esc(r.name))+' <small>'+WIND[r.wind]+'風圈 · 莊 '+nm(r.dealer)+' 連莊'+r.streak+' · '+t.getHours()+':'+String(t.getMinutes()).padStart(2,'0')+'</small></div>';
-    if(r.kind==='win') r.winners.forEach(w=>{ h+='<div class="rw">'+nm(w.p)+(w.self?' 自摸':' 食 '+nm(w.disc)+' 出銃')+(w.bao!=null&&w.bao!==w.p?'(由 '+nm(w.bao)+' 包)':'')+' — <b>'+w.total+'番</b><div class="hint">'+w.fans.map(f=>esc(f.name)+(f.n>1?'×'+f.n:'')+' '+f.total).join(' · ')+'</div></div>'; });
+    if(r.kind==='win') r.winners.forEach(w=>{ h+='<div class="rw">'+nm(w.p)+(w.self?' 自摸':' 食 '+nm(w.disc)+' 出銃')+(w.bao!=null&&w.bao!==w.p?'(由 '+nm(w.bao)+' 包)':'')+' — <b>'+w.total+'番</b>'+(w.raw&&w.raw>w.total?'<small>(疊加 '+w.raw+' 番,封頂)</small>':'')+'<div class="hint">'+w.fans.map(f=>esc(f.name)+(f.n>1?'×'+f.n:'')+' '+f.total).join(' · ')+'</div></div>'; });
     (r.events||[]).forEach(e=>{ h+='<div class="hint">• '+evText(e)+'</div>'; });
     h+='<div class="prev">'+S.seat.map(p=>'<div><small>'+nm(p)+'</small><b class="'+(r.deltas[p]>=0?'pos':'neg')+'">'+money(r.deltas[p])+'</b></div>').join('')+'</div></div>';
   });
@@ -603,7 +609,7 @@ function hkSettings(){
   h+='<label>大三元包<select data-chg="hkb" data-k="baoSan"><option value="1"'+(h0.baoSan?' selected':'')+'>開</option><option value="0"'+(!h0.baoSan?' selected':'')+'>關</option></select></label>';
   h+='<label>花牌規則(144張)<select data-chg="hkb" data-k="flowers"><option value="0"'+(!h0.flowers?' selected':'')+'>關(計門前清)</option><option value="1"'+(h0.flowers?' selected':'')+'>開(計花、無花)</option></select></label>';
   h+='<label>食糊後連莊<select data-chg="hkb" data-k="renzhuang"><option value="1"'+(h0.renzhuang?' selected':'')+'>莊家連莊</option><option value="0"'+(!h0.renzhuang?' selected':'')+'>輪莊</option></select></label></div>';
-  h+='<p class="hint">總例:完全複合原則(必然並存的番種全部相加)、高點法;流局莊家輪替。不足起糊番數而食糊,當詐糊:扣例牌(封頂)分數,其他家不加分,本局重來。</p>';
+  h+='<p class="hint">總例:完全複合原則(必然並存的番種全部相加),相加後超過封頂番數就按封頂計;同一手牌有多種讀法取最高番。流局莊家輪替。不足起糊番數而食糊,當詐糊:扣例牌(封頂)分數,其他家不加分,本局重來。</p>';
   h+='<h3>番數對應分數(出銃)</h3><div class="fanTable">';
   for(let f=1;f<=pr.cap;f++) h+='<div class="frow"><span>'+f+' 番'+(f===pr.cap?'(封頂)':'')+'</span><input type="number" data-chg="hkrow" data-f="'+f+'" value="'+hkRon(f)+'"><i></i></div>';
   h+='</div><div class="btnrow"><button data-act="hkResetTable">還原分數表</button></div>';
@@ -663,8 +669,9 @@ function before(){ return {dealerSeat:S.dealerSeat,streak:S.streak,wind:S.wind};
 function pushRec(o){ S.history.push(Object.assign({id:Date.now(),time:Date.now(),dealer:dealerPid(),streak:S.streak,wind:S.wind,before:before(),ledgerBefore:copyL(S.ledger)},o)); }
 function collectCurrent(){
   derive();
-  const res=analyze(); const items=curItems(res); const total=items.reduce((a,x)=>a+x.total,0);
-  return {p:E.winner,self:E.self,disc:E.disc,total,fans:items,qiang:!!E.flags.qiangkong&&!E.self,bao:baoVisible()?E.bao:null};
+  const res=analyze(); const items=curItems(res); const raw=items.reduce((a,x)=>a+x.total,0);
+  const total=isHK()?Math.min(raw,hkCap()):raw;
+  return {p:E.winner,self:E.self,disc:E.disc,total,raw,fans:items,qiang:!!E.flags.qiangkong&&!E.self,bao:baoVisible()?E.bao:null};
 }
 function validateCur(){
   if(!E.self){ if(E.disc==null){ toast('請選擇出銃者(放槍)'); return false; } if(E.disc===E.winner){ toast('出銃者不能是食糊者'); return false; } }
@@ -679,6 +686,7 @@ function act(a,d){
   switch(a){
     case 'tab': tab=d.v; break;
     case 'toChooser': tab='chooser'; break;
+    case 'menqing': E.flags.menqing=(d.v==='1'); E.excl={}; break;
     case 'game': {
       const v=d.v;
       if(v==='hk'&&!window.MJHK){ toast('找不到 engine_hk.js,請先上傳'); return; }
@@ -785,7 +793,7 @@ function act(a,d){
       const ws=pending.concat([cur]);
       if(isHK()){
         const deltas=settleHK(ws);
-        S.history.push({id:Date.now(),time:Date.now(),kind:'win',dealer,streak:S.streak,wind:S.wind,winners:ws.map(w=>({p:w.p,self:w.self,disc:w.disc,total:w.total,fans:w.fans,bao:w.bao})),deltas,events:[],before:before(),ledgerBefore:copyL(S.ledger)});
+        S.history.push({id:Date.now(),time:Date.now(),kind:'win',dealer,streak:S.streak,wind:S.wind,winners:ws.map(w=>({p:w.p,self:w.self,disc:w.disc,total:w.total,raw:w.raw,fans:w.fans,bao:w.bao})),deltas,events:[],before:before(),ledgerBefore:copyL(S.ledger)});
         advance(ws.some(w=>w.p===dealer)&&S.cfg.hk.renzhuang,false);
         E=newEntry(); pending=[]; tab='history'; toast('已記錄'); break;
       }

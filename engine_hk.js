@@ -7,7 +7,6 @@ const numOf=i=>i<27?(i%9+1):0;
 const isHon=i=>i>=27;
 const FLOWERS=['春','夏','秋','冬','梅','蘭','菊','竹'];
 const YAO=[0,8,9,17,18,26,27,28,29,30,31,32,33];
-/* 香港麻雀協會《香港麻雀總例》番種一覧表 */
 const RAW=[
 ['pinghu','平糊',1],['zimo','自摸',1],['sanyuan','三元牌(每坎)',1],['fengpai','風牌(門風 / 圈風)',1],['huayao','花么',1],
 ['qiangkong','搶槓',1],['kongshang','槓上自摸',1],['haidi','海底撈月',1],['menqing','門前清(無花規則)',1],
@@ -20,7 +19,6 @@ const RAW=[
 ];
 const MANUAL=['xiaohuahu','dahuahu'];
 const FANS=RAW.map(r=>({id:r[0],name:r[1],fan:r[2],fanC:null,manual:MANUAL.indexOf(r[0])>=0}));
-/* 門前清由用戶自行勾選(沒有上、碰、槓過牌) */
 const FLAGS=[['menqing','門前清'],['qiangkong','搶槓'],['kongshang','槓上自摸'],['haidi','海底撈月'],['gsg','槓上槓自摸'],['tianhu','天糊'],['dihu','地糊']];
 const INSTANT=[
  {id:'zhahu',name:'詐糊(扣例牌分,不加給他家)',amt:'cap',mode:'burn'},
