@@ -1,13 +1,14 @@
 (function(){
 'use strict';
-const APP_VERSION='v1.4';
-const APP_UPDATED='2026-10-26 08:15 (香港時間)';
-const M=window.MJ;
+const APP_VERSION='v1.1';
+const APP_UPDATED='2026-10-26 13:03 (香港時間)';
+let M=window.MJ;
 const KEY='mj_hk_tw_v1';
 const PREV_KEY='mj_hk_tw_prev_game';
 const A2HS_KEY='mj_a2hs_never';
 const WIND='東南西北';
 const DEFAULT_THEME={bg:'#0f2a1f',card:'#16382b',btn:'#1d4a38',acc:'#e6b422'};
+const DEFAULT_FLAGS=[['ting','叮'],['qiangkong','搶槓'],['huashang','花上自摸'],['kongshang','槓上自摸'],['haidi','海底撈月'],['tianhu','天胡'],['dihu','地胡'],['renhu','人胡'],['tianting','天叮'],['shuangxiang','雙響'],['sanxiang','三響']];
 const SCHEMES=[
  ['經典綠',{bg:'#0f2a1f',card:'#16382b',btn:'#1d4a38',acc:'#e6b422'}],
  ['夜藍',{bg:'#0f1f33',card:'#172b45',btn:'#1f3d63',acc:'#3dd6c6'}],
@@ -16,29 +17,39 @@ const SCHEMES=[
  ['紫夜',{bg:'#1f1630',card:'#2c2142',btn:'#43336b',acc:'#ff7eb6'}]
 ];
 const THEME_LABEL={bg:'頁面背景',card:'格子 / 卡片',btn:'按鈕',acc:'強調色(選中、金額、標題)'};
-const defState=()=>({names:['玩家1','玩家2','玩家3','玩家4'],seat:[0,1,2,3],dealerSeat:0,streak:0,wind:0,history:[],ledger:[],cfg:{fanValue:1,baseMult:5,minFan:0,drawKeeps:true,over:{},theme:Object.assign({},DEFAULT_THEME)}});
+const PRESET_NAME={1:'預設 #1 舊番表(陶源麻雀王大賽)',2:'預設 #2 香港麻雀協會總例(2025-07-28 修訂)'};
+const defState=()=>({names:['玩家1','玩家2','玩家3','玩家4'],seat:[0,1,2,3],dealerSeat:0,streak:0,wind:0,history:[],ledger:[],cfg:{fanValue:1,baseMult:5,minFan:0,drawKeeps:true,preset:1,overs:{1:{},2:{}},theme:Object.assign({},DEFAULT_THEME)}});
 function norm(j){
   const d=defState(); const s=Object.assign(d,j,{cfg:Object.assign(d.cfg,j.cfg||{}),ledger:j.ledger||[]});
   const th=Object.assign({},DEFAULT_THEME,(j.cfg&&j.cfg.theme)||{});
   if(j.cfg&&j.cfg.bg&&!(j.cfg.theme&&j.cfg.theme.bg)) th.bg=j.cfg.bg;
-  s.cfg.theme=th; return s;
+  s.cfg.theme=th;
+  const c=s.cfg;
+  if(!c.overs||typeof c.overs!=='object') c.overs={1:(j.cfg&&j.cfg.over)||{},2:{}};
+  if(!c.overs[1]) c.overs[1]={}; if(!c.overs[2]) c.overs[2]={};
+  if(c.preset!==2) c.preset=1;
+  return s;
 }
 function load(){
   try{ const j=JSON.parse(localStorage.getItem(KEY)); if(j&&j.names) return norm(j); }catch(e){}
   return defState();
 }
 let S=load();
+function pickM(){ M=(S.cfg.preset===2&&window.MJ2)?window.MJ2:window.MJ; }
+pickM();
 const save=()=>{ try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){} };
 const newEntry=()=>({winner:null,self:true,disc:null,hand:[],melds:[],win:null,flowers:Array(8).fill(false),flags:{},mode:'chow',meldMode:'chow',excl:{},extra:[]});
 let E=newEntry(), pending=[], tab='table';
-let inst={id:'zhahu',mode:'one',payee:null,payer:null};
+let inst={id:null,mode:'one',payee:null,payer:null};
 let upd=null, updDismissed=false, checking=false, a2hsHidden=false;
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const seatOf=p=>S.seat.indexOf(p);
 const dealerPid=()=>S.seat[S.dealerSeat];
-const windOf=p=>WIND[(seatOf(p)-S.dealerSeat+4)%4];
+const windIdx=p=>(seatOf(p)-S.dealerSeat+4)%4;
+const windOf=p=>WIND[windIdx(p)];
 const nm=p=>esc(S.names[p]);
-const RL=()=>M.buildRules(S.cfg.over);
+const OV=()=>S.cfg.overs[S.cfg.preset]||(S.cfg.overs[S.cfg.preset]={});
+const RL=()=>M.buildRules(OV());
 const money=n=>(n>0?'+':'')+n;
 const stepOf=m=>m==='hand'?2:(m==='win'?3:1);
 const copyL=l=>l.map(r=>({from:r.from,to:r.to,amt:r.amt,k:r.k}));
@@ -46,7 +57,6 @@ function balances(){ const b=[0,0,0,0]; S.history.forEach(r=>r.deltas.forEach((d
 function pendingBal(){ const b=[0,0,0,0]; S.ledger.forEach(r=>{ b[r.to]+=r.amt; b[r.from]-=r.amt; }); return b; }
 function toast(t){ const e=document.getElementById('toast'); e.textContent=t; e.className='show'; setTimeout(()=>{e.className='';},1800); }
 
-/* ===== 蘋果裝置:加入主畫面提示 ===== */
 function isApple(){
   try{ const ua=navigator.userAgent||''; return /iPad|iPhone|iPod/.test(ua)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1); }catch(e){ return false; }
 }
@@ -78,6 +88,9 @@ const STATIC_CSS=`
 .pick .hexv{flex:1;font-family:ui-monospace,Menlo,monospace;font-size:14px}
 .pick .pbtn{background:var(--btn2);border:1px solid var(--bd);border-radius:8px;padding:8px 12px;font-size:14px}
 .pick input[type=color]{position:absolute;left:0;top:0;width:100%;height:100%;opacity:0;border:0;padding:0;cursor:pointer}
+.presetbtns{display:flex;flex-direction:column;gap:6px;margin:8px 0}
+.presetbtns button{text-align:left;padding:12px;line-height:1.35}
+.presetbtns small{display:block;opacity:.8;font-size:12px;margin-top:2px}
 .mt{display:inline-flex;flex-direction:column;align-items:center;justify-content:center;width:32px;height:44px;padding:0!important;background:#f7f3e3!important;color:#222;border:1px solid #bbb!important;border-bottom:4px solid #2f8f57!important;border-radius:5px;line-height:1;font-weight:700;box-shadow:0 1px 3px #0007;font-family:inherit}
 .mt b{font-size:19px;font-weight:700}.mt i{font-style:normal;font-size:12px;margin-top:2px}
 .mt.s0{color:#a0201a}.mt.s1{color:#1c4fa0}.mt.s2{color:#1a7a3a}
@@ -150,7 +163,7 @@ async function checkUpdate(manual){
     const r=await fetch('version.json?t='+Date.now(),{cache:'no-store'});
     if(!r.ok) throw new Error('http');
     const j=await r.json();
-    if(j&&j.version&&j.version!==APP_VERSION){ upd=j; updDismissed=false; if(manual) toast('發現新版本 '+j.version); }
+    if(j&&j.version&&(j.version!==APP_VERSION||(j.updated&&j.updated!==APP_UPDATED))){ upd=j; updDismissed=false; if(manual) toast('發現新版本 '+j.version); }
     else { upd=null; if(manual) toast('目前已是最新版本'); }
   }catch(e){ if(manual) toast('無法檢查更新,請確認網絡'); }
   checking=false; render();
@@ -160,7 +173,7 @@ async function doUpgrade(){
   try{
     if('serviceWorker' in navigator){ const rs=await navigator.serviceWorker.getRegistrations(); await Promise.all(rs.map(r=>r.unregister())); }
     if(window.caches){ const ks=await caches.keys(); await Promise.all(ks.map(k=>caches.delete(k))); }
-    await Promise.all(['./','index.html','app.js','engine.js','manifest.json','sw.js','version.json','icon-192.png','icon-512.png'].map(f=>fetch(f,{cache:'reload'}).catch(()=>{})));
+    await Promise.all(['./','index.html','app.js','engine.js','engine2.js','manifest.json','sw.js','version.json','icon-192.png','icon-512.png'].map(f=>fetch(f,{cache:'reload'}).catch(()=>{})));
   }catch(e){}
   location.reload();
 }
@@ -205,18 +218,20 @@ function tileCount(t){
   E.melds.forEach(m=>{ if(m.t==='chow'){ if(t>=m.tile&&t<=m.tile+2) n++; } else if(m.tile===t) n+=(m.t==='kong'?4:3); });
   return n;
 }
+function ctxExtra(){ return E.winner==null?{}:{roundWind:S.wind,seatWind:windIdx(E.winner)}; }
 function analyze(){
   if(E.hand.length!==need()-1||E.win==null) return null;
-  return M.analyze({hand:E.hand.concat([E.win]),melds:E.melds,win:E.win,flowers:E.flowers,selfDraw:E.self,flags:E.flags},S.cfg.over);
+  return M.analyze(Object.assign({hand:E.hand.concat([E.win]),melds:E.melds,win:E.win,flowers:E.flowers,selfDraw:E.self,flags:E.flags},ctxExtra()),OV());
 }
 function curItems(res){
   const r=RL(); let it;
   if(res&&res.items) it=res.items.filter(x=>!E.excl[x.id]);
-  else it=M.basic({flowers:E.flowers,selfDraw:E.self,flags:E.flags}).filter(x=>!E.excl[x.id]);
+  else it=M.basic(Object.assign({flowers:E.flowers,selfDraw:E.self,flags:E.flags},ctxExtra())).filter(x=>!E.excl[x.id]);
   it=it.concat(E.extra.map(x=>({id:x.id,n:x.n,closed:false})));
   return it.map(x=>{
-    const f=r[x.id]; const c=x.closed&&f.fanC!=null; const unit=c?f.fanC:f.fan;
-    return {id:x.id,name:f.name+(f.fanC!=null?(c?'(暗)':'(明)'):''),n:x.n,unit,total:unit*x.n};
+    const f=r[x.id]; if(!f) return {id:x.id,name:x.id,n:x.n,unit:0,total:0};
+    const c=x.closed&&f.fanC!=null; const total=M.valueOf(r,{id:x.id,n:x.n,closed:x.closed});
+    return {id:x.id,name:f.name+(f.fanC!=null?(c?'(暗)':'(明)'):''),n:x.n,unit:(x.n?total/x.n:0),total};
   });
 }
 function tileBtn(t){ return '<button class="t s'+M.suitOf(t)+'" data-act="tile" data-t="'+t+'">'+M.tName(t)+'</button>'; }
@@ -245,7 +260,7 @@ function viewTable(){
   const card=s=>{ const p=S.seat[s]; return '<div class="card seat '+(s===S.dealerSeat?'dealer':'')+'"><div class="sw">'+WIND[s]+'</div><div class="pn" data-act="rename" data-p="'+p+'">'+nm(p)+'</div><div class="mini">門風 '+windOf(p)+(s===S.dealerSeat?' · 莊':'')+'</div><div class="bal '+(b[p]>=0?'pos':'neg')+'">'+money(b[p])+'</div></div>'; };
   let h='<div class="status">'+WIND[S.wind]+'風圈 · 莊家 '+nm(dealerPid())+' · 連莊 '+S.streak+' 次(莊家加 '+(1+2*S.streak)+' 番)</div>';
   h+='<div class="cross"><div></div>'+card(3)+'<div></div>'+card(2)+'<div class="center">座位<br><small>(實際位置)</small></div>'+card(0)+'<div></div>'+card(1)+'<div></div></div>';
-  h+='<p class="hint">格內金額為已收付的現金淨額。連莊與換莊會依胡牌結果自動計算。</p>';
+  h+='<p class="hint">格內金額為已收付的現金淨額。連莊與換莊會依胡牌結果自動計算。目前番表:'+PRESET_NAME[S.cfg.preset]+'</p>';
   h+='<h3>未結算的拉</h3>'+ledgerHtml(true);
   h+='<h3>座位安排</h3><div class="grid2">';
   for(let s=0;s<4;s++){ h+='<label>'+WIND[s]+'位<select data-chg="seat" data-s="'+s+'">'+[0,1,2,3].map(p=>'<option value="'+p+'"'+(S.seat[s]===p?' selected':'')+'>'+nm(p)+'</option>').join('')+'</select></label>'; }
@@ -263,13 +278,13 @@ function viewCalc(){
   if(E.winner==null) E.winner=S.seat[0];
   const st=stepOf(E.mode);
   let h='<div class="status">目前:<b>'+WIND[S.wind]+'風圈</b> · 莊家 '+nm(dealerPid())+' · 連莊 '+S.streak+' 次<br>胡牌者 '+nm(E.winner)+' 的門風:<b>'+windOf(E.winner)+'風</b>'+(E.winner===dealerPid()?'(莊家)':'')+'</div>';
-  h+='<div class="hint">各家門風:'+S.seat.map(p=>nm(p)+' '+windOf(p)).join(' · ')+'</div>';
+  h+='<div class="hint">各家門風:'+S.seat.map(p=>nm(p)+' '+windOf(p)).join(' · ')+'<br>番表:'+PRESET_NAME[S.cfg.preset]+'</div>';
   if(pending.length) h+='<div class="note">已加入 '+pending.length+' 位胡牌者:'+pending.map(w=>nm(w.p)+' '+w.total+'番').join('、')+'</div>';
   h+='<h3>胡牌者</h3>'+winnerBtns('winner',E.winner);
   h+='<div class="seg two"><button class="'+(E.self?'on':'')+'" data-act="self" data-v="1">自摸</button><button class="'+(!E.self?'on':'')+'" data-act="self" data-v="0">放槍</button></div>';
   if(!E.self){ h+='<div class="lbl">放槍者</div>'+winnerBtns('disc',E.disc); }
   h+='<h3>花牌</h3><div class="flowers">'+M.FLOWERS.map((f,i)=>'<button class="fl '+(E.flowers[i]?'on':'')+'" data-act="flower" data-i="'+i+'">'+f+'</button>').join('')+'</div>';
-  h+='<h3>特殊情況</h3><div class="flags">'+[['ting','叮'],['qiangkong','搶槓'],['huashang','花上自摸'],['kongshang','槓上自摸'],['haidi','海底撈月'],['tianhu','天胡'],['dihu','地胡'],['renhu','人胡'],['tianting','天叮'],['shuangxiang','雙響'],['sanxiang','三響']].map(a=>'<label><input type="checkbox" data-chg="flag" data-k="'+a[0]+'"'+(E.flags[a[0]]?' checked':'')+'>'+a[1]+'</label>').join('')+'</div>';
+  h+='<h3>特殊情況</h3><div class="flags">'+(M.FLAGS||DEFAULT_FLAGS).map(a=>'<label><input type="checkbox" data-chg="flag" data-k="'+a[0]+'"'+(E.flags[a[0]]?' checked':'')+'>'+a[1]+'</label>').join('')+'</div>';
   h+='<h3>選牌區</h3>';
   h+='<div class="steps">'+[[1,'① 明牌','吃碰槓'],[2,'② 手牌','未亮出'],[3,'③ 胡牌','最後一張']].map(a=>'<button class="'+(st===a[0]?'on':'')+'" data-act="step" data-v="'+a[0]+'">'+a[1]+'<small>'+a[2]+'</small></button>').join('')+'</div>';
   if(st===1){
@@ -293,7 +308,7 @@ function viewCalc(){
   else h+='<div class="ok">已自動分析(共 '+res.count+' 種拆法,取最高番;聽 '+res.waits+' 張牌)</div>';
   h+='<div class="fans">'+items.map(x=>'<div class="fan"><label><input type="checkbox" data-chg="excl" data-id="'+x.id+'" checked> '+x.name+(x.n>1?' ×'+x.n:'')+'</label><span>'+x.total+'</span></div>').join('')+'</div>';
   const exl=Object.keys(E.excl).filter(k=>E.excl[k]);
-  if(exl.length){ const r=RL(); h+='<div class="hint">已取消:'+exl.map(k=>'<a data-act="unexcl" data-id="'+k+'">'+r[k].name+'(恢復)</a>').join(' ')+'</div>'; }
+  if(exl.length){ const r=RL(); h+='<div class="hint">已取消:'+exl.map(k=>'<a data-act="unexcl" data-id="'+k+'">'+(r[k]?r[k].name:k)+'(恢復)</a>').join(' ')+'</div>'; }
   if(E.extra.length) h+='<div class="extras">'+E.extra.map((x,i)=>'<span class="meld">'+RL()[x.id].name+' ×'+x.n+' <b data-act="extraN" data-i="'+i+'" data-d="1">＋</b> <b data-act="extraN" data-i="'+i+'" data-d="-1">−</b> <b data-act="rmExtra" data-i="'+i+'">✕</b></span>').join('')+'</div>';
   h+='<div class="addfan"><select data-chg="addId"><option value="">＋ 手動加番種…</option>'+M.FANS.map(f=>'<option value="'+f.id+'">'+f.name+' ('+f.fan+(f.fanC!=null?'/'+f.fanC:'')+')</option>').join('')+'</select></div>';
   h+='<div class="total">合計 <b>'+total+'</b> 番'+(S.cfg.minFan>0&&total<S.cfg.minFan?' <span class="neg">(低於起胡 '+S.cfg.minFan+' 番)</span>':'')+'</div>';
@@ -305,7 +320,8 @@ function viewCalc(){
   }
   h+='<div class="btnrow"><button class="primary" data-act="confirm">確認記錄</button><button data-act="addWinner">再加一位胡牌者(雙/三響)</button><button data-act="clearEntry">重設本局</button></div>';
   h+='<h3>即時籌碼 / 罰則</h3><p class="hint">這類籌碼即時收付,不受拉、踢半影響。</p>';
-  const I=M.INSTANT.find(x=>x.id===inst.id);
+  let I=M.INSTANT.find(x=>x.id===inst.id);
+  if(!I){ I=M.INSTANT[0]; inst.id=I.id; inst.mode=I.mode; }
   if(inst.payee==null) inst.payee=S.seat[0];
   if(inst.payer==null) inst.payer=S.seat[1];
   h+='<div class="grid2"><label>項目<select data-chg="instId">'+M.INSTANT.map(x=>'<option value="'+x.id+'"'+(x.id===inst.id?' selected':'')+'>'+x.name+' ('+x.amt+')</option>').join('')+'</select></label>';
@@ -351,6 +367,11 @@ function colorPick(k){
 function viewSettings(){
   const c=S.cfg;
   let h='<h3>版本資訊</h3><div class="card"><div>目前版本:<b>'+APP_VERSION+'</b></div><div>更新時間:<b>'+APP_UPDATED+'</b></div>'+(upd?'<div class="pos">最新版本:<b>'+esc(upd.version)+'</b>'+(upd.updated?'('+esc(upd.updated)+')':'')+'</div>':'')+'<div class="btnrow">'+(upd?'<button class="primary" data-act="upgrade">立即升級</button>':'')+'<button data-act="checkUpd">'+(checking?'檢查中…':'檢查更新')+'</button></div><div class="hint">App 開啟時會自動檢查。升級只會更新程式,不會清除你的紀錄。</div></div>';
+  h+='<h3>番表預設</h3><div class="presetbtns">'
+    +'<button class="'+(c.preset===1?'on':'')+'" data-act="preset" data-v="1">預設 #1:舊番表<small>陶源麻雀王大賽番數表(原有番種,保持不變)</small></button>'
+    +'<button class="'+(c.preset===2?'on':'')+'" data-act="preset" data-v="2">預設 #2:香港麻雀協會總例<small>《港式十六張新章麻雀總例》2025-07-28 修訂版番種詳述</small></button></div>';
+  if(!window.MJ2) h+='<div class="warn">未能載入預設 #2 的番表檔(engine2.js)。請確認已上傳該檔案。</div>';
+  h+='<p class="hint">兩套預設各自記住你修改過的番數,切換不會互相影響。切換時,本局正在輸入的手動番種會被清除。</p>';
   if(isApple()){
     h+='<h3>加入主畫面</h3><div class="card">'+(isStandalone()?'<div class="pos">目前已以主畫面 App 模式運行 ✓</div>':'<div>目前在瀏覽器中運行。加入主畫面後可全螢幕使用:</div>'+a2hsSteps()+'<div class="btnrow"><button data-act="a2hsReset">重新顯示開機提示</button></div>')+'</div>';
   }
@@ -362,12 +383,12 @@ function viewSettings(){
   h+='<label>底 = 番值 ×<input type="number" step="any" data-chg="cfg" data-k="baseMult" value="'+c.baseMult+'"></label>';
   h+='<label>最低胡牌番數<input type="number" data-chg="cfg" data-k="minFan" value="'+c.minFan+'"></label>';
   h+='<label>流局後<select data-chg="drawKeeps"><option value="1"'+(c.drawKeeps?' selected':'')+'>莊家連莊</option><option value="0"'+(!c.drawKeeps?' selected':'')+'>輪莊</option></select></label></div>';
-  h+='<p class="hint">目前底 $'+(c.fanValue*c.baseMult)+'。每家支付 = 底 + 番數 × 每番金額。同一家被同一人拉滿 3、6、9… 口時,會詢問是否投降。</p>';
+  h+='<p class="hint">目前底 $'+(c.fanValue*c.baseMult)+'。每家支付 = 底 + 番數 × 每番金額。同一家被同一人拉滿 3、6、9… 口時,會詢問是否投降。'+(c.preset===2?'預設 #2 下,流局莊家繼續做莊但連莊次數不增加(總例:莊家食糊時拉莊數加一)。':'')+'</p>';
   h+='<h3>備份</h3><div class="btnrow"><button data-act="exportCopy">複製備份</button><button data-act="exportFile">下載備份檔</button><button data-act="importPaste">貼上匯入</button><button class="danger" data-act="resetAll">清除全部資料</button></div>';
-  h+='<h3>番數表(可修改)</h3><p class="hint">灰色底表示無法自動偵測,只能手動加番。右邊欄為暗(門清)時的番數。</p><div class="fanTable">';
+  h+='<h3>番數表(可修改)</h3><p class="hint">目前:'+PRESET_NAME[c.preset]+'。灰色底表示無法自動偵測,只能手動加番。右邊欄為暗(門清)時的番數。</p><div class="fanTable">';
   const R=RL();
   M.FANS.forEach(f=>{ h+='<div class="frow'+(f.manual?' man':'')+'"><span>'+f.name+'</span><input type="number" data-chg="rule" data-id="'+f.id+'" data-f="fan" value="'+R[f.id].fan+'">'+(f.fanC!=null?'<input type="number" data-chg="rule" data-id="'+f.id+'" data-f="fanC" value="'+R[f.id].fanC+'">':'<i></i>')+'</div>'; });
-  h+='</div><div class="btnrow"><button data-act="resetRules">還原預設番數</button></div>';
+  h+='</div><div class="btnrow"><button data-act="resetRules">還原此預設的番數</button></div>';
   return h;
 }
 function render(){
@@ -378,8 +399,8 @@ function render(){
   document.getElementById('app').innerHTML='<div class="body">'+updBanner()+a2hsBanner()+views[tab]()+'</div><nav>'+tabs.map(t=>'<button class="'+(tab===t[0]?'on':'')+'" data-act="tab" data-v="'+t[0]+'">'+t[1]+'</button>').join('')+'</nav>';
   window.scrollTo(0,y);
 }
-function advance(keep){
-  if(keep) S.streak++;
+function advance(keep,fromDraw){
+  if(keep){ if(!(fromDraw&&M.id==='hkma')) S.streak++; }
   else { S.streak=0; S.dealerSeat=(S.dealerSeat+1)%4; if(S.dealerSeat===0) S.wind=(S.wind+1)%4; }
 }
 function before(){ return {dealerSeat:S.dealerSeat,streak:S.streak,wind:S.wind}; }
@@ -398,6 +419,11 @@ function act(a,d){
     case 'upgrade': doUpgrade(); return;
     case 'dismissUpd': updDismissed=true; break;
     case 'checkUpd': checkUpdate(true); return;
+    case 'preset': {
+      const v=+d.v;
+      if(v===2&&!window.MJ2){ toast('找不到 engine2.js,請先上傳'); return; }
+      S.cfg.preset=v; pickM(); E.excl={}; E.extra=[]; E.flags={}; inst.id=M.INSTANT[0].id; inst.mode=M.INSTANT[0].mode;
+      toast('已切換為'+PRESET_NAME[v]); break; }
     case 'a2hsLater': a2hsHidden=true; break;
     case 'a2hsNever': a2hsHidden=true; try{ localStorage.setItem(A2HS_KEY,'1'); }catch(e){} toast('之後不再自動提示,可在設定頁查看教學'); break;
     case 'a2hsReset': try{ localStorage.removeItem(A2HS_KEY); }catch(e){} a2hsHidden=false; toast('下次開啟會再次提示'); break;
@@ -412,10 +438,10 @@ function act(a,d){
       if(!p||!p.names){ toast('沒有可還原的牌局'); return; }
       if(!confirm('還原上一場牌局?目前的紀錄會被取代。')) return;
       try{ localStorage.setItem(PREV_KEY,JSON.stringify(S)); }catch(e){}
-      S=norm(p); E=newEntry(); pending=[]; toast('已還原'); break; }
+      S=norm(p); pickM(); E=newEntry(); pending=[]; toast('已還原'); break; }
     case 'rename': { const p=+d.p; const n=prompt('玩家名稱',S.names[p]); if(n&&n.trim()) S.names[p]=n.trim().slice(0,10); break; }
     case 'streak': S.streak=Math.max(0,S.streak+(+d.d)); break;
-    case 'draw': { if(!confirm('記錄本局為流局?')) return; pushRec({kind:'draw',deltas:[0,0,0,0],events:[]}); advance(S.cfg.drawKeeps); toast('已記錄流局'); break; }
+    case 'draw': { if(!confirm('記錄本局為流局?')) return; pushRec({kind:'draw',deltas:[0,0,0,0],events:[]}); advance(S.cfg.drawKeeps,true); toast('已記錄流局'); break; }
     case 'winner': E.winner=+d.p; break;
     case 'disc': E.disc=+d.p; break;
     case 'self': E.self=d.v==='1'; break;
@@ -475,7 +501,7 @@ function act(a,d){
       const lb=copyL(S.ledger);
       S.history.push({id:Date.now(),time:Date.now(),kind:'win',dealer,streak:S.streak,wind:S.wind,winners:ws.map(w=>({p:w.p,self:w.self,disc:w.disc,total:w.total,fans:w.fans})),deltas:cash,events:ev,before:before(),ledgerBefore:lb});
       S.ledger=copyL(ledger);
-      advance(ws.some(w=>w.p===dealer));
+      advance(ws.some(w=>w.p===dealer),false);
       E=newEntry(); pending=[]; tab='history'; toast('已記錄'); break; }
     case 'payoff': {
       const r=S.ledger[+d.i]; if(!r) return;
@@ -490,7 +516,7 @@ function act(a,d){
       S.ledger=[]; toast('已全部結清'); break; }
     case 'instSave': {
       if(inst.mode==='one'&&inst.payer===inst.payee){ toast('付款人與收款人不能相同'); return; }
-      const I=M.INSTANT.find(x=>x.id===inst.id);
+      const I=M.INSTANT.find(x=>x.id===inst.id)||M.INSTANT[0];
       const deltas=M.instantDeltas({amt:I.amt,mode:inst.mode,payee:inst.payee,payer:inst.payer},S.cfg.fanValue);
       pushRec({kind:'instant',name:I.name,deltas,events:[]});
       toast('已記錄 '+I.name); break; }
@@ -505,9 +531,9 @@ function act(a,d){
       const a2=document.createElement('a'); a2.href=u; a2.download='mahjong-backup-'+new Date().toISOString().slice(0,10)+'.json'; document.body.appendChild(a2); a2.click(); a2.remove(); setTimeout(()=>URL.revokeObjectURL(u),2000); break; }
     case 'importPaste': {
       const t=prompt('貼上備份 JSON(會覆蓋現有資料)'); if(!t) return;
-      try{ const j=JSON.parse(t); if(!j.names||!j.history) throw 0; S=norm(j); toast('匯入成功'); }catch(e){ toast('格式錯誤'); return; } break; }
-    case 'resetAll': if(confirm('確定清除全部玩家、紀錄與設定?此操作無法還原')){ S=defState(); E=newEntry(); pending=[]; } else return; break;
-    case 'resetRules': S.cfg.over={}; break;
+      try{ const j=JSON.parse(t); if(!j.names||!j.history) throw 0; S=norm(j); pickM(); toast('匯入成功'); }catch(e){ toast('格式錯誤'); return; } break; }
+    case 'resetAll': if(confirm('確定清除全部玩家、紀錄與設定?此操作無法還原')){ S=defState(); pickM(); E=newEntry(); pending=[]; } else return; break;
+    case 'resetRules': S.cfg.overs[S.cfg.preset]={}; break;
   }
   save(); render();
 }
@@ -524,14 +550,14 @@ function chg(k,el){
     case 'theme': S.cfg.theme[d.k]=v; break;
     case 'flag': E.flags[d.k]=v; break;
     case 'excl': E.excl[d.id]=!v; break;
-    case 'addId': if(v){ const f=E.extra.find(x=>x.id===v); if(f) f.n++; else E.extra.push({id:v,n:1}); } break;
+    case 'addId': if(v){ const f=E.extra.find(x=>x.id===v); if(f) f.n++; else E.extra.push({id:v,n:(v==='weipai'?2:1)}); } break;
     case 'instId': { inst.id=v; inst.mode=M.INSTANT.find(x=>x.id===v).mode; break; }
     case 'instMode': inst.mode=v; break;
     case 'instPayee': inst.payee=+v; break;
     case 'instPayer': inst.payer=+v; break;
     case 'cfg': { const n=parseFloat(v); S.cfg[d.k]=isNaN(n)?0:n; break; }
     case 'drawKeeps': S.cfg.drawKeeps=v==='1'; break;
-    case 'rule': { const o=S.cfg.over[d.id]=S.cfg.over[d.id]||{}; o[d.f]=parseFloat(v); break; }
+    case 'rule': { const o=OV(); const q=o[d.id]=o[d.id]||{}; q[d.f]=parseFloat(v); break; }
   }
   save(); render();
 }
