@@ -36,8 +36,9 @@ onmessage=async e=>{
  try{
   if(!ready)ready=loadEngines();await ready;
   const {inp,over,excluded}=e.data;
-  ENGINE=inp.preset===4?globalThis.MJ4:inp.preset===2?globalThis.MJ2:inp.preset===3?globalThis.MJ3:globalThis.MJ;
-  if(!ENGINE)throw Error('未能載入所選番表');
+  const baseEngine=inp.preset===4?globalThis.MJ4:inp.preset===2?globalThis.MJ2:inp.preset===3?globalThis.MJ3:globalThis.MJ;
+  if(!baseEngine)throw Error('未能載入所選番表');
+  ENGINE=(inp.preset!==4&&globalThis.MJRULES)?globalThis.MJRULES.wrap(baseEngine):baseEngine;
   const raw=inp.hand.concat(inp.groups.flatMap(g=>g.physical));
   if(raw.some(t=>!Number.isInteger(t)||t<0||t>34))throw Error('無效牌');
   if(raw.filter(t=>t===34).length>inp.limit)throw Error('百搭數超過開局設定');
@@ -60,7 +61,7 @@ onmessage=async e=>{
     const hand=[];target.forEach((v,t)=>{for(let i=0;i<v;i++)hand.push(t);});
     const wins=inp.win===34?target.map((v,t)=>v>fc[t]?t:-1).filter(t=>t>=0):[inp.win];
     for(const win of wins){
-     const r=ENGINE.analyze({hand,melds:mc.melds,win,selfDraw:inp.selfDraw,flags:inp.flags,flowers:inp.flowers,seatWind:inp.seatWind,roundWind:inp.roundWind},effectiveOver);
+     const r=ENGINE.analyze({hand,melds:mc.melds,win,selfDraw:inp.selfDraw,flags:inp.flags,flowers:inp.flowers,seatWind:inp.seatWind,roundWind:inp.roundWind,kongKeep:inp.kongKeep},effectiveOver);
      count++;
      if(r&&!r.error&&r.items){
       const total=r.items.reduce((a,x)=>a+ENGINE.valueOf(R,x),0);

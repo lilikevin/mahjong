@@ -146,7 +146,6 @@ function stateItems(ctx,items,concealed,tilesAll){
   }
   EVENT.forEach(k=>{ if(f[k]) push(k); });
   const fl=ctx.flowers||Array(8).fill(false), nf=fl.filter(Boolean).length;
-  if(f.qiangkong===undefined&&false){}
   if(f.qiqiangyi) push('qiqiangyi');
   else if(nf===8) push('baxian');
   else { push('hua',nf); if(nf===0) push('wuhua'); }
@@ -170,18 +169,18 @@ function finish(ctx,items,extraKill){
 }
 function evalBasic(ctx,sets,P,pl){
   const R=ctx.R, items=[];
+  const kb=!!ctx.kongBreaks;
   const push=(id,n,closed,tile)=>{ n=n===undefined?1:n; if(n>0){ const o={id,n,closed:!!closed}; if(tile!=null) o.tile=tile; items.push(o); } };
   sets.forEach((s,i)=>{ s.idx=i; });
   const chows=sets.filter(s=>s.t==='chow'), trips=sets.filter(s=>s.t!=='chow'), kongs=sets.filter(s=>s.t==='kong');
   const tilesOf=s=>s.t==='chow'?[s.tile,s.tile+1,s.tile+2]:[s.tile,s.tile,s.tile];
   const tilesAll=[]; sets.forEach(s=>tilesOf(s).forEach(t=>tilesAll.push(t))); tilesAll.push(P,P);
-  const concealed=sets.every(s=>s.t==='kong'||!s.open);
-  const closedSet=i=>sets[i].t==='kong'||!sets[i].open;
+  const closedSet=i=>sets[i].t==='kong'?(!kb||!sets[i].open):!sets[i].open;
+  const concealed=sets.every((s,i)=>closedSet(i));
   const occ=(id,idxs)=>({id,idxs,closed:idxs.every(closedSet)});
   const st=stateItems(ctx,items,concealed,tilesAll);
   const hasHon=tilesAll.some(isHon), suits=new Set(tilesAll.filter(t=>!isHon(t)).map(suitOf));
   const cn=c=>numOf(c.tile), cs=c=>suitOf(c.tile);
-  // 顏色、數字範圍
   if(tilesAll.every(t=>!isHon(t)&&numOf(t)>=2&&numOf(t)<=8)) push('duanyao');
   if(!hasHon&&tilesAll.every(t=>numOf(t)!==5)) push('quewu');
   if(suits.size===1&&hasHon) push('hunyise'); else if(suits.size===1) push('qingyise'); else if(suits.size===0) push('ziyise');
@@ -189,34 +188,29 @@ function evalBasic(ctx,sets,P,pl){
   if(tilesAll.every(t=>!isHon(t)&&numOf(t)>=6)) push('dayu5');
   if(tilesAll.every(t=>!isHon(t)&&numOf(t)<=4)) push('xiaoyu5');
   if(tilesAll.every(t=>GREEN.indexOf(t)>=0)) push('lvyise');
-  // 門齊
   const cat=t=>t<=26?2+((t/9)|0):(t<=30?0:1), c5=[0,0,0,0,0];
   tilesAll.forEach(t=>c5[cat(t)]++);
   if(c5.every(c=>c>0)){
     const big=c5.every(c=>c>=3), fl=ctx.flowers||[], fok=fl.slice(0,4).some(Boolean)&&fl.slice(4).some(Boolean);
     push(big?(fok?'daqimen':'dawumen'):(fok?'xiaoqimen':'xiaowumen'));
   }
-  // 字
   const wt=trips.filter(s=>s.tile>=27&&s.tile<=30).length, pw=P>=27&&P<=30;
   const dt=trips.filter(s=>s.tile>=31).length, pdg=P>=31;
   let cov=0;
   if(wt===4){ push('daxixi'); cov+=4; } else if(wt===3&&pw){ push('xiaosixi'); cov+=3; } else if(wt===3){ push('dasanfeng'); cov+=3; } else if(wt===2&&pw){ push('xiaosanfeng'); cov+=2; }
   if(dt===3){ push('dasanyuan'); cov+=3; } else if(dt===2&&pdg){ push('xiaosanyuan'); cov+=2; }
   push('zi',Math.max(0,trips.filter(s=>isHon(s.tile)).length-cov));
-  // 食糊形式
   if(!isHon(P)&&[2,5,8].indexOf(numOf(P))>=0) push('jiangyan');
   const waits=ctx.getWaits();
   if(waits===1) push('dudu'); else if(pl.kind==='pair'||pl.kind==='mid'||pl.kind==='edge') push('jiadu');
   if(pl.kind==='pung'&&waits>=2) push('duipeng');
   if(sets.every(s=>s.open&&s.t!=='kong')&&pl.kind==='pair') push(ctx.selfDraw?'banqiu':'quanqiu');
   if(chows.length===5){ push('pinghu'); if(!hasHon&&st.nf===0) push('wuzihua_pinghu'); }
-  // 刻、槓
   if(chows.length===0) push('duidui');
   push('gang',kongs.length);
-  const ac=trips.filter(s=>s.t==='kong'||(!s.open&&!s.ronPung)).length;
+  const ac=trips.filter(s=>s.t==='kong'?(!kb||!s.open):(!s.open&&!s.ronPung)).length;
   if(ac>=2) push('an'+Math.min(ac,5));
   if(chows.length===0&&ac===5&&ctx.selfDraw) push('kankan');
-  // 么九
   const groups=sets.map(tilesOf); groups.push([P,P]);
   const hasT=g=>g.some(t=>!isHon(t)&&(numOf(t)===1||numOf(t)===9));
   const hasTH=g=>g.some(t=>isHon(t)||numOf(t)===1||numOf(t)===9);
@@ -227,7 +221,6 @@ function evalBasic(ctx,sets,P,pl){
     if(numGroups.length&&numGroups.every(g=>g.some(t=>numOf(t)===x))) push(hasHon?'hundaix':'quandaix');
     if(hasHon&&numGroups.length&&tilesAll.every(t=>isHon(t)||numOf(t)===x)) push('hunx');
   }
-  // 龍
   const od=[];
   for(let su=0;su<3;su++){
     const a=chows.filter(c=>cs(c)===su&&cn(c)===1), b=chows.filter(c=>cs(c)===su&&cn(c)===4), c3=chows.filter(c=>cs(c)===su&&cn(c)===7);
@@ -239,13 +232,11 @@ function evalBasic(ctx,sets,P,pl){
   });
   const dragon=bestSingle(R,od); let qlSu=-1;
   if(dragon){ push(dragon.id,1,dragon.closed); if(dragon.id==='qinglong') qlSu=dragon.su; }
-  // 老少
   for(let su=0;su<3;su++){
     if(su!==qlSu&&chows.some(c=>cs(c)===su&&cn(c)===1)&&chows.some(c=>cs(c)===su&&cn(c)===7)) push('laoshaoshang');
     const tp=n=>trips.some(s=>s.tile<27&&suitOf(s.tile)===su&&numOf(s.tile)===n);
     if(tp(1)&&tp(9)) push('laoshaopeng');
   }
-  // 般高、三同順、四同順
   const kc={}; chows.forEach(c=>{ const k=cs(c)*10+cn(c); (kc[k]=kc[k]||[]).push(c.idx); });
   const k2=[], yise4Tiles=[];
   Object.keys(kc).forEach(k=>{
@@ -256,7 +247,6 @@ function evalBasic(ctx,sets,P,pl){
   });
   if(k2.length>=2){ push('shuangbanggao',1,k2[0].concat(k2[1]).every(closedSet)); for(let i=2;i<k2.length;i++) push('banggao',1,k2[i].every(closedSet)); }
   else if(k2.length===1) push('banggao',1,k2[0].every(closedSet));
-  // 四歸
   const tc=Array(34).fill(0), gc=Array(34).fill(0), openT=Array(34).fill(false), kt=new Set(kongs.map(k=>k.tile));
   sets.forEach(s=>{
     if(s.t==='chow'){ for(let k=0;k<3;k++){ tc[s.tile+k]++; gc[s.tile+k]++; if(s.open) openT[s.tile+k]=true; } }
@@ -264,7 +254,6 @@ function evalBasic(ctx,sets,P,pl){
   });
   tc[P]+=2; gc[P]++;
   for(let t=0;t<34;t++) if(tc[t]===4&&!kt.has(t)&&gc[t]>=2) push(gc[t]===2?'sigui1':gc[t]===3?'sigui2':'sigui4',1,!openT[t],t);
-  // 步步高
   const at=n=>chows.filter(c=>cn(c)===n);
   const nums=chows.map(cn).sort((a,b)=>a-b);
   const consecutive=chows.length===5&&nums.every((v,i)=>i===0||v-nums[i-1]===1);
@@ -284,7 +273,6 @@ function evalBasic(ctx,sets,P,pl){
     if(ss.size===1) oy.push(occ('yibu3t',[a.idx,b.idx,c.idx])); else if(ss.size===3) os.push(occ('sanbu3t',[a.idx,b.idx,c.idx]));
   })));
   if(!fullYi&&!fullSan){ packBest(R,oy).forEach(o=>push(o.id,1,o.closed)); packBest(R,os).forEach(o=>push(o.id,1,o.closed)); }
-  // 姊妹、三相逢、四五同順
   const ob=[];
   for(let n=1;n<=7;n++){
     const arr=at(n), ss=new Set(arr.map(cs));
@@ -297,7 +285,6 @@ function evalBasic(ctx,sets,P,pl){
   const allSis=chows.length>=2&&chows.every(c=>chows.some(d=>d!==c&&cn(d)===cn(c)&&cs(d)!==cs(c)));
   if(allSis) push('quanzimei',1,chows.every(c=>closedSet(c.idx)));
   packBest(R,allSis?ob.filter(o=>o.id==='sanxiangfeng'):ob).forEach(o=>push(o.id,1,o.closed));
-  // 連刻
   const tn=[{},{},{}]; trips.forEach(s=>{ if(s.tile<27) tn[suitOf(s.tile)][numOf(s.tile)]=true; });
   for(let su=0;su<3;su++){
     const ns=Object.keys(tn[su]).map(Number).sort((a,b)=>a-b);
@@ -306,7 +293,7 @@ function evalBasic(ctx,sets,P,pl){
       let j=i; while(j+1<ns.length&&ns[j+1]===ns[j]+1) j++;
       const L=j-i+1;
       if(L>=2){
-        let win=0, eyeNear=k=>P<27&&suitOf(P)===su&&(numOf(P)===ns[k]-1||numOf(P)===ns[k+1]+1);
+        let win=0; const eyeNear=k=>P<27&&suitOf(P)===su&&(numOf(P)===ns[k]-1||numOf(P)===ns[k+1]+1);
         for(let k=i;k<j;k++) if(eyeNear(k)) win++;
         push('xlian3',win);
         if(L===2&&!win) push('lian2');
@@ -315,7 +302,6 @@ function evalBasic(ctx,sets,P,pl){
       i=j+1;
     }
   }
-  // 三色連刻
   const tr=trips.filter(s=>s.tile<27);
   const seenD=new Set();
   tr.forEach(a=>tr.forEach(b=>tr.forEach(c=>{
@@ -329,7 +315,6 @@ function evalBasic(ctx,sets,P,pl){
       if(suitOf(P)===third&&(numOf(P)===numOf(a.tile)-1||numOf(P)===numOf(b.tile)+1)&&!seenX.has(numOf(a.tile))){ seenX.add(numOf(a.tile)); push('xsanlian'); }
     }
   }));
-  // 兄弟
   for(let n=1;n<=9;n++){
     const s=[0,1,2].filter(su=>tn[su][n]);
     if(s.length===3) push('daxiongdi');
@@ -386,7 +371,7 @@ function analyze(inp,over){
   if(all.some(c=>c>4)) return {error:'同一款牌多於4張'};
   const win=inp.win;
   if(win==null||!cnt[win]) return {error:'請選擇胡牌'};
-  const base={R,flowers:inp.flowers||Array(8).fill(false),selfDraw:!!inp.selfDraw,flags:inp.flags||{},seatWind:inp.seatWind,roundWind:inp.roundWind};
+  const base={R,flowers:inp.flowers||Array(8).fill(false),selfDraw:!!inp.selfDraw,flags:inp.flags||{},seatWind:inp.seatWind,roundWind:inp.roundWind,kongBreaks:inp.kongKeep===false};
   const noMelds=melds.length===0;
   const complete=c=>decompose(c,nSets).length>0||(noMelds&&(isLik(c)||isShisan(c)||budaInfo(c)));
   let wcache=null;
@@ -439,5 +424,37 @@ function transfers(bal){
   return res;
 }
 const API={id:'hoitoi',tName,suitOf,numOf,isHon,FLOWERS,FANS,INSTANT,FLAGS,SUPPRESS:SUP,buildRules,valueOf,analyze,basic,settle,instantDeltas,transfers,SUITS,HON,decompose};
+/* 其他預設共用的規則適配層:把預設#2與#4一致的做法放進#1、#3;並處理「明槓是否破門清」設定 */
+const WRAP_CACHE=new Map();
+function wrapRules(base){
+  if(WRAP_CACHE.has(base)) return WRAP_CACHE.get(base);
+  const w=Object.create(base);
+  w.analyze=function(inp,over){
+    const melds=inp.melds||[], hand=inp.hand||[], keep=!!inp.kongKeep;
+    const m2=keep?melds.map(m=>m.t==='kong'?Object.assign({},m,{open:false}):m):melds;
+    const r=base.analyze(Object.assign({},inp,{melds:m2}),over);
+    if(!r||r.error||!r.items) return r;
+    const R=base.buildRules(over);
+    let items=r.items.slice();
+    const tiles=hand.slice();
+    melds.forEach(m=>{ const ts=m.t==='chow'?[m.tile,m.tile+1,m.tile+2]:Array(m.t==='kong'?4:3).fill(m.tile); ts.forEach(t=>tiles.push(t)); });
+    if(tiles.some(t=>t>=27)) items=items.filter(i=>i.id!=='queyimen'&&i.id!=='quewu');
+    items=items.filter(i=>i.id!=='banqiu'&&i.id!=='quanqiu');
+    if(melds.length===5&&melds.every(m=>m.t!=='kong')){
+      const id=inp.selfDraw?'banqiu':'quanqiu';
+      if(R[id]){ const sup=(base.SUPPRESS&&base.SUPPRESS[id])||[]; items=items.filter(i=>sup.indexOf(i.id)<0); items.push({id,n:1,closed:false}); }
+    }
+    if(keep&&(R.minggang||R.angang)){
+      const open=melds.filter(m=>m.t==='kong'&&m.open!==false).length, closed=melds.filter(m=>m.t==='kong'&&m.open===false).length;
+      items=items.filter(i=>i.id!=='minggang'&&i.id!=='angang');
+      if(open&&R.minggang) items.push({id:'minggang',n:open,closed:false});
+      if(closed&&R.angang) items.push({id:'angang',n:closed,closed:false});
+    }
+    r.items=items; r.total=items.reduce((a,x)=>a+base.valueOf(R,x),0);
+    return r;
+  };
+  WRAP_CACHE.set(base,w); return w;
+}
+root.MJRULES={wrap:wrapRules};
 if(typeof module!=='undefined'&&module.exports) module.exports=API; else root.MJ4=API;
 })(typeof window!=='undefined'?window:globalThis);
