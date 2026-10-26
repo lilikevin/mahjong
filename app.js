@@ -1,7 +1,8 @@
 (function(){
 'use strict';
-const APP_VERSION='v1.1';
-const APP_UPDATED='2026-10-26 13:03 (香港時間)';
+const APP_VERSION='v1.2';
+const APP_UPDATED='2026-10-26 14:15 (香港時間)';
+const DEV_IG='kevinli999';
 let M=window.MJ;
 const KEY='mj_hk_tw_v1';
 const PREV_KEY='mj_hk_tw_prev_game';
@@ -17,17 +18,32 @@ const SCHEMES=[
  ['紫夜',{bg:'#1f1630',card:'#2c2142',btn:'#43336b',acc:'#ff7eb6'}]
 ];
 const THEME_LABEL={bg:'頁面背景',card:'格子 / 卡片',btn:'按鈕',acc:'強調色(選中、金額、標題)'};
-const PRESET_NAME={1:'預設 #1 舊番表(陶源麻雀王大賽)',2:'預設 #2 香港麻雀協會總例(2025-07-28 修訂)'};
-const defState=()=>({names:['玩家1','玩家2','玩家3','玩家4'],seat:[0,1,2,3],dealerSeat:0,streak:0,wind:0,history:[],ledger:[],cfg:{fanValue:1,baseMult:5,minFan:0,drawKeeps:true,preset:1,overs:{1:{},2:{}},theme:Object.assign({},DEFAULT_THEME)}});
+const PRESET_NAME={1:'預設 #1 舊番表(陶源麻雀王大賽)',2:'預設 #2 香港麻雀協會總例(2025-07-28 修訂)',3:'預設 #3 台牌百搭番數表'};
+/* 手動項目佔位(數字預設 0,可在設定頁修改);只加入該預設沒有的項目 */
+const PH_FANS=[
+ ['guanshou','冚手糊'],['gsg','槓上槓摸'],['ggg','槓槓槓摸'],['hedi','河底撈魚'],['haidi1','海底撈月(一筒)'],
+ ['wuhua','無花'],['wuzi','無字'],['dayu5','大於五'],['xiaoyu5','小於五'],['lanyise','藍一色'],['lvyise','綠一色'],
+ ['quanyaojiu','全么九'],['xwaiyu','小外語通'],['dwaiyu','大外語通'],['jishi','即食'],['menting','門清聽牌'],
+ ['daji40','大雞糊(純,無其他番)'],['daji60','大雞糊(另有番數,照計)'],['hunx30','混帶X(檔位一)'],['hunx20','混帶X(檔位二)'],['hunx10','混帶X(檔位三)'],
+ ['budalong','不搭(龍)'],['budafeng','不搭(逢)'],['huashang_n','花上自摸(1×N+1)']
+].map(a=>({id:a[0],name:a[1]}));
+const OPT_INST=[
+ {id:'xue',name:'雪(罰)',mode:'payall'},{id:'fanxue',name:'反雪(罰)',mode:'payall'},{id:'bing',name:'冰(罰)',mode:'payall'},{id:'fanbing',name:'反冰(罰)',mode:'payall'},
+ {id:'weidou',name:'圍骰(莊家收其餘三家)',mode:'all'},{id:'wenzhuang',name:'問莊圍三',mode:'all'},{id:'wangkai',name:'忘開暗槓(罰,付其餘三家)',mode:'payall'},
+ {id:'zhuifan',name:'追番子(付其餘三家)',mode:'payall'},{id:'zhuikai',name:'追開章(付其餘三家)',mode:'payall'}
+];
+const defState=()=>({names:['玩家1','玩家2','玩家3','玩家4'],seat:[0,1,2,3],dealerSeat:0,streak:0,wind:0,history:[],ledger:[],cfg:{fanValue:1,baseMult:5,minFan:0,drawKeeps:true,preset:1,overs:{1:{},2:{},3:{}},instAmts:{1:{},2:{},3:{}},theme:Object.assign({},DEFAULT_THEME)}});
 function norm(j){
   const d=defState(); const s=Object.assign(d,j,{cfg:Object.assign(d.cfg,j.cfg||{}),ledger:j.ledger||[]});
   const th=Object.assign({},DEFAULT_THEME,(j.cfg&&j.cfg.theme)||{});
   if(j.cfg&&j.cfg.bg&&!(j.cfg.theme&&j.cfg.theme.bg)) th.bg=j.cfg.bg;
   s.cfg.theme=th;
   const c=s.cfg;
-  if(!c.overs||typeof c.overs!=='object') c.overs={1:(j.cfg&&j.cfg.over)||{},2:{}};
-  if(!c.overs[1]) c.overs[1]={}; if(!c.overs[2]) c.overs[2]={};
-  if(c.preset!==2) c.preset=1;
+  if(!c.overs||typeof c.overs!=='object') c.overs={1:(j.cfg&&j.cfg.over)||{},2:{},3:{}};
+  [1,2,3].forEach(k=>{ if(!c.overs[k]) c.overs[k]={}; });
+  if(!c.instAmts||typeof c.instAmts!=='object') c.instAmts={1:{},2:{},3:{}};
+  [1,2,3].forEach(k=>{ if(!c.instAmts[k]) c.instAmts[k]={}; });
+  if([1,2,3].indexOf(c.preset)<0) c.preset=1;
   return s;
 }
 function load(){
@@ -35,12 +51,15 @@ function load(){
   return defState();
 }
 let S=load();
-function pickM(){ M=(S.cfg.preset===2&&window.MJ2)?window.MJ2:window.MJ; }
+function pickM(){
+  const p=S.cfg.preset;
+  M=(p===2&&window.MJ2)?window.MJ2:(p===3&&window.MJ3)?window.MJ3:window.MJ;
+}
 pickM();
 const save=()=>{ try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){} };
 const newEntry=()=>({winner:null,self:true,disc:null,hand:[],melds:[],win:null,flowers:Array(8).fill(false),flags:{},mode:'chow',meldMode:'chow',excl:{},extra:[]});
 let E=newEntry(), pending=[], tab='table';
-let inst={id:null,mode:'one',payee:null,payer:null};
+let inst={id:null,mode:'one',payee:null,payer:null,mult:1};
 let upd=null, updDismissed=false, checking=false, a2hsHidden=false;
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const seatOf=p=>S.seat.indexOf(p);
@@ -49,7 +68,19 @@ const windIdx=p=>(seatOf(p)-S.dealerSeat+4)%4;
 const windOf=p=>WIND[windIdx(p)];
 const nm=p=>esc(S.names[p]);
 const OV=()=>S.cfg.overs[S.cfg.preset]||(S.cfg.overs[S.cfg.preset]={});
-const RL=()=>M.buildRules(OV());
+function phList(){ return PH_FANS.filter(p=>!M.FANS.some(f=>f.id===p.id)); }
+function fanList(){ return M.FANS.concat(phList().map(p=>({id:p.id,name:p.name,fan:0,fanC:null,manual:true}))); }
+function RL(){
+  const r=M.buildRules(OV());
+  phList().forEach(p=>{ const o=OV()[p.id]; r[p.id]={id:p.id,name:p.name,fan:(o&&o.fan!=null&&!isNaN(o.fan))?+o.fan:0,fanC:null,manual:true}; });
+  return r;
+}
+function instList(){
+  const base=M.INSTANT.map(x=>Object.assign({},x));
+  OPT_INST.forEach(o=>{ if(!base.some(x=>x.id===o.id)) base.push({id:o.id,name:o.name,amt:0,mode:o.mode}); });
+  return base;
+}
+function instAmt(I){ const o=S.cfg.instAmts[S.cfg.preset]||{}; return o[I.id]!=null&&!isNaN(o[I.id])?+o[I.id]:I.amt; }
 const money=n=>(n>0?'+':'')+n;
 const stepOf=m=>m==='hand'?2:(m==='win'?3:1);
 const copyL=l=>l.map(r=>({from:r.from,to:r.to,amt:r.amt,k:r.k}));
@@ -91,6 +122,7 @@ const STATIC_CSS=`
 .presetbtns{display:flex;flex-direction:column;gap:6px;margin:8px 0}
 .presetbtns button{text-align:left;padding:12px;line-height:1.35}
 .presetbtns small{display:block;opacity:.8;font-size:12px;margin-top:2px}
+.dev{margin-top:8px;font-size:13px;color:#b9d6c4}.dev a{color:var(--acc);font-weight:600}
 .mt{display:inline-flex;flex-direction:column;align-items:center;justify-content:center;width:32px;height:44px;padding:0!important;background:#f7f3e3!important;color:#222;border:1px solid #bbb!important;border-bottom:4px solid #2f8f57!important;border-radius:5px;line-height:1;font-weight:700;box-shadow:0 1px 3px #0007;font-family:inherit}
 .mt b{font-size:19px;font-weight:700}.mt i{font-style:normal;font-size:12px;margin-top:2px}
 .mt.s0{color:#a0201a}.mt.s1{color:#1c4fa0}.mt.s2{color:#1a7a3a}
@@ -203,6 +235,13 @@ function applyHand(ledger,txns,win){
   return {ledger:keep,cash,ev};
 }
 window.MJ_LA={applyHand};
+function instDeltas(ins,fv){
+  const d=[0,0,0,0], amt=ins.amt*fv;
+  if(ins.mode==='all'){ [0,1,2,3].forEach(i=>{ if(i!==ins.payee){ d[i]-=amt; d[ins.payee]+=amt; } }); }
+  else if(ins.mode==='payall'){ [0,1,2,3].forEach(i=>{ if(i!==ins.payer){ d[ins.payer]-=amt; d[i]+=amt; } }); }
+  else { d[ins.payer]-=amt; d[ins.payee]+=amt; }
+  return d;
+}
 function evText(e){
   const a=nm(e.from), b=nm(e.to);
   if(e.t==='new') return a+' 欠 '+b+' $'+e.amt+'(拉一口,暫不收付)';
@@ -260,7 +299,7 @@ function viewTable(){
   const card=s=>{ const p=S.seat[s]; return '<div class="card seat '+(s===S.dealerSeat?'dealer':'')+'"><div class="sw">'+WIND[s]+'</div><div class="pn" data-act="rename" data-p="'+p+'">'+nm(p)+'</div><div class="mini">門風 '+windOf(p)+(s===S.dealerSeat?' · 莊':'')+'</div><div class="bal '+(b[p]>=0?'pos':'neg')+'">'+money(b[p])+'</div></div>'; };
   let h='<div class="status">'+WIND[S.wind]+'風圈 · 莊家 '+nm(dealerPid())+' · 連莊 '+S.streak+' 次(莊家加 '+(1+2*S.streak)+' 番)</div>';
   h+='<div class="cross"><div></div>'+card(3)+'<div></div>'+card(2)+'<div class="center">座位<br><small>(實際位置)</small></div>'+card(0)+'<div></div>'+card(1)+'<div></div></div>';
-  h+='<p class="hint">格內金額為已收付的現金淨額。連莊與換莊會依胡牌結果自動計算。目前番表:'+PRESET_NAME[S.cfg.preset]+'</p>';
+  h+='<p class="hint">格內金額為已收付的現金淨額。連莊與換莊會依胡牌結果自動計算,流局不增加連莊數。目前番表:'+PRESET_NAME[S.cfg.preset]+'</p>';
   h+='<h3>未結算的拉</h3>'+ledgerHtml(true);
   h+='<h3>座位安排</h3><div class="grid2">';
   for(let s=0;s<4;s++){ h+='<label>'+WIND[s]+'位<select data-chg="seat" data-s="'+s+'">'+[0,1,2,3].map(p=>'<option value="'+p+'"'+(S.seat[s]===p?' selected':'')+'>'+nm(p)+'</option>').join('')+'</select></label>'; }
@@ -309,8 +348,8 @@ function viewCalc(){
   h+='<div class="fans">'+items.map(x=>'<div class="fan"><label><input type="checkbox" data-chg="excl" data-id="'+x.id+'" checked> '+x.name+(x.n>1?' ×'+x.n:'')+'</label><span>'+x.total+'</span></div>').join('')+'</div>';
   const exl=Object.keys(E.excl).filter(k=>E.excl[k]);
   if(exl.length){ const r=RL(); h+='<div class="hint">已取消:'+exl.map(k=>'<a data-act="unexcl" data-id="'+k+'">'+(r[k]?r[k].name:k)+'(恢復)</a>').join(' ')+'</div>'; }
-  if(E.extra.length) h+='<div class="extras">'+E.extra.map((x,i)=>'<span class="meld">'+RL()[x.id].name+' ×'+x.n+' <b data-act="extraN" data-i="'+i+'" data-d="1">＋</b> <b data-act="extraN" data-i="'+i+'" data-d="-1">−</b> <b data-act="rmExtra" data-i="'+i+'">✕</b></span>').join('')+'</div>';
-  h+='<div class="addfan"><select data-chg="addId"><option value="">＋ 手動加番種…</option>'+M.FANS.map(f=>'<option value="'+f.id+'">'+f.name+' ('+f.fan+(f.fanC!=null?'/'+f.fanC:'')+')</option>').join('')+'</select></div>';
+  if(E.extra.length){ const r=RL(); h+='<div class="extras">'+E.extra.map((x,i)=>'<span class="meld">'+(r[x.id]?r[x.id].name:x.id)+' ×'+x.n+' <b data-act="extraN" data-i="'+i+'" data-d="1">＋</b> <b data-act="extraN" data-i="'+i+'" data-d="-1">−</b> <b data-act="rmExtra" data-i="'+i+'">✕</b></span>').join('')+'</div>'; }
+  h+='<div class="addfan"><select data-chg="addId"><option value="">＋ 手動加番種…</option>'+fanList().map(f=>'<option value="'+f.id+'">'+f.name+' ('+f.fan+(f.fanC!=null?'/'+f.fanC:'')+')</option>').join('')+'</select></div>';
   h+='<div class="total">合計 <b>'+total+'</b> 番'+(S.cfg.minFan>0&&total<S.cfg.minFan?' <span class="neg">(低於起胡 '+S.cfg.minFan+' 番)</span>':'')+'</div>';
   if(E.self||E.disc!=null){
     const ws=pending.map(w=>({p:w.p,self:false,disc:w.disc,total:w.total})).concat([{p:E.winner,self:E.self,disc:E.disc,total}]);
@@ -319,16 +358,19 @@ function viewCalc(){
     h+=out.ev.map(e=>'<div class="hint">• '+evText(e)+'</div>').join('');
   }
   h+='<div class="btnrow"><button class="primary" data-act="confirm">確認記錄</button><button data-act="addWinner">再加一位胡牌者(雙/三響)</button><button data-act="clearEntry">重設本局</button></div>';
-  h+='<h3>即時籌碼 / 罰則</h3><p class="hint">這類籌碼即時收付,不受拉、踢半影響。</p>';
-  let I=M.INSTANT.find(x=>x.id===inst.id);
-  if(!I){ I=M.INSTANT[0]; inst.id=I.id; inst.mode=I.mode; }
+  h+='<h3>即時籌碼 / 罰則</h3><p class="hint">這類籌碼即時收付,不受拉、踢半影響。金額可直接修改,數字 0 的項目請自行填寫。</p>';
+  const lst=instList(); let I=lst.find(x=>x.id===inst.id);
+  if(!I){ I=lst[0]; inst.id=I.id; inst.mode=I.mode; }
   if(inst.payee==null) inst.payee=S.seat[0];
   if(inst.payer==null) inst.payer=S.seat[1];
-  h+='<div class="grid2"><label>項目<select data-chg="instId">'+M.INSTANT.map(x=>'<option value="'+x.id+'"'+(x.id===inst.id?' selected':'')+'>'+x.name+' ('+x.amt+')</option>').join('')+'</select></label>';
-  h+='<label>模式<select data-chg="instMode"><option value="all"'+(inst.mode==='all'?' selected':'')+'>其餘三家各付</option><option value="one"'+(inst.mode==='one'?' selected':'')+'>單一付款人</option></select></label>';
-  h+='<label>收款人<select data-chg="instPayee">'+[0,1,2,3].map(p=>'<option value="'+p+'"'+(inst.payee===p?' selected':'')+'>'+nm(p)+'</option>').join('')+'</select></label>';
-  if(inst.mode==='one') h+='<label>付款人<select data-chg="instPayer">'+[0,1,2,3].map(p=>'<option value="'+p+'"'+(inst.payer===p?' selected':'')+'>'+nm(p)+'</option>').join('')+'</select></label>';
-  h+='</div><div class="btnrow"><button data-act="instSave">記錄 '+I.name+'</button></div>';
+  const baseAmt=S.cfg.fanValue*S.cfg.baseMult;
+  h+='<div class="grid2"><label>項目<select data-chg="instId">'+lst.map(x=>'<option value="'+x.id+'"'+(x.id===inst.id?' selected':'')+'>'+x.name+'</option>').join('')+'</select></label>';
+  h+='<label>金額(每份)<input type="number" step="any" data-chg="instAmt" value="'+instAmt(I)+'"></label>';
+  h+='<label>模式<select data-chg="instMode"><option value="all"'+(inst.mode==='all'?' selected':'')+'>其餘三家付給收款人</option><option value="one"'+(inst.mode==='one'?' selected':'')+'>單一付款人付給單一收款人</option><option value="payall"'+(inst.mode==='payall'?' selected':'')+'>付款人付給其餘三家</option></select></label>';
+  h+='<label>倍數<select data-chg="instMult">'+[1,2,3,4,5].map(n=>'<option value="'+n+'"'+(inst.mult===n?' selected':'')+'>×'+n+'</option>').join('')+'</select></label>';
+  if(inst.mode!=='payall') h+='<label>收款人<select data-chg="instPayee">'+[0,1,2,3].map(p=>'<option value="'+p+'"'+(inst.payee===p?' selected':'')+'>'+nm(p)+'</option>').join('')+'</select></label>';
+  if(inst.mode!=='all') h+='<label>付款人<select data-chg="instPayer">'+[0,1,2,3].map(p=>'<option value="'+p+'"'+(inst.payer===p?' selected':'')+'>'+nm(p)+'</option>').join('')+'</select></label>';
+  h+='</div>'+(I.plusBase?'<p class="hint">此項目另加底 $'+baseAmt+'。</p>':'')+'<div class="btnrow"><button data-act="instSave">記錄:'+esc(I.name)+(inst.mult>1?' ×'+inst.mult:'')+'</button></div>';
   return h;
 }
 function viewHistory(){
@@ -366,12 +408,14 @@ function colorPick(k){
 }
 function viewSettings(){
   const c=S.cfg;
-  let h='<h3>版本資訊</h3><div class="card"><div>目前版本:<b>'+APP_VERSION+'</b></div><div>更新時間:<b>'+APP_UPDATED+'</b></div>'+(upd?'<div class="pos">最新版本:<b>'+esc(upd.version)+'</b>'+(upd.updated?'('+esc(upd.updated)+')':'')+'</div>':'')+'<div class="btnrow">'+(upd?'<button class="primary" data-act="upgrade">立即升級</button>':'')+'<button data-act="checkUpd">'+(checking?'檢查中…':'檢查更新')+'</button></div><div class="hint">App 開啟時會自動檢查。升級只會更新程式,不會清除你的紀錄。</div></div>';
+  let h='<h3>版本資訊</h3><div class="card"><div>目前版本:<b>'+APP_VERSION+'</b></div><div>更新時間:<b>'+APP_UPDATED+'</b></div>'+(upd?'<div class="pos">最新版本:<b>'+esc(upd.version)+'</b>'+(upd.updated?'('+esc(upd.updated)+')':'')+'</div>':'')+'<div class="dev">開發者:Instagram <a href="https://www.instagram.com/'+DEV_IG+'/" target="_blank" rel="noopener">@'+DEV_IG+'</a></div><div class="btnrow">'+(upd?'<button class="primary" data-act="upgrade">立即升級</button>':'')+'<button data-act="checkUpd">'+(checking?'檢查中…':'檢查更新')+'</button></div><div class="hint">App 開啟時會自動檢查。升級只會更新程式,不會清除你的紀錄。</div></div>';
   h+='<h3>番表預設</h3><div class="presetbtns">'
-    +'<button class="'+(c.preset===1?'on':'')+'" data-act="preset" data-v="1">預設 #1:舊番表<small>陶源麻雀王大賽番數表(原有番種,保持不變)</small></button>'
-    +'<button class="'+(c.preset===2?'on':'')+'" data-act="preset" data-v="2">預設 #2:香港麻雀協會總例<small>《港式十六張新章麻雀總例》2025-07-28 修訂版番種詳述</small></button></div>';
+    +'<button class="'+(c.preset===1?'on':'')+'" data-act="preset" data-v="1">預設 #1:舊番表<small>陶源麻雀王大賽番數表</small></button>'
+    +'<button class="'+(c.preset===2?'on':'')+'" data-act="preset" data-v="2">預設 #2:香港麻雀協會總例<small>《港式十六張新章麻雀總例》2025-07-28 修訂版番種詳述</small></button>'
+    +'<button class="'+(c.preset===3?'on':'')+'" data-act="preset" data-v="3">預設 #3:台牌百搭番數表<small>(無萬能牌玩法)</small></button></div>';
   if(!window.MJ2) h+='<div class="warn">未能載入預設 #2 的番表檔(engine2.js)。請確認已上傳該檔案。</div>';
-  h+='<p class="hint">兩套預設各自記住你修改過的番數,切換不會互相影響。切換時,本局正在輸入的手動番種會被清除。</p>';
+  if(!window.MJ3) h+='<div class="warn">未能載入預設 #3 的番表(engine.js 版本過舊)。請更新 engine.js。</div>';
+  h+='<p class="hint">三套預設各自記住你修改過的番數和即時籌碼金額,切換不會互相影響。切換時,本局正在輸入的手動番種會被清除。</p>';
   if(isApple()){
     h+='<h3>加入主畫面</h3><div class="card">'+(isStandalone()?'<div class="pos">目前已以主畫面 App 模式運行 ✓</div>':'<div>目前在瀏覽器中運行。加入主畫面後可全螢幕使用:</div>'+a2hsSteps()+'<div class="btnrow"><button data-act="a2hsReset">重新顯示開機提示</button></div>')+'</div>';
   }
@@ -382,12 +426,12 @@ function viewSettings(){
   h+='<label>每番金額<input type="number" step="any" data-chg="cfg" data-k="fanValue" value="'+c.fanValue+'"></label>';
   h+='<label>底 = 番值 ×<input type="number" step="any" data-chg="cfg" data-k="baseMult" value="'+c.baseMult+'"></label>';
   h+='<label>最低胡牌番數<input type="number" data-chg="cfg" data-k="minFan" value="'+c.minFan+'"></label>';
-  h+='<label>流局後<select data-chg="drawKeeps"><option value="1"'+(c.drawKeeps?' selected':'')+'>莊家連莊</option><option value="0"'+(!c.drawKeeps?' selected':'')+'>輪莊</option></select></label></div>';
-  h+='<p class="hint">目前底 $'+(c.fanValue*c.baseMult)+'。每家支付 = 底 + 番數 × 每番金額。同一家被同一人拉滿 3、6、9… 口時,會詢問是否投降。'+(c.preset===2?'預設 #2 下,流局莊家繼續做莊但連莊次數不增加(總例:莊家食糊時拉莊數加一)。':'')+'</p>';
+  h+='<label>流局後<select data-chg="drawKeeps"><option value="1"'+(c.drawKeeps?' selected':'')+'>莊家繼續做莊</option><option value="0"'+(!c.drawKeeps?' selected':'')+'>輪莊</option></select></label></div>';
+  h+='<p class="hint">目前底 $'+(c.fanValue*c.baseMult)+'。每家支付 = 底 + 番數 × 每番金額。同一家被同一人拉滿 3、6、9… 口時,會詢問是否斬拉(投降)。</p>';
   h+='<h3>備份</h3><div class="btnrow"><button data-act="exportCopy">複製備份</button><button data-act="exportFile">下載備份檔</button><button data-act="importPaste">貼上匯入</button><button class="danger" data-act="resetAll">清除全部資料</button></div>';
   h+='<h3>番數表(可修改)</h3><p class="hint">目前:'+PRESET_NAME[c.preset]+'。灰色底表示無法自動偵測,只能手動加番。右邊欄為暗(門清)時的番數。</p><div class="fanTable">';
   const R=RL();
-  M.FANS.forEach(f=>{ h+='<div class="frow'+(f.manual?' man':'')+'"><span>'+f.name+'</span><input type="number" data-chg="rule" data-id="'+f.id+'" data-f="fan" value="'+R[f.id].fan+'">'+(f.fanC!=null?'<input type="number" data-chg="rule" data-id="'+f.id+'" data-f="fanC" value="'+R[f.id].fanC+'">':'<i></i>')+'</div>'; });
+  fanList().forEach(f=>{ h+='<div class="frow'+(f.manual?' man':'')+'"><span>'+f.name+'</span><input type="number" data-chg="rule" data-id="'+f.id+'" data-f="fan" value="'+R[f.id].fan+'">'+(f.fanC!=null?'<input type="number" data-chg="rule" data-id="'+f.id+'" data-f="fanC" value="'+R[f.id].fanC+'">':'<i></i>')+'</div>'; });
   h+='</div><div class="btnrow"><button data-act="resetRules">還原此預設的番數</button></div>';
   return h;
 }
@@ -400,7 +444,7 @@ function render(){
   window.scrollTo(0,y);
 }
 function advance(keep,fromDraw){
-  if(keep){ if(!(fromDraw&&M.id==='hkma')) S.streak++; }
+  if(keep){ if(!fromDraw) S.streak++; }
   else { S.streak=0; S.dealerSeat=(S.dealerSeat+1)%4; if(S.dealerSeat===0) S.wind=(S.wind+1)%4; }
 }
 function before(){ return {dealerSeat:S.dealerSeat,streak:S.streak,wind:S.wind}; }
@@ -422,7 +466,9 @@ function act(a,d){
     case 'preset': {
       const v=+d.v;
       if(v===2&&!window.MJ2){ toast('找不到 engine2.js,請先上傳'); return; }
-      S.cfg.preset=v; pickM(); E.excl={}; E.extra=[]; E.flags={}; inst.id=M.INSTANT[0].id; inst.mode=M.INSTANT[0].mode;
+      if(v===3&&!window.MJ3){ toast('engine.js 版本過舊,請先更新'); return; }
+      S.cfg.preset=v; pickM(); E.excl={}; E.extra=[]; E.flags={};
+      const l0=instList()[0]; inst.id=l0.id; inst.mode=l0.mode; inst.mult=1;
       toast('已切換為'+PRESET_NAME[v]); break; }
     case 'a2hsLater': a2hsHidden=true; break;
     case 'a2hsNever': a2hsHidden=true; try{ localStorage.setItem(A2HS_KEY,'1'); }catch(e){} toast('之後不再自動提示,可在設定頁查看教學'); break;
@@ -494,7 +540,7 @@ function act(a,d){
       let ledger=out.ledger, cash=out.cash, ev=out.ev.slice();
       ledger.slice().forEach(r=>{
         if(r.hit&&r.k>=3&&r.k%3===0){
-          const msg=S.names[r.from]+' 已被 '+S.names[r.to]+' 拉了 '+r.k+' 口,累計 $'+r.amt+'。\n\n'+S.names[r.from]+' 要投降(立即付清)嗎?\n按「確定」＝投降付清;按「取消」＝繼續拉。';
+          const msg=S.names[r.from]+' 已被 '+S.names[r.to]+' 拉了 '+r.k+' 口,累計 $'+r.amt+'。\n\n'+S.names[r.from]+' 要斬拉(投降,立即付清)嗎?\n按「確定」＝斬拉付清;按「取消」＝繼續拉。';
           if(confirm(msg)){ cash[r.from]-=r.amt; cash[r.to]+=r.amt; ev.push({t:'surrender',from:r.from,to:r.to,amt:r.amt}); ledger=ledger.filter(x=>x!==r); }
         }
       });
@@ -516,9 +562,11 @@ function act(a,d){
       S.ledger=[]; toast('已全部結清'); break; }
     case 'instSave': {
       if(inst.mode==='one'&&inst.payer===inst.payee){ toast('付款人與收款人不能相同'); return; }
-      const I=M.INSTANT.find(x=>x.id===inst.id)||M.INSTANT[0];
-      const deltas=M.instantDeltas({amt:I.amt,mode:inst.mode,payee:inst.payee,payer:inst.payer},S.cfg.fanValue);
-      pushRec({kind:'instant',name:I.name,deltas,events:[]});
+      const lst=instList(); const I=lst.find(x=>x.id===inst.id)||lst[0];
+      let amt=instAmt(I)+(I.plusBase?S.cfg.fanValue*S.cfg.baseMult:0);
+      amt=amt*(inst.mult||1);
+      const deltas=instDeltas({amt:amt,mode:inst.mode,payee:inst.payee,payer:inst.payer},S.cfg.fanValue===0?1:1);
+      pushRec({kind:'instant',name:I.name+(inst.mult>1?' ×'+inst.mult:''),deltas,events:[]});
       toast('已記錄 '+I.name); break; }
     case 'undoRec': {
       if(!S.history.length) return; if(!confirm('撤銷最後一局?')) return;
@@ -550,9 +598,11 @@ function chg(k,el){
     case 'theme': S.cfg.theme[d.k]=v; break;
     case 'flag': E.flags[d.k]=v; break;
     case 'excl': E.excl[d.id]=!v; break;
-    case 'addId': if(v){ const f=E.extra.find(x=>x.id===v); if(f) f.n++; else E.extra.push({id:v,n:(v==='weipai'?2:1)}); } break;
-    case 'instId': { inst.id=v; inst.mode=M.INSTANT.find(x=>x.id===v).mode; break; }
+    case 'addId': if(v){ const f=E.extra.find(x=>x.id===v); if(f) f.n++; else E.extra.push({id:v,n:1}); } break;
+    case 'instId': { const I=instList().find(x=>x.id===v); inst.id=v; if(I) inst.mode=I.mode; inst.mult=1; break; }
     case 'instMode': inst.mode=v; break;
+    case 'instMult': inst.mult=+v; break;
+    case 'instAmt': { const I=instList().find(x=>x.id===inst.id); const n=parseFloat(v); (S.cfg.instAmts[S.cfg.preset]=S.cfg.instAmts[S.cfg.preset]||{})[I.id]=isNaN(n)?0:n; break; }
     case 'instPayee': inst.payee=+v; break;
     case 'instPayer': inst.payer=+v; break;
     case 'cfg': { const n=parseFloat(v); S.cfg[d.k]=isNaN(n)?0:n; break; }
