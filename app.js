@@ -1,7 +1,7 @@
 (function(){
 'use strict';
 const APP_VERSION='v1.3';
-const APP_UPDATED='2026-10-26 16:57 (香港時間)';
+const APP_UPDATED='2026-10-26 17:22 (香港時間)';
 const DEV_IG='kevinli999';
 let M=window.MJ;
 const KEY='mj_hk_tw_v1';
@@ -30,6 +30,8 @@ const PH_FANS=[
  ['daji40','大雞糊(純,無其他番)'],['daji60','大雞糊(另有番數,照計)'],['hunx30','混帶X(檔位一)'],['hunx20','混帶X(檔位二)'],['hunx10','混帶X(檔位三)'],
  ['budalong','不搭(龍)'],['budafeng','不搭(逢)'],['huashang_n','花上自摸(1×N+1)']
 ].map(a=>({id:a[0],name:a[1]}));
+/* 花糊:番數直接加在本局食糊的番數上(不另拉落下一鋪)。預設 #2 依總例:七搶一 30、自摸兩台花 40 */
+const HUAHU=[['huahu7','花糊(七搶一)',30],['huahu8','花糊(自摸兩台花)',40]];
 const OPT_INST=[
  {id:'xue',name:'雪(罰)',mode:'payall'},{id:'fanxue',name:'反雪(罰)',mode:'payall'},{id:'bing',name:'冰(罰)',mode:'payall'},{id:'fanbing',name:'反冰(罰)',mode:'payall'},
  {id:'weidou',name:'圍骰(莊家收其餘三家)',mode:'all'},{id:'wenzhuang',name:'問莊圍三',mode:'all'},{id:'wangkai',name:'忘開暗槓(罰,付其餘三家)',mode:'payall'},
@@ -82,10 +84,16 @@ const nm=p=>esc(S.names[p]);
 const pkey=()=>isHK()?'hk':String(S.cfg.preset);
 const OV=()=>S.cfg.overs[pkey()]||(S.cfg.overs[pkey()]={});
 function phList(){ return isHK()?[]:PH_FANS.filter(p=>!M.FANS.some(f=>f.id===p.id)); }
-function fanList(){ return M.FANS.concat(phList().map(p=>({id:p.id,name:p.name,fan:0,fanC:null,manual:true}))); }
+function huahuList(){ return isHK()?[]:HUAHU.map(h=>({id:h[0],name:h[1]})); }
+function huahuDef(id){ const d=HUAHU.find(x=>x[0]===id); return (S.cfg.preset===2&&d)?d[2]:0; }
+function fanList(){
+  return M.FANS.concat(phList().map(p=>({id:p.id,name:p.name,fan:0,fanC:null,manual:true})))
+    .concat(huahuList().map(h=>({id:h.id,name:h.name,fan:huahuDef(h.id),fanC:null,manual:true})));
+}
 function RL(){
   const r=M.buildRules(OV());
   phList().forEach(p=>{ const o=OV()[p.id]; r[p.id]={id:p.id,name:p.name,fan:(o&&o.fan!=null&&!isNaN(o.fan))?+o.fan:0,fanC:null,manual:true}; });
+  huahuList().forEach(h=>{ const o=OV()[h.id]; r[h.id]={id:h.id,name:h.name,fan:(o&&o.fan!=null&&!isNaN(o.fan))?+o.fan:huahuDef(h.id),fanC:null,manual:true}; });
   return r;
 }
 function hkCap(){ return HK_PRESETS[S.cfg.hk.preset].cap; }
@@ -367,6 +375,7 @@ function curItems(res){
   const r=RL(); let it;
   if(res&&res.items) it=res.items.filter(x=>!E.excl[x.id]);
   else it=M.basic(Object.assign({flowers:E.flowers,selfDraw:E.self,flags:E.flags},ctxExtra())).filter(x=>!E.excl[x.id]);
+  if(!isHK()) HUAHU.forEach(h=>{ if(E.flags[h[0]]&&!E.excl[h[0]]) it.push({id:h[0],n:1,closed:false}); });
   it=it.concat(E.extra.map(x=>({id:x.id,n:x.n,closed:false})));
   return it.map(x=>{
     const f=r[x.id]; if(!f) return {id:x.id,name:x.id,n:x.n,unit:0,total:0};
@@ -473,7 +482,9 @@ function viewCalc(){
   h+='<div class="seg two"><button class="'+(E.self?'on':'')+'" data-act="self" data-v="1">自摸</button><button class="'+(!E.self?'on':'')+'" data-act="self" data-v="0">出銃(放槍)</button></div>';
   if(!E.self){ h+='<div class="lbl">出銃者(放槍)</div>'+winnerBtns('disc',E.disc); }
   if(!isHK()||S.cfg.hk.flowers) h+='<h3>花牌</h3><div class="flowers">'+M.FLOWERS.map((f,i)=>'<button class="fl '+(E.flowers[i]?'on':'')+'" data-act="flower" data-i="'+i+'">'+f+'</button>').join('')+'</div>';
-  h+='<h3>特殊情況</h3><div class="flags">'+(M.FLAGS||DEFAULT_FLAGS).map(a=>'<label><input type="checkbox" data-chg="flag" data-k="'+a[0]+'"'+(E.flags[a[0]]?' checked':'')+'>'+a[1]+'</label>').join('')+'</div>';
+  const flagList=(M.FLAGS||DEFAULT_FLAGS).concat(isHK()?[]:HUAHU.map(h2=>[h2[0],h2[1]]));
+  h+='<h3>特殊情況</h3><div class="flags">'+flagList.map(a=>'<label><input type="checkbox" data-chg="flag" data-k="'+a[0]+'"'+(E.flags[a[0]]?' checked':'')+'>'+a[1]+'</label>').join('')+'</div>';
+  if(!isHK()) h+='<p class="hint">勾選「花糊」:其番數直接加在本局食糊者的番數上,一併按本局結算,不另外拉落下一鋪。</p>';
   if(baoVisible()){
     h+='<h3>包牌(自摸時由供牌者包付三家)</h3><label>包牌者<select data-chg="bao"><option value="">無</option>'+S.seat.filter(p=>p!==E.winner).map(p=>'<option value="'+p+'"'+(E.bao===p?' selected':'')+'>'+nm(p)+'</option>').join('')+'</select></label><p class="hint">十二章包:供給第四組明章(明坎、上、任何槓)的一家包付;第四組是暗槓則無人包。大三元包:供給第三組三元牌明章的一家包付。包後不包先,只計一家。</p>';
   }
