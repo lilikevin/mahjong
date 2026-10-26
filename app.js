@@ -1,7 +1,7 @@
 (function(){
 'use strict';
 const APP_VERSION='v1.3';
-const APP_UPDATED='2026-10-26 16:24 (香港時間)';
+const APP_UPDATED='2026-10-26 16:42 (香港時間)';
 const DEV_IG='kevinli999';
 let M=window.MJ;
 const KEY='mj_hk_tw_v1';
@@ -66,7 +66,7 @@ function pickM(){
 }
 pickM();
 const save=()=>{ try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){} };
-const newEntry=()=>({winner:null,self:true,disc:null,all:[],melds:[],hand:[],win:null,step:1,meldMode:'chow',flowers:Array(8).fill(false),flags:{},excl:{},extra:[],bao:null});
+const newEntry=()=>({winner:null,self:true,disc:null,all:[],marks:Array(34).fill(0),kongOpen:{},melds:[],hand:[],win:null,partBad:false,step:1,flowers:Array(8).fill(false),flags:{},excl:{},extra:[],bao:null});
 let E=newEntry(), pending=[], tab='table';
 let inst={id:null,mode:'one',payee:null,payer:null,mult:1};
 let upd=null, updDismissed=false, checking=false, a2hsHidden=false;
@@ -114,7 +114,7 @@ const money=n=>(n>0?'+':'')+n;
 const copyL=l=>l.map(r=>({from:r.from,to:r.to,amt:r.amt,k:r.k}));
 function balances(){ const b=[0,0,0,0]; S.history.forEach(r=>r.deltas.forEach((d,i)=>b[i]+=d)); return b; }
 function pendingBal(){ const b=[0,0,0,0]; S.ledger.forEach(r=>{ b[r.to]+=r.amt; b[r.from]-=r.amt; }); return b; }
-function toast(t){ const e=document.getElementById('toast'); e.textContent=t; e.className='show'; setTimeout(()=>{e.className='';},1800); }
+function toast(t){ const e=document.getElementById('toast'); e.textContent=t; e.className='show'; setTimeout(()=>{e.className='';},2200); }
 
 function isApple(){
   try{ const ua=navigator.userAgent||''; return /iPad|iPhone|iPod/.test(ua)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1); }catch(e){ return false; }
@@ -165,10 +165,13 @@ const STATIC_CSS=`
 .mt.back b,.mt.back i{visibility:hidden}
 .mt.big{width:38px;height:52px;outline:3px solid var(--acc);outline-offset:1px}
 .mt.mark{outline:3px solid var(--acc);outline-offset:1px}
+.mt.mk2{background:#cfe9d6!important;border-bottom-color:var(--acc)!important;transform:translateY(-4px)}
 .mg{display:inline-flex;flex-direction:column;align-items:center;gap:3px;padding:5px 6px;background:var(--btn2);border-radius:8px;margin:2px;cursor:pointer}
 .mg .row{display:flex;gap:1px}
-.mg small{font-size:11px;opacity:.85;display:flex;gap:8px;align-items:center}
+.mg small{font-size:11px;opacity:.9;display:flex;gap:8px;align-items:center}
+.mg .kt{text-decoration:underline;padding:2px 4px}
 .tiles{display:flex;flex-wrap:wrap;gap:4px}
+.zone.tap{cursor:pointer}
 `;
 const DYN_CSS=`
 body{background:var(--bg)!important}
@@ -215,10 +218,10 @@ function mt(t,o){
 }
 function meldGroup(m,i){
   let tiles, cap;
-  if(m.t==='chow'){ tiles=[m.tile,m.tile+1,m.tile+2].map(x=>mt(x)).join(''); cap='上'; }
+  if(m.t==='chow'){ tiles=[m.tile,m.tile+1,m.tile+2].map(x=>mt(x)).join(''); cap='上(順子)'; }
   else if(m.t==='pung'){ tiles=[0,1,2].map(()=>mt(m.tile)).join(''); cap='碰'; }
-  else if(m.open===false){ tiles=mt(m.tile,{back:true})+mt(m.tile)+mt(m.tile)+mt(m.tile,{back:true}); cap='暗槓'; }
-  else { tiles=[0,1,2,3].map(()=>mt(m.tile)).join(''); cap='明槓'; }
+  else if(m.open===false){ tiles=mt(m.tile,{back:true})+mt(m.tile)+mt(m.tile)+mt(m.tile,{back:true}); cap='<span class="kt" data-act="kongToggle" data-t="'+m.tile+'">暗槓⇄</span>'; }
+  else { tiles=[0,1,2,3].map(()=>mt(m.tile)).join(''); cap='<span class="kt" data-act="kongToggle" data-t="'+m.tile+'">明槓⇄</span>'; }
   return '<div class="mg" data-act="rmMeld" data-i="'+i+'"><div class="row">'+tiles+'</div><small>'+cap+' ✕</small></div>';
 }
 
@@ -285,20 +288,65 @@ function evText(e){
   if(e.t==='surrender') return a+' 投降,付清 '+b+' $'+e.amt;
   return '';
 }
-/* ===== 牌的輸入:先選齊所有牌 → 指定明牌 → 指名食糊牌 ===== */
+/* ===== 牌的輸入:選齊所有牌 → 點選明牌(系統自動判斷上/碰/槓,取最優) → 指名食糊牌 ===== */
+function baseAll(){ return SETS()*3+2; }
+function maxAll(){ return baseAll()+4; }
 function need(){ return (SETS()-E.melds.length)*3+2; }
-function maxAll(){ return SETS()*3+2+4; }
 function tileCount(t){ let n=0; E.all.forEach(x=>{ if(x===t) n++; }); return n; }
-function poolCounts(){
-  const c=Array(34).fill(0); E.all.forEach(t=>c[t]++);
-  E.melds.forEach(m=>{ if(m.t==='chow'){ c[m.tile]--; c[m.tile+1]--; c[m.tile+2]--; } else c[m.tile]-=(m.t==='kong'?4:3); });
+function allCounts(){ const c=Array(34).fill(0); E.all.forEach(t=>c[t]++); return c; }
+function meldCountsOf(melds){
+  const c=Array(34).fill(0);
+  melds.forEach(m=>{ if(m.t==='chow'){ c[m.tile]++; c[m.tile+1]++; c[m.tile+2]++; } else c[m.tile]+=(m.t==='kong'?4:3); });
   return c;
 }
-function pool(){ const c=poolCounts(), out=[]; for(let t=0;t<34;t++) for(let i=0;i<c[t];i++) out.push(t); return out; }
+function partitions(cnt){
+  const res=[];
+  (function rec(c,cur){
+    let i=0; while(i<34&&c[i]===0) i++;
+    if(i===34){ res.push(cur.slice()); return; }
+    if(cur.length>=SETS()) return;
+    if(c[i]>=4){ c[i]-=4; cur.push({t:'kong',tile:i}); rec(c,cur); cur.pop(); c[i]+=4; }
+    if(c[i]>=3){ c[i]-=3; cur.push({t:'pung',tile:i}); rec(c,cur); cur.pop(); c[i]+=3; }
+    if(i<27&&M.numOf(i)<=7&&c[i+1]>0&&c[i+2]>0){ c[i]--; c[i+1]--; c[i+2]--; cur.push({t:'chow',tile:i}); rec(c,cur); cur.pop(); c[i]++; c[i+1]++; c[i+2]++; }
+  })(cnt.slice(),[]);
+  return res;
+}
+function toMelds(part){ return part.map(g=>({t:g.t,tile:g.tile,open:g.t==='kong'?(E.kongOpen[g.tile]!==false):true})); }
+function partScore(melds){
+  if(E.win==null) return null;
+  const ac=allCounts(), mc=meldCountsOf(melds);
+  const hand=[]; let winTaken=false;
+  for(let t=0;t<34;t++){ const n=ac[t]-mc[t]; if(n<0) return null; for(let i=0;i<n;i++){ if(!winTaken&&t===E.win){ winTaken=true; } else hand.push(t); } }
+  if(!winTaken||hand.length!==(SETS()-melds.length)*3+1) return null;
+  try{
+    const r=M.analyze(Object.assign({hand:hand.concat([E.win]),melds:melds,win:E.win,flowers:E.flowers,selfDraw:E.self,flags:E.flags},ctxExtra()),OV());
+    if(!r||r.error||!r.items) return null;
+    const R=RL(); let tot=0; r.items.forEach(x=>{ tot+=M.valueOf(R,x); }); return tot;
+  }catch(e){ return null; }
+}
+function bestMelds(){
+  const c=E.marks;
+  let any=false; for(let t=0;t<34;t++) if(c[t]>0){ any=true; break; }
+  E.partBad=false;
+  if(!any) return [];
+  const parts=partitions(c);
+  if(!parts.length){ E.partBad=true; return []; }
+  const chowCount=p=>p.filter(g=>g.t==='chow').length;
+  parts.sort((a,b)=>chowCount(a)-chowCount(b));
+  let best=null, bs=-1;
+  if(E.win!=null){
+    parts.forEach(p=>{ const s=partScore(toMelds(p)); if(s!=null&&s>bs){ bs=s; best=p; } });
+  }
+  return toMelds(best||parts[0]);
+}
 function derive(){
-  const p=pool();
-  if(E.win!=null){ const i=p.indexOf(E.win); if(i<0) E.win=null; else p.splice(i,1); }
-  E.hand=p;
+  const ac=allCounts();
+  for(let t=0;t<34;t++){ if(E.marks[t]>ac[t]) E.marks[t]=ac[t]; if(E.marks[t]<0) E.marks[t]=0; }
+  if(E.win!=null){ const unm=ac[E.win]-E.marks[E.win]; if(unm<1) E.win=null; }
+  E.melds=bestMelds();
+  const mc=meldCountsOf(E.melds), hand=[]; let taken=false;
+  for(let t=0;t<34;t++){ const n=ac[t]-mc[t]; for(let i=0;i<n;i++){ if(!taken&&E.win!=null&&t===E.win){ taken=true; } else hand.push(t); } }
+  E.hand=hand;
 }
 function ctxExtra(){ const x={useFlowers:isHK()?!!S.cfg.hk.flowers:true}; if(E.winner!=null){ x.roundWind=S.wind; x.seatWind=windIdx(E.winner); } return x; }
 function analyze(){
@@ -372,29 +420,36 @@ function baoVisible(){
   return (h.bao12&&E.melds.length>=4)||(h.baoSan&&dragonExposed()>=3);
 }
 function inputSection(){
-  const st=E.step, p=pool(), need0=need();
+  const st=E.step, ac=allCounts(), need0=need();
   let h='<h3>輸入牌</h3>';
-  h+='<div class="steps">'+[[1,'① 選齊所有牌','手牌、明牌、食糊牌'],[2,'② 指定明牌',CHI+'碰槓'],[3,'③ 指名食糊牌','點那一張']].map(a=>'<button class="'+(st===a[0]?'on':'')+'" data-act="step" data-v="'+a[0]+'">'+a[1]+'<small>'+a[2]+'</small></button>').join('')+'</div>';
+  h+='<div class="steps">'+[[1,'① 選齊所有牌','手牌、明牌、食糊牌'],[2,'② 點選明牌','系統判斷上/碰/槓'],[3,'③ 指名食糊牌','點那一張']].map(a=>'<button class="'+(st===a[0]?'on':'')+'" data-act="step" data-v="'+a[0]+'">'+a[1]+'<small>'+a[2]+'</small></button>').join('')+'</div>';
   if(st===1){
-    h+='<p class="hint">先把手上所有的牌選齊(包括已經'+CHI+'、碰、槓的牌,以及食糊那一張)。槓的每一組多一張。選錯可以點下面的牌刪除。完成後按「② 指定明牌」。</p>';
+    h+='<p class="hint">先把手上所有的牌選齊(包括已經'+CHI+'、碰、槓的牌,以及食糊那一張)。選到 '+baseAll()+' 張會自動進入②;有槓的話每組多一張,可在②按「＋補牌」。選錯可以點下面的牌刪除。</p>';
     h+=palette();
   } else if(st===2){
-    h+='<div class="seg modes">'+[['chow',CHI],['pung','碰'],['kong_open','明槓'],['kong_closed','暗槓']].map(a=>'<button class="'+(E.meldMode===a[0]?'on':'')+'" data-act="mtype" data-v="'+a[0]+'">'+a[1]+'</button>').join('')+'</div>';
-    h+='<p class="hint">選好類型,再點下面「牌堆」裡的牌,把它變成明牌:'+CHI+'點順子最小的一張(如 345 點 3);碰和槓點該張牌。沒有明牌可直接跳到③。</p>';
+    h+='<p class="hint">只需要逐張點選已經'+CHI+'、碰、槓出來的牌(點中的牌會升起並變色,再點可取消)。系統會自動判斷是'+CHI+'、碰還是槓,並取番數最高的組合;四張相同的牌當作槓,可在明牌區點「明槓⇄」切換明槓或暗槓。沒有明牌可直接進入③。</p>';
+    if(E.partBad) h+='<div class="warn">點選的牌無法組成'+CHI+'、碰或槓(每組需要3張,槓需要4張),請調整。</div>';
+    h+='<div class="btnrow"><button data-act="step" data-v="1">＋補牌(有槓時)</button><button class="primary" data-act="step" data-v="3">沒有更多明牌 → ③ 指名食糊牌</button></div>';
   } else {
-    h+='<p class="hint">點下面「牌堆」裡最後食糊(胡牌)的那一張。再點一次可取消。</p>';
+    h+='<p class="hint">點下面牌堆裡最後食糊(胡牌)的那一張。再點一次可取消;已標為明牌的牌不能當食糊牌。</p>';
   }
-  h+='<h3>牌堆 <small>'+p.length+' 張'+(E.melds.length||st>1?',需要 '+need0+' 張(連食糊牌)':'')+'</small></h3>';
+  h+='<h3>牌堆 <small>共 '+E.all.length+' 張'+(E.all.length&&E.all.length!==need0+E.melds.reduce((a,m)=>a+(m.t==='kong'?1:0),0)+E.melds.length*3-0?'':'')+'</small></h3>';
   let markedWin=false;
-  h+='<div class="zone"><div class="tiles">'+(p.length?p.map(t=>{ const mk=(st===3||E.win!=null)&&t===E.win&&!markedWin; if(mk) markedWin=true; return mt(t,{tag:'button',cls:mk?'mark':'',attrs:'data-act="poolTap" data-t="'+t+'"'}); }).join(''):'<span class="hint">未有牌,請先在①選牌</span>')+'</div></div>';
+  const used=Array(34).fill(0);
+  h+='<div class="zone"><div class="tiles">'+(E.all.length?E.all.slice().sort((a,b)=>a-b).map(t=>{
+    const idx=used[t]++; const isMk=idx<E.marks[t];
+    let cls=isMk?'mk2':'';
+    if(!isMk&&E.win===t&&!markedWin){ markedWin=true; cls='mark'; }
+    return mt(t,{tag:'button',cls:cls,attrs:'data-act="poolTap" data-t="'+t+'"'});
+  }).join(''):'<span class="hint">未有牌,請先在①選牌</span>')+'</div></div>';
   h+='<div class="btnrow"><button data-act="undoTile">退一張</button><button data-act="clearHand">全部清空</button></div>';
   h+='<h3>牌型確認</h3><div class="card entered">';
-  h+='<div class="zl">明牌 <small>'+E.melds.length+' 組,點牌可取消</small></div>';
-  h+='<div class="zone">'+(E.melds.length?E.melds.map((m,i)=>meldGroup(m,i)).join(''):'<span class="hint">無</span>')+'</div>';
+  h+='<div class="zl">明牌 <small>'+E.melds.length+' 組'+(E.melds.length?',點牌可取消':',點下方空白處開始點選明牌')+'</small></div>';
+  h+='<div class="zone tap" data-act="step" data-v="2">'+(E.melds.length?E.melds.map((m,i)=>meldGroup(m,i)).join(''):'<span class="hint">無(點此進入②選明牌)</span>')+'</div>';
   h+='<div class="zl">手牌 <small>'+E.hand.length+' / '+(need0-1)+' 張(不含食糊牌)</small></div>';
   h+='<div class="zone"><div class="tiles">'+(E.hand.length?E.hand.map(t=>mt(t)).join(''):'<span class="hint">未有手牌</span>')+'</div></div>';
-  h+='<div class="zl">食糊牌(胡牌) <small>點牌可取消</small></div>';
-  h+='<div class="zone winzone">'+(E.win!=null?mt(E.win,{tag:'button',cls:'big',attrs:'data-act="clearWin"'}):'<span class="hint">未指名食糊牌</span>')+'</div>';
+  h+='<div class="zl">食糊牌(胡牌) <small>'+(E.win!=null?'點牌可取消':'點空白處指名')+'</small></div>';
+  h+='<div class="zone winzone tap" data-act="'+(E.win!=null?'clearWin':'step')+'" data-v="3">'+(E.win!=null?mt(E.win,{cls:'big'}):'<span class="hint">未指名(點此進入③指名食糊牌)</span>')+'</div>';
   h+='</div>';
   return h;
 }
@@ -415,7 +470,7 @@ function viewCalc(){
   h+=inputSection();
   h+='<h3>番數結果</h3>';
   if(res&&res.error) h+='<div class="warn">'+esc(res.error)+'</div>';
-  else if(!res) h+='<div class="hint">牌未輸入完整(需要先指名食糊牌),暫以手動番種計算</div>';
+  else if(!res) h+='<div class="hint">牌未輸入完整(需要指名食糊牌,且牌數正確),暫以手動番種計算</div>';
   else h+='<div class="ok">已自動分析(共 '+res.count+' 種拆法,取最高番;聽 '+res.waits+' 張牌)</div>';
   h+='<div class="fans">'+items.map(x=>'<div class="fan"><label><input type="checkbox" data-chg="excl" data-id="'+x.id+'" checked> '+x.name+(x.n>1?' ×'+x.n:'')+'</label><span>'+x.total+'</span></div>').join('')+'</div>';
   const exl=Object.keys(E.excl).filter(k=>E.excl[k]);
@@ -567,22 +622,6 @@ function resetGameData(){
   try{ localStorage.setItem(PREV_KEY,JSON.stringify(S)); }catch(e){}
   S.history=[]; S.ledger=[]; S.streak=0; S.wind=0; S.dealerSeat=0; E=newEntry(); pending=[];
 }
-function makeMeld(t){
-  const c=poolCounts(), mode=E.meldMode;
-  if(E.melds.length>=SETS()){ toast('明牌已滿'); return; }
-  if(mode==='chow'){
-    if(t>=27||M.numOf(t)>7){ toast('順子起始牌須為1至7的數牌'); return; }
-    if(!(c[t]>0&&c[t+1]>0&&c[t+2]>0)){ toast('牌堆裡沒有足夠的牌組成這組順子'); return; }
-    E.melds.push({t:'chow',tile:t,open:true});
-  } else if(mode==='pung'){
-    if(c[t]<3){ toast('牌堆裡這張牌不夠3張'); return; }
-    E.melds.push({t:'pung',tile:t,open:true});
-  } else {
-    if(c[t]<4){ toast('牌堆裡這張牌不夠4張'); return; }
-    E.melds.push({t:'kong',tile:t,open:mode==='kong_open'});
-  }
-  E.excl={};
-}
 function act(a,d){
   derive();
   switch(a){
@@ -636,25 +675,40 @@ function act(a,d){
     case 'self': E.self=d.v==='1'; if(!E.self) E.bao=null; break;
     case 'flower': E.flowers[+d.i]=!E.flowers[+d.i]; break;
     case 'step': E.step=+d.v; break;
-    case 'mtype': E.meldMode=d.v; break;
     case 'tile': {
       const t=+d.t;
       if(E.all.length>=maxAll()){ toast('牌數已滿('+maxAll()+' 張)'); return; }
       if(tileCount(t)>=4){ toast('這張牌已有4張'); return; }
-      E.all.push(t); E.excl={}; break; }
-    case 'poolTap': {
-      const t=+d.t;
-      if(E.step===1){ const i=E.all.indexOf(t); if(i>=0) E.all.splice(i,1); E.excl={}; }
-      else if(E.step===2){ makeMeld(t); }
-      else { E.win=(E.win===t)?null:t; E.excl={}; }
+      E.all.push(t); E.excl={};
+      if(E.step===1&&E.all.length===baseAll()){ E.step=2; toast('已選齊 '+baseAll()+' 張,請點選明牌(沒有明牌按「→③」;有槓可按「＋補牌」)'); }
       break; }
+    case 'poolTap': {
+      const t=+d.t, ac=allCounts();
+      if(E.step===1){ const i=E.all.indexOf(t); if(i>=0) E.all.splice(i,1); E.excl={}; }
+      else if(E.step===2){
+        if(E.marks[t]<ac[t]) E.marks[t]++; else E.marks[t]=0;
+        E.excl={};
+      } else {
+        if(E.win===t){ E.win=null; }
+        else if(ac[t]-E.marks[t]<1){ toast('這張牌已標為明牌,不能當食糊牌;請先在②取消標記'); return; }
+        else E.win=t;
+        E.excl={};
+      }
+      break; }
+    case 'kongToggle': { const t=+d.t; E.kongOpen[t]=(E.kongOpen[t]===false); break; }
     case 'clearWin': E.win=null; E.step=3; E.excl={}; break;
     case 'undoTile': {
-      const c=poolCounts();
-      for(let i=E.all.length-1;i>=0;i--){ if(c[E.all[i]]>0){ E.all.splice(i,1); break; } }
+      for(let i=E.all.length-1;i>=0;i--){ const t=E.all[i]; if(E.marks[t]<tileCount(t)){ E.all.splice(i,1); break; } }
+      if(!E.all.length) E.step=1;
       E.excl={}; break; }
-    case 'clearHand': E.all=[]; E.melds=[]; E.win=null; E.step=1; E.meldMode='chow'; E.excl={}; break;
-    case 'rmMeld': E.melds.splice(+d.i,1); E.step=2; E.excl={}; break;
+    case 'clearHand': E.all=[]; E.marks=Array(34).fill(0); E.kongOpen={}; E.melds=[]; E.win=null; E.step=1; E.excl={}; break;
+    case 'rmMeld': {
+      const m=E.melds[+d.i];
+      if(m){
+        if(m.t==='chow'){ [0,1,2].forEach(k=>{ if(E.marks[m.tile+k]>0) E.marks[m.tile+k]--; }); }
+        else E.marks[m.tile]=Math.max(0,E.marks[m.tile]-(m.t==='kong'?4:3));
+      }
+      E.step=2; E.excl={}; break; }
     case 'unexcl': delete E.excl[d.id]; break;
     case 'extraN': { const x=E.extra[+d.i]; x.n+=+d.d; if(x.n<1) E.extra.splice(+d.i,1); break; }
     case 'rmExtra': E.extra.splice(+d.i,1); break;
