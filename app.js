@@ -1,7 +1,7 @@
 (function(){
 'use strict';
-const APP_VERSION='v1.4-wild-beta';
-const APP_UPDATED='2026-10-26 21:08 (香港時間)';
+const APP_VERSION='v1.5-wild-beta';
+const APP_UPDATED='2026-10-26 21:45 (香港時間)';
 const DEV_IG='kevinli999';
 let M=window.MJ;
 const KEY='mj_hk_tw_v1';
@@ -71,7 +71,7 @@ function pickM(){
 pickM();
 const save=()=>{ try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){} };
 const newEntry=()=>({winner:null,self:true,disc:null,all:[],wildGroups:[],wildSelect:[],marks:Array(34).fill(0),kongOpen:{},melds:[],hand:[],win:null,partBad:false,mode:'pick',flowers:Array(8).fill(false),flags:{},excl:{},extra:[],bao:null});
-let E=newEntry(), pending=[], tab='table';
+let E=newEntry(), pending=[], tab='table', wildPick=false;
 let inst={id:null,mode:'one',payee:null,payer:null,mult:1};
 let upd=null, updDismissed=false, checking=false, a2hsHidden=false;
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -353,7 +353,7 @@ function bestMelds(){
   return toMelds(best||parts[0]);
 }
 function derive(){
-  if(isWild()){E.melds=E.wildGroups||[];E.hand=E.all.slice();return;}
+  if(isWild()){E.melds=E.wildGroups;E.hand=E.all.slice();return;}
   const ac=allCounts();
   for(let t=0;t<34;t++){ if(E.marks[t]>ac[t]) E.marks[t]=ac[t]; if(E.marks[t]<0) E.marks[t]=0; }
   if(E.win!=null){ const unm=ac[E.win]-E.marks[E.win]; if(unm<1) E.win=null; }
@@ -429,14 +429,16 @@ function updBanner(){
   return '<div class="note"><b>發現新版本 '+esc(upd.version)+'</b>'+(upd.updated?'(更新時間 '+esc(upd.updated)+')':'')+'<br>目前版本 '+APP_VERSION+'。是否現在升級?升級不會影響你的紀錄。<div class="btnrow"><button class="primary" data-act="upgrade">立即升級</button><button data-act="dismissUpd">稍後</button></div></div>';
 }
 function hasPrev(){ try{ return !!localStorage.getItem(PREV_KEY); }catch(e){ return false; } }
-function gameName(){ if(isWild())return '港式台牌百搭 · 加'+S.cfg.wildLimit+'張 · '+PRESET_NAME[S.cfg.wildPreset];return isHK()?('廣東牌 · '+HK_PRESETS[S.cfg.hk.preset].name):('港式台牌 · '+PRESET_NAME[S.cfg.preset]); }
+function gameLabel(v){ return v==='wild'?'港式台牌（通用百搭）':v==='hk'?'廣東牌':'港式台牌（無百搭）'; }
+function gameName(){ if(isWild()) return '港式台牌（通用百搭）· 加'+S.cfg.wildLimit+'張 · '+PRESET_NAME[S.cfg.wildPreset]; return isHK()?('廣東牌 · '+HK_PRESETS[S.cfg.hk.preset].name):('港式台牌（無百搭）· '+PRESET_NAME[S.cfg.preset]); }
 function viewChooser(){
   let h='<div class="chooser"><h2>麻雀計番</h2><div class="sub">請選擇玩法</div>';
-  h+='<button data-act="game" data-v="tw">港式台牌(16張)<small>五組面子加一對眼,有拉、踢半、斬拉,三套番表預設</small></button>';
-  h+='<button data-act="game" data-v="hk">廣東牌(13張)<small>四組面子加一對眼,三番起糊,10番封頂,二五雞・半辣上等計分表</small></button>';
-  h+='<button data-act="game" data-v="wild">港式台牌百搭版(第三種玩法)<small>開局選加4至8張通用百搭，背景搜尋最高番</small></button>';
+  h+='<button data-act="game" data-v="tw">港式台牌（無百搭）<small>16張；五組面子加一對眼，有拉、踢半、斬拉，三套番表預設</small></button>';
+  h+='<button data-act="game" data-v="wild">港式台牌（通用百搭）<small>16張；開局選加4至8張通用百搭，自動搜尋最高番</small></button>';
+  if(wildPick) h+='<div class="card askcard"><div class="zl" style="margin-top:0">本場牌組加入幾張通用百搭？</div><div class="seg">'+[4,5,6,7,8].map(n=>'<button style="text-align:center;padding:14px 4px;margin:0" class="'+(S.cfg.wildLimit===n?'on':'')+'" data-act="game" data-v="wild" data-n="'+n+'">'+n+'張</button>').join('')+'</div><div class="hint">這是整副牌加入的百搭數量，不是你手持的張數。</div></div>';
+  h+='<button data-act="game" data-v="hk">廣東牌（13張）<small>四組面子加一對眼，三番起糊，10番封頂，二五雞・半辣上等計分表</small></button>';
   if(!window.MJHK) h+='<div class="warn">未能載入廣東牌檔案(engine_hk.js),請確認已上傳。</div>';
-  if(S.game) h+='<div class="btnrow"><button data-act="tab" data-v="table" style="text-align:center;font-size:15px">返回目前牌局(現為'+(isWild()?'港式台牌百搭':isHK()?'廣東牌':'港式台牌')+')</button></div>';
+  if(S.game) h+='<div class="btnrow"><button data-act="tab" data-v="table" style="text-align:center;font-size:15px">返回目前牌局(現為'+gameLabel(S.game)+')</button></div>';
   h+='<div class="dev" style="text-align:center">'+APP_VERSION+' · 開發者:Instagram <a href="https://www.instagram.com/'+DEV_IG+'/" target="_blank" rel="noopener">@'+DEV_IG+'</a></div></div>';
   return h;
 }
@@ -505,7 +507,7 @@ function inputSectionHK(){
   return h;
 }
 function resultHint(res){
-  if(isWild())return wildHint(res);
+  if(isWild()) return wildHint(res);
   if(isHK()){
     if(!E.all.length) return '<div class="hint">請先用牌盤選牌。</div>';
     if(res&&res.error) return '<div class="warn">這副牌可能輸入有誤,或是詐糊。('+esc(res.error)+')</div>';
@@ -546,6 +548,7 @@ function viewCalc(){
   h+='<div class="addfan"><select data-chg="addId"><option value="">＋ 手動加番種…</option>'+fanList().map(f=>'<option value="'+f.id+'">'+f.name+' ('+f.fan+(f.fanC!=null?'/'+f.fanC:'')+')</option>').join('')+'</select></div>';
   const minF=isHK()?S.cfg.hk.minFan:S.cfg.minFan;
   h+='<div class="total">合計 <b>'+total+'</b> 番'+(isHK()&&rawTotal>hkCap()?' <span class="hint">(疊加 '+rawTotal+' 番,封頂 '+hkCap()+' 番)</span>':'')+(minF>0&&total<minF?' <span class="neg">('+(isHK()?'不足 '+minF+' 番,記錄時當詐糊':'低於起糊 '+minF+' 番')+')</span>':'')+'</div>';
+  if(!isHK()) h+=payBreakdown(total);
   if(isHK()){
     if(E.self||E.disc!=null){
       const w0={p:E.winner,self:E.self,disc:E.disc,total:total,qiang:!!E.flags.qiangkong&&!E.self,bao:E.bao};
@@ -627,8 +630,8 @@ function hkSettings(){
 function viewSettings(){
   const c=S.cfg;
   let h='<h3>版本資訊</h3><div class="card"><div>目前版本:<b>'+APP_VERSION+'</b></div><div>更新時間:<b>'+APP_UPDATED+'</b></div>'+(upd?'<div class="pos">最新版本:<b>'+esc(upd.version)+'</b>'+(upd.updated?'('+esc(upd.updated)+')':'')+'</div>':'')+'<div class="dev">開發者:Instagram <a href="https://www.instagram.com/'+DEV_IG+'/" target="_blank" rel="noopener">@'+DEV_IG+'</a></div><div class="btnrow">'+(upd?'<button class="primary" data-act="upgrade">立即升級</button>':'')+'<button data-act="checkUpd">'+(checking?'檢查中…':'檢查更新')+'</button></div><div class="hint">App 開啟時會自動檢查。升級只會更新程式,不會清除你的紀錄。</div></div>';
-  h+='<h3>玩法</h3><div class="card"><div>目前玩法:<b>'+(isWild()?'港式台牌百搭(16張)':isHK()?'廣東牌(13張)':'港式台牌(16張)')+'</b></div><div class="btnrow"><button data-act="toChooser">更換玩法</button></div></div>';
-  if(isWild()) h+='<div class="note">本場牌組加 '+S.cfg.wildLimit+' 張專用百搭。百搭可代34種非花牌；真白板仍是白板。更改百搭總數請重新選擇玩法。代入後同款最多4張；不額外加百搭番。含百搭的副露須逐組指定；已宣告的百搭用途請在副露欄固定。</div>';
+  h+='<h3>玩法</h3><div class="card"><div>目前玩法:<b>'+gameLabel(S.game)+'</b></div><div class="btnrow"><button data-act="toChooser">更換玩法</button></div></div>';
+  if(isWild()) h+='<div class="note">本場牌組加 '+S.cfg.wildLimit+' 張通用百搭。百搭可代34種非花牌；真白板仍是白板。代入後同款牌連副露最多4張；不額外加百搭番。已宣告副露中的百搭用途固定。要改百搭數量，請到「更換玩法」重新選擇。</div>';
   if(isHK()) h+=hkSettings();
   else {
     h+='<h3>番表預設</h3><div class="presetbtns">'
@@ -698,20 +701,26 @@ function act(a,d){
   derive();
   switch(a){
     case 'tab': tab=d.v; break;
-    case 'toChooser': tab='chooser'; break;
+    case 'toChooser': tab='chooser'; wildPick=false; break;
     case 'menqing': E.flags.menqing=(d.v==='1'); E.excl={}; break;
     case 'game': {
       const v=d.v;
+      if(v==='wild'&&d.n==null){ wildPick=true; tab='chooser'; break; }
       let wl=S.cfg.wildLimit;
-      if(v==='wild'){const q=prompt('本局牌組加入多少張通用百搭？請輸入4至8（這不是你手持的張數）',String(wl));if(q===null)return;wl=Number(q);if(!Number.isInteger(wl)||wl<4||wl>8){toast('請輸入4至8的整數');return;}if(!window.MJ3){toast('請先確認 engine.js 已包含百搭番表');return;}}
+      if(v==='wild'){
+        wl=Number(d.n);
+        if(!Number.isInteger(wl)||wl<4||wl>8){ toast('百搭數量只可選4至8張'); return; }
+        if(!window.MJ3){ toast('找不到台牌百搭番表,請先更新 engine.js'); return; }
+        if(!window.Worker){ toast('此瀏覽器不支援背景計算'); return; }
+      }
       if(v==='hk'&&!window.MJHK){ toast('找不到 engine_hk.js,請先上傳'); return; }
       if(S.game&&(S.game!==v||(v==='wild'&&wl!==S.cfg.wildLimit))&&(S.history.length||S.ledger.length)){
-        if(!confirm('更換玩法會開始新牌局,目前的紀錄會先保存為「上一場」(可在座位頁還原)。要繼續嗎?')) return;
+        if(!confirm('更換玩法或百搭數量會開始新牌局,目前的紀錄會先保存為「上一場」(可在座位頁還原)。要繼續嗎?')) return;
         resetGameData();
       }
-      S.game=v; S.cfg.wildLimit=wl; pickM(); E=newEntry(); pending=[];
+      wildPick=false; S.game=v; S.cfg.wildLimit=wl; pickM(); E=newEntry(); pending=[];
       const l0=instList()[0]; inst.id=l0.id; inst.mode=l0.mode; inst.mult=1;
-      tab='table'; toast('已選擇:'+(v==='wild'?'港式台牌百搭':v==='hk'?'廣東牌':'港式台牌')); break; }
+      tab='table'; toast('已選擇:'+gameLabel(v)); break; }
     case 'hkPreset': S.cfg.hk.preset=d.v; break;
     case 'hkResetTable': S.cfg.hk.over={}; break;
     case 'upgrade': doUpgrade(); return;
@@ -721,7 +730,7 @@ function act(a,d){
       const v=+d.v;
       if(v===2&&!window.MJ2){ toast('找不到 engine2.js,請先上傳'); return; }
       if(v===3&&!window.MJ3){ toast('engine.js 版本過舊,請先更新'); return; }
-      if(isWild())S.cfg.wildPreset=v;else S.cfg.preset=v;pickM(); E.excl={}; E.extra=[]; E.flags={};
+      if(isWild()) S.cfg.wildPreset=v; else S.cfg.preset=v; pickM(); E.excl={}; E.extra=[]; E.flags={};
       const l0=instList()[0]; inst.id=l0.id; inst.mode=l0.mode; inst.mult=1;
       toast('已切換為'+PRESET_NAME[v]); break; }
     case 'a2hsLater': a2hsHidden=true; break;
@@ -892,7 +901,23 @@ function chg(k,el){
   save(); render();
 }
 
-// Third mode: separate physical joker input, asynchronous exhaustive solver.
+function payRows(total){
+  if(!E.self&&E.disc==null) return [];
+  const dealer=dealerPid(),bonus=1+2*S.streak,fv=S.cfg.fanValue;
+  const payers=E.self?[0,1,2,3].filter(p=>p!==E.winner):[E.disc];
+  return payers.map(q=>{
+    const extra=(q===dealer||E.winner===dealer)?bonus:0,fan=S.cfg.baseMult+total+extra;
+    return {payer:q,pattern:total,base:S.cfg.baseMult,dealerFan:extra?1:0,streakFan:extra?2*S.streak:0,fan:fan,amount:Math.round(fan*fv)};
+  });
+}
+function payBreakdown(total){
+  const rows=payRows(total),fv=S.cfg.fanValue;
+  let h='<h3>每家應付明細</h3>';
+  if(!rows.length) return h+'<div class="hint">請先選擇自摸，或選出銃者，才會顯示每家應付金額。</div>';
+  h+='<table><tr><th>付款人</th><th>牌型</th><th>底</th><th>莊／連莊</th><th>合計</th></tr>'+rows.map(r=>'<tr><td>'+nm(r.payer)+'</td><td>'+r.pattern+'番</td><td>+'+r.base+'番</td><td>'+((r.dealerFan||r.streakFan)?'+'+r.dealerFan+'+'+r.streakFan+'番':'—')+'</td><td><b>'+r.fan+'番 = $'+r.amount+'</b></td></tr>').join('')+'</table>';
+  h+='<div class="hint">每番 $'+fv+(fv===1?'，所以番數 = 金額':'，金額 = 番數 × 每番金額')+'。底、莊家及連莊加番由系統自動加入，不能在番種清單勾選刪除。此為本局新增拉數；是否即時收付以下方「本局記帳預覽」為準。'+(pending.length?' 雙響／三響時，這裡只顯示目前輸入的食糊者。':'')+'</div>';
+  return h;
+}
 let wildJob=null,wildKey='',wildDone=null,wildBusy=false,wildProgress=0;
 function wildInput(){return {hand:E.all.slice(),groups:JSON.parse(JSON.stringify(E.wildGroups)),win:E.win,selfDraw:E.self,flags:E.flags,flowers:E.flowers,limit:S.cfg.wildLimit,preset:S.cfg.wildPreset,...ctxExtra()};}
 function wildSignature(){return JSON.stringify([wildInput(),OV(),E.excl]);}
@@ -904,15 +929,14 @@ function wildResult(){
 function wildStart(){
  wildStop();wildDone=null;wildProgress=0;
  if(E.wildSelect.length){toast('請先加入或取消正在選取的一組牌');return;}
- const inp=wildInput();
  if(E.win==null){toast('請先選食糊牌');return;}
  if(!E.self&&E.win===34){toast('他家打出的百搭不可食糊');return;}
- wildKey=wildSignature();wildBusy=true;
+ const inp=wildInput();wildKey=wildSignature();wildBusy=true;
  try{
   const job=wildJob=new Worker('wild-worker.js');
   job.onmessage=e=>{if(wildJob!==job)return;const d=e.data;if(d.progress!=null){wildProgress=d.progress;const el=document.getElementById('wild-progress');if(el)el.textContent='已評估 '+wildProgress+' 種代入及食糊牌組合'+(d.best!=null?'，目前最高 '+d.best+' 番':'');return;}
    if(d.done){wildDone=d.result;wildBusy=false;job.terminate();wildJob=null;render();}};
-  job.onerror=e=>{if(wildJob!==job)return;wildDone={error:e.message||'無法載入背景計番，請檢查上傳檔案'};wildStop();render();};
+  job.onerror=e=>{if(wildJob!==job)return;wildDone={error:e.message||'無法載入背景計番，請檢查已上傳 wild-worker.js、engine_wild.js'};wildStop();render();};
   job.postMessage({inp,over:OV(),excluded:Object.keys(E.excl).filter(k=>E.excl[k])});
  }catch(e){wildBusy=false;wildDone={error:String(e)};}
 }
@@ -932,7 +956,6 @@ function wildAction(a,d){
   const physical=E.wildSelect.map(i=>E.all[i]),kind=d.v,sz=kind==='kong'?4:3;
   const g={t:kind,physical,open:d.open!=='0'};
   if(physical.length!==sz){toast('請在牌堆選'+sz+'張牌');return true;}
-  // Public meld joker identities are fixed once declared; hand jokers remain flexible.
   let target=kind==='chow'?0:physical.find(t=>t!==34);if(target==null)target=0;
   const text=prompt(kind==='chow'?'此組上牌起始牌：輸入1m至7m／1p至7p／1s至7s（m萬 p筒 s索）':'此組碰／槓代表哪款牌？輸入1m至9s或東南西北中發白',wildCode(target));
   if(text===null)return true;
@@ -956,12 +979,12 @@ function wildAction(a,d){
 function wildCode(t){return t<27?(t%9+1)+['m','p','s'][Math.floor(t/9)]:'東南西北中發白'[t-27];}
 function wildParse(v){const z='東南西北中發白'.indexOf(v);if(v.length===1&&z>=0)return 27+z;const m=/^([1-9])([mps])$/i.exec(v);return m?['m','p','s'].indexOf(m[2].toLowerCase())*9+Number(m[1])-1:null;}
 function inputWild(){
- let h='<h3>輸入牌（含百搭）</h3><div class="note">手牌與食糊牌放入牌堆；副露逐組加入。百搭用專用「百搭」鍵，白板仍作真白板。牌組共加 '+S.cfg.wildLimit+' 張百搭，不代表你的手牌必須有這麼多張。</div>';
+ let h='<div class="warn">通用百搭版為測試版，正式記帳前請人工核對。只含通用百搭，不含越南分類百搭。</div><h3>輸入牌（含百搭）</h3><div class="note">手牌與食糊牌放入牌堆；副露逐組加入。百搭用專用「百搭」鍵，白板仍作真白板。本場共加 '+S.cfg.wildLimit+' 張百搭，不代表你的手牌必須有這麼多張。</div>';
  h+=palette()+'<div class="btnrow"><button data-act="tile" data-t="34">＋ 百搭</button></div>';
  h+='<div class="seg"><button data-act="mode" data-v="pick" class="'+(E.mode==='pick'?'on':'')+'">刪牌</button><button data-act="mode" data-v="meld" class="'+(E.mode==='meld'?'on':'')+'">選副露</button><button data-act="mode" data-v="win" class="'+(E.mode==='win'?'on':'')+'">選食糊牌</button></div>';
  h+='<div class="hint">'+(E.mode==='meld'?'點選3或4張，再按下方組別按鈕。':'點「選食糊牌」再點最後食糊的一張；刪牌模式點牌即刪除。')+'</div>';
  h+='<div class="zl">手牌連食糊牌 '+E.all.length+' 張（應 '+((5-E.wildGroups.length)*3+2)+' 張）</div><div class="zone tiles">'+E.all.map((t,i)=>mt(t,{tag:'button',cls:E.wildSelect.includes(i)?'mk2':t===E.win?'mark':'',attrs:'data-act="wildPool" data-i="'+i+'"'})).join('')+'</div>';
- if(E.mode==='meld')h+='<div class="btnrow"><button data-act="wildGroup" data-v="chow">加入上牌</button><button data-act="wildGroup" data-v="pung">加入碰牌</button><button data-act="wildGroup" data-v="kong" data-open="1">加入明槓</button><button data-act="wildGroup" data-v="kong" data-open="0">加入暗槓</button><button data-act="wildCancelGroup">取消選取</button></div>';
+ if(E.mode==='meld') h+='<div class="btnrow"><button data-act="wildGroup" data-v="chow">加入上牌</button><button data-act="wildGroup" data-v="pung">加入碰牌</button><button data-act="wildGroup" data-v="kong" data-open="1">加入明槓</button><button data-act="wildGroup" data-v="kong" data-open="0">加入暗槓</button><button data-act="wildCancelGroup">取消選取</button></div>';
  h+='<div class="btnrow"><button data-act="undoTile">退一張手牌</button><button data-act="clearHand">全部清空</button></div><h3>副露／槓（已宣告的百搭用途固定）</h3>';
  h+=E.wildGroups.map((g,i)=>'<div class="card">'+g.physical.map(t=>mt(t)).join('')+' → '+(g.t==='chow'?'上':g.t==='pung'?'碰':g.open?'明槓':'暗槓')+' '+M.tName(g.tile)+(g.physical.includes(34)?'（含百搭）':'')+' <button data-act="wildRemoveGroup" data-i="'+i+'">退回手牌</button></div>').join('');
  h+='<div class="hint">食糊牌：'+(E.win==null?'未選':E.win===34?'百搭（只限自摸）':M.tName(E.win))+'。百搭不能代花牌；代入後同款牌最多4張。假碰優先權屬牌桌規則，本計番器不裁定搶碰。</div>';
@@ -969,9 +992,9 @@ function inputWild(){
  return h;
 }
 function wildHint(r){
- if(wildBusy)return '<div class="note">最高番搜尋中；可取消，不會把中途結果當成最優解。</div>';
- if(!r)return '<div class="hint">輸入完成後按「搜尋最高番」。</div>';
- if(r.error)return '<div class="warn">'+esc(r.error)+'</div>';
+ if(wildBusy) return '<div class="note">最高番搜尋中；可取消，不會把中途結果當成最優解。</div>';
+ if(!r) return '<div class="hint">輸入完成後按「搜尋最高番」。</div>';
+ if(r.error) return '<div class="warn">'+esc(r.error)+'</div>';
  return '<div class="ok">完整搜尋完成：'+r.count+' 種代入及食糊牌組合；最高番 '+r.total+'。<br>手牌百搭代入：'+(r.replacements.map(t=>M.tName(t)).join('、')||'無')+(E.win===34?'<br>自摸百搭當作：'+M.tName(r.win):'')+'<br>聽牌種類（含可摸百搭）：'+r.waits+'</div>';
 }
 

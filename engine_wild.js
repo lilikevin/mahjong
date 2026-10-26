@@ -7,12 +7,12 @@ for(let t=0;t<27;t++) if(t%9<7) GROUPS.push([t,t+1,t+2]);
 const count=a=>{const c=Array(34).fill(0);a.forEach(t=>c[t]++);return c;};
 function meldTiles(m){return m.t==='chow'?[m.tile,m.tile+1,m.tile+2]:Array(m.t==='kong'?4:3).fill(m.tile);}
 function options(m){
- const a=m.physical, k=a.filter(t=>t===34).length, f=a.filter(t=>t!==34), out=[];
+ const a=m.physical,f=a.filter(t=>t!==34),out=[];
  if(a.length!==(m.t==='kong'?4:3)) return out;
  if(m.t==='chow'){
   for(let t=0;t<27;t++) if(t%9<7&&new Set(f).size===f.length&&f.every(x=>x>=t&&x<=t+2)) out.push({t:m.t,tile:t,open:true});
  }else for(let t=0;t<34;t++) if(f.every(x=>x===t)) out.push({t:m.t,tile:t,open:m.open!==false});
- return out;
+ return m.tile==null?out:out.filter(o=>o.tile===m.tile);
 }
 function* targets(fixed,wilds,nsets,base,special){
  const need=count(fixed),seen=new Set(),total=nsets*3+2;
@@ -34,12 +34,11 @@ function* targets(fixed,wilds,nsets,base,special){
  yield* cover(nsets,false,Array(34).fill(0));
  if(!special||nsets!==5)return;
  for(let tr=0;tr<34;tr++){
-  if(need[tr]>3)continue;const req=[],free=[];let bad=false;
-  for(let t=0;t<34;t++)if(t!==tr){if(need[t]>2){bad=true;break;}if(need[t])req.push(t);else free.push(t);}
-  if(bad||req.length>7)continue;
-  const c=Array(34).fill(0);c[tr]=3;req.forEach(t=>c[t]=2);
-  function* choose(start,k){if(!k){yield* emit(c.slice());return;}for(let j=start;j<=free.length-k;j++){c[free[j]]=2;yield* choose(j+1,k-1);c[free[j]]=0;}}
-  yield* choose(0,7-req.length);
+  if(need[tr]>3)continue;const c=Array(34).fill(0);c[tr]=3;let pairs=0;
+  for(let t=0;t<34;t++)if(t!==tr&&need[t]){c[t]=Math.ceil(need[t]/2)*2;pairs+=c[t]/2;}
+  if(pairs>7)continue;
+  function* choose(start,k){if(!k){yield* emit(c.slice());return;}for(let t=start;t<34;t++)if(t!==tr&&c[t]+base[t]<=2){c[t]+=2;yield* choose(t,k-1);c[t]-=2;}}
+  yield* choose(0,7-pairs);
  }
  for(const p of YAO)for(const g of GROUPS){const c=Array(34).fill(0);YAO.forEach(t=>c[t]++);c[p]++;g.forEach(t=>c[t]++);yield* emit(c);}
  const gaps=[];for(let a=0;a<9;a++)for(let b=a+3;b<9;b++)for(let c=b+3;c<9;c++)gaps.push([a,b,c]);
