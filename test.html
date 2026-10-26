@@ -1,0 +1,28 @@
+<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width">
+<script src="https://cdn.jsdelivr.net/npm/onnxruntime-web/dist/ort.min.js"></script>
+<input type="file" accept="image/*" id="f"><pre id="o">載入模型中…</pre>
+<script>
+const L="1m 1p 1s 1z 2m 2p 2s 2z 3m 3p 3s 3z 4m 4p 4s 4z 5m 5p 5s 5z 6m 6p 6s 6z 7m 7p 7s 7z 8m 8p 8s 9m 9p 9s 0m 0p 0s".split(" ");
+const S=640,o=document.getElementById("o");let sess;
+ort.InferenceSession.create("mahjong-yolon-best.onnx",{executionProviders:["wasm"]})
+ .then(s=>{sess=s;o.textContent="模型已載入，輸入："+s.inputNames+" 輸出："+s.outputNames})
+ .catch(e=>o.textContent="載入失敗："+e);
+f.onchange=async e=>{
+ const bmp=await createImageBitmap(e.target.files[0]);
+ const r=Math.min(S/bmp.width,S/bmp.height),w=Math.round(bmp.width*r),h=Math.round(bmp.height*r);
+ const c=new OffscreenCanvas(S,S),g=c.getContext("2d");
+ g.fillStyle="rgb(114,114,114)";g.fillRect(0,0,S,S);
+ const dx=(S-w)>>1,dy=(S-h)>>1;g.drawImage(bmp,dx,dy,w,h);
+ const d=g.getImageData(0,0,S,S).data,n=S*S,t=new Float32Array(3*n);
+ for(let i=0;i<n;i++){t[i]=d[i*4]/255;t[n+i]=d[i*4+1]/255;t[2*n+i]=d[i*4+2]/255}
+ const out=await sess.run({[sess.inputNames[0]]:new ort.Tensor("float32",t,[1,3,S,S])});
+ const y=out[sess.outputNames[0]],[,ch,N]=y.dims,nc=ch-4,a=y.data,res=[];
+ for(let i=0;i<N;i++){let b=0,m=0;
+  for(let k=0;k<nc;k++){const v=a[(4+k)*N+i];if(v>m){m=v;b=k}}
+  if(m>0.25)res.push({cls:b,name:L[b]||"待確認",conf:m.toFixed(2),
+   x:((a[i]-dx)/r)|0,y:((a[N+i]-dy)/r)|0})}
+ res.sort((p,q)=>q.conf-p.conf);
+ o.textContent="輸出形狀："+y.dims+"（類別數 "+nc+"）\n"+
+  res.slice(0,10).map(z=>`編號${z.cls} → ${z.name}  可信度${z.conf}  位置(${z.x},${z.y})`).join("\n");
+};
+</script>
