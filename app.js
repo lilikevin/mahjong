@@ -1,7 +1,7 @@
 (function(){
 'use strict';
 const APP_VERSION='v1.2';
-const APP_UPDATED='2026-10-26 14:26 (香港時間)';
+const APP_UPDATED='2026-10-26 15:01 (香港時間)';
 const DEV_IG='kevinli999';
 let M=window.MJ;
 const KEY='mj_hk_tw_v1';
@@ -130,10 +130,9 @@ const STATIC_CSS=`
 .mt.back{background:#1a7a3a!important;border-color:#0f5a2a!important;border-bottom-width:4px!important}
 .mt.back b,.mt.back i{visibility:hidden}
 .mt.big{width:38px;height:52px;outline:3px solid var(--acc);outline-offset:1px}
-.mg{display:inline-flex;flex-direction:column;align-items:center;gap:3px;padding:5px 6px;background:var(--btn2);border-radius:8px;margin:2px}
+.mg{display:inline-flex;flex-direction:column;align-items:center;gap:3px;padding:5px 6px;background:var(--btn2);border-radius:8px;margin:2px;cursor:pointer}
 .mg .row{display:flex;gap:1px}
 .mg small{font-size:11px;opacity:.85;display:flex;gap:8px;align-items:center}
-.mg small b{padding:0 4px;cursor:pointer}
 .tiles{display:flex;flex-wrap:wrap;gap:4px}
 `;
 const DYN_CSS=`
@@ -185,7 +184,7 @@ function meldGroup(m,i){
   else if(m.t==='pung'){ tiles=[0,1,2].map(()=>mt(m.tile)).join(''); cap='碰'; }
   else if(m.open===false){ tiles=mt(m.tile,{back:true})+mt(m.tile)+mt(m.tile)+mt(m.tile,{back:true}); cap='暗槓'; }
   else { tiles=[0,1,2,3].map(()=>mt(m.tile)).join(''); cap='明槓'; }
-  return '<div class="mg"><div class="row">'+tiles+'</div><small>'+cap+' <b data-act="rmMeld" data-i="'+i+'">✕</b></small></div>';
+  return '<div class="mg" data-act="rmMeld" data-i="'+i+'"><div class="row">'+tiles+'</div><small>'+cap+' ✕</small></div>';
 }
 
 async function checkUpdate(manual){
@@ -333,7 +332,7 @@ function viewCalc(){
   h+=palette();
   h+='<div class="btnrow"><button data-act="undoTile">退一張</button><button data-act="clearHand">全部清空</button></div>';
   h+='<h3>已輸入的牌型</h3><div class="card entered">';
-  h+='<div class="zl">明牌 <small>'+E.melds.length+' 組</small></div>';
+  h+='<div class="zl">明牌 <small>'+E.melds.length+' 組,點牌可刪除</small></div>';
   h+='<div class="zone">'+(E.melds.length?E.melds.map((m,i)=>meldGroup(m,i)).join(''):'<span class="hint">無</span>')+'</div>';
   h+='<div class="zl">手牌 <small>'+E.hand.length+' / '+(need()-1)+' 張(不含胡牌),點牌可刪除</small></div>';
   h+='<div class="zone"><div class="tiles">'+(E.hand.length?E.hand.slice().sort((a,b)=>a-b).map(t=>mt(t,{tag:'button',attrs:'data-act="rmHand" data-t="'+t+'"'})).join(''):'<span class="hint">未有手牌</span>')+'</div></div>';
@@ -514,11 +513,11 @@ function act(a,d){
         E.excl={};
       }
       break; }
-    case 'rmHand': { const i=E.hand.indexOf(+d.t); if(i>=0) E.hand.splice(i,1); E.excl={}; break; }
+    case 'rmHand': { const i=E.hand.indexOf(+d.t); if(i>=0) E.hand.splice(i,1); E.mode='hand'; E.excl={}; break; }
     case 'clearWin': E.win=null; E.mode='win'; E.excl={}; break;
     case 'undoTile': if(E.mode==='win'||(!E.hand.length&&E.win!=null)) E.win=null; else if(E.mode==='hand'&&E.hand.length) E.hand.pop(); else if(E.melds.length) E.melds.pop(); E.excl={}; break;
     case 'clearHand': E.hand=[]; E.melds=[]; E.win=null; E.mode='chow'; E.meldMode='chow'; E.excl={}; break;
-    case 'rmMeld': E.melds.splice(+d.i,1); E.excl={}; break;
+    case 'rmMeld': E.melds.splice(+d.i,1); E.mode=E.meldMode||'chow'; E.excl={}; break;
     case 'unexcl': delete E.excl[d.id]; break;
     case 'extraN': { const x=E.extra[+d.i]; x.n+=+d.d; if(x.n<1) E.extra.splice(+d.i,1); break; }
     case 'rmExtra': E.extra.splice(+d.i,1); break;
