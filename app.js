@@ -1,7 +1,7 @@
 (function(){
 'use strict';
 const APP_VERSION='v1.2';
-const APP_UPDATED='2026-10-26 14:15 (香港時間)';
+const APP_UPDATED='2026-10-26 14:21 (香港時間)';
 const DEV_IG='kevinli999';
 let M=window.MJ;
 const KEY='mj_hk_tw_v1';
@@ -19,7 +19,6 @@ const SCHEMES=[
 ];
 const THEME_LABEL={bg:'頁面背景',card:'格子 / 卡片',btn:'按鈕',acc:'強調色(選中、金額、標題)'};
 const PRESET_NAME={1:'預設 #1 舊番表(陶源麻雀王大賽)',2:'預設 #2 香港麻雀協會總例(2025-07-28 修訂)',3:'預設 #3 台牌百搭番數表'};
-/* 手動項目佔位(數字預設 0,可在設定頁修改);只加入該預設沒有的項目 */
 const PH_FANS=[
  ['guanshou','冚手糊'],['gsg','槓上槓摸'],['ggg','槓槓槓摸'],['hedi','河底撈魚'],['haidi1','海底撈月(一筒)'],
  ['wuhua','無花'],['wuzi','無字'],['dayu5','大於五'],['xiaoyu5','小於五'],['lanyise','藍一色'],['lvyise','綠一色'],
@@ -412,7 +411,7 @@ function viewSettings(){
   h+='<h3>番表預設</h3><div class="presetbtns">'
     +'<button class="'+(c.preset===1?'on':'')+'" data-act="preset" data-v="1">預設 #1:舊番表<small>陶源麻雀王大賽番數表</small></button>'
     +'<button class="'+(c.preset===2?'on':'')+'" data-act="preset" data-v="2">預設 #2:香港麻雀協會總例<small>《港式十六張新章麻雀總例》2025-07-28 修訂版番種詳述</small></button>'
-    +'<button class="'+(c.preset===3?'on':'')+'" data-act="preset" data-v="3">預設 #3:台牌百搭番數表<small>(無萬能牌玩法)</small></button></div>';
+    +'<button class="'+(c.preset===3?'on':'')+'" data-act="preset" data-v="3">預設 #3:台牌百搭番數表</button></div>';
   if(!window.MJ2) h+='<div class="warn">未能載入預設 #2 的番表檔(engine2.js)。請確認已上傳該檔案。</div>';
   if(!window.MJ3) h+='<div class="warn">未能載入預設 #3 的番表(engine.js 版本過舊)。請更新 engine.js。</div>';
   h+='<p class="hint">三套預設各自記住你修改過的番數和即時籌碼金額,切換不會互相影響。切換時,本局正在輸入的手動番種會被清除。</p>';
@@ -565,7 +564,7 @@ function act(a,d){
       const lst=instList(); const I=lst.find(x=>x.id===inst.id)||lst[0];
       let amt=instAmt(I)+(I.plusBase?S.cfg.fanValue*S.cfg.baseMult:0);
       amt=amt*(inst.mult||1);
-      const deltas=instDeltas({amt:amt,mode:inst.mode,payee:inst.payee,payer:inst.payer},S.cfg.fanValue===0?1:1);
+      const deltas=instDeltas({amt:amt,mode:inst.mode,payee:inst.payee,payer:inst.payer},1);
       pushRec({kind:'instant',name:I.name+(inst.mult>1?' ×'+inst.mult:''),deltas,events:[]});
       toast('已記錄 '+I.name); break; }
     case 'undoRec': {
