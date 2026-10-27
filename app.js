@@ -1,7 +1,7 @@
 (function(){
 'use strict';
 const APP_VERSION='v1.2 beta';
-const APP_UPDATED='2026-10-27 14:40 (香港時間)';
+const APP_UPDATED='2026-10-28 00:50 (香港時間)';
 const DEV_IG='kevinli999';
 let M=window.MJ;
 const KEY='mj_hk_tw_v1';
@@ -194,6 +194,7 @@ const STATIC_CSS=`
 .poolbox{min-height:60px}
 .askcard{margin:10px 0}
 .askcard .seg button{padding:14px 4px;font-size:16px;font-weight:600}
+.stl .mt{width:22px;height:31px;border-bottom-width:3px!important}.stl .mt b{font-size:14px}.stl .mt i{font-size:9px;margin-top:1px}.stl .mt.hon b{font-size:17px}.stl .mt.h6 b{width:12px;height:18px;border-width:1.5px}
 `;
 const DYN_CSS=`
 body{background:var(--bg)!important}
@@ -392,13 +393,13 @@ function analyzeHK(){
     hand.forEach(w=>{
       if(seen[w]) return; seen[w]=1;
       let r=null;
-      try{ r=M.analyze(Object.assign({hand:hand,melds:melds,win:w,flowers:E.flowers,selfDraw:E.self,flags:E.flags,concealed:!!E.flags.menqing},ctxExtra()),OV()); }catch(e){}
+      try{ r=M.analyze(Object.assign({hand:hand,melds:melds,win:w,flowers:E.flowers,selfDraw:E.self,flags:E.flags,concealed:hkConcealed(ac)},ctxExtra()),OV()); }catch(e){}
       cnt++;
-      if(r&&!r.error&&r.items){ let tot=0; r.items.forEach(x=>{ tot+=M.valueOf(R,x); }); if(!best||tot>best.total) best={items:r.items,total:tot,count:0,waits:r.waits}; }
+      if(r&&!r.error&&r.items){ let tot=0; r.items.forEach(x=>{ tot+=M.valueOf(R,x); }); if(!best||tot>best.total) best={items:r.items,total:tot,count:0,waits:r.waits,kongs:cb.slice()}; }
     });
   });
   if(!best) return {error:'這副牌組不成食糊牌形'};
-  best.count=cnt; return best;
+  best.count=cnt; best.autoMq=(E.flags.menqing===undefined&&N===14&&jiuziShape(ac)); return best;
 }
 function analyze(){
   if(isWild()) return wildResult();
@@ -532,16 +533,17 @@ function inputSectionHK(){
   h+='<div class="btnrow"><button data-act="undoTile">退一張</button><button data-act="clearHand">全部清空</button></div>';
   h+='<div class="card askcard"><div class="zl" style="margin-top:0">是不是門前清?(胡牌前沒有上、碰、槓過牌)</div>'
     +'<div class="seg two"><button class="'+(mq===true?'on':'')+'" data-act="menqing" data-v="1">是(門前清)</button><button class="'+(mq===false?'on':'')+'" data-act="menqing" data-v="0">否(有上、碰、槓過)</button></div>'
-    +'<div class="hint">'+(hkFlowerMode()?'花牌規則下不另計「門前清」番;但選「是」才會計坎坎糊、九子連環。未選擇時按「否」計算。':'選「是」才會計門前清、坎坎糊、九子連環;未選擇時按「否」計算(只計對對糊)。')+'</div></div>';
+    +'<div class="hint">'+(hkFlowerMode()?'花牌規則下不另計「門前清」番;但選「是」才會計坎坎糊、九子連環。':'選「是」才會計門前清、坎坎糊、九子連環。')+'未選擇時按「否」計算(只計對對糊);牌形符合九子連環時會自動按門前清計算。</div></div>';
   return h;
 }
 function resultHint(res){
   if(isWild()) return wildHint(res);
   if(isHK()){
+    const hx=hkHintHtml();
     if(!E.all.length) return '<div class="hint">請先用牌盤選牌。</div>';
-    if(res&&res.error) return '<div class="warn">這副牌可能輸入有誤,或是詐糊。('+esc(res.error)+')</div>';
+    if(res&&res.error) return hx+'<div class="warn">這副牌可能輸入有誤,或是詐糊。('+esc(res.error)+')</div>';
     if(!res) return '<div class="hint">請先用牌盤選牌。</div>';
-    return '<div class="ok">已自動分析(共 '+res.count+' 種讀法,取最高番)</div>';
+    return hx+'<div class="ok">已自動分析(共 '+res.count+' 種讀法,取最高番)</div>';
   }
   if(E.win==null) return '<div class="hint">未指名食糊牌:請點「食糊牌」框的空白處,再點牌堆裡最後食糊的那張,即可自動算番。</div>';
   if(E.partBad) return '<div class="warn">明牌標記無法組成'+CHI+'、碰或槓(每組3張,槓4張),可能輸入有誤。</div>';
@@ -567,6 +569,7 @@ function viewCalc(){
   if(isHK()) h+=inputSection();
   h+='<h3>'+(isHK()?'番數結果':'⑥ 番數結果')+'</h3>';
   h+=resultHint(res);
+  h+=shareCard(res,total,rawTotal);
   if(baoVisible()){
     h+='<h3>包牌(自摸時由供牌者包付三家)</h3><label>包牌者<select data-chg="bao"><option value="">無</option>'+S.seat.filter(p=>p!==E.winner).map(p=>'<option value="'+p+'"'+(E.bao===p?' selected':'')+'>'+nm(p)+'</option>').join('')+'</select></label><p class="hint">十二章包:供給第四組明章(明坎、上、任何槓)的一家包付;第四組是暗槓則無人包。大三元包:供給第三組三元牌明章的一家包付。包後不包先,只計一家。</p>';
   }
@@ -949,6 +952,94 @@ function chg(k,el){
   save(); render();
 }
 
+function cardTile(t,o){
+  o=o||{}; let h=mt(t);
+  if(o.wild||o.win){
+    h='<span style="position:relative;display:inline-block'+(o.win?';outline:2px solid #ffd54a;outline-offset:1px;border-radius:5px':'')+'">'+h+(o.wild?'<span style="position:absolute;top:-7px;right:-5px;font-size:9px;line-height:1;background:#8b2670;color:#fff;border-radius:6px;padding:1px 3px">百</span>':'')+(o.win?'<span style="position:absolute;bottom:-9px;left:50%;transform:translateX(-50%);font-size:9px;line-height:1;background:#ffd54a;color:#222;border-radius:6px;padding:1px 3px;font-weight:700">食</span>':'')+'</span>';
+  }
+  return h;
+}
+function layoutTiles(tiles,nSets){
+  const c=Array(34).fill(0); tiles.forEach(t=>{ if(t<34) c[t]++; });
+  let ds=[]; try{ ds=M.decompose(c.slice(),nSets)||[]; }catch(e){ ds=[]; }
+  if(!ds.length) return null;
+  ds.sort((a,b)=>b.sets.filter(x=>x.t==='pung').length-a.sets.filter(x=>x.t==='pung').length);
+  const D=ds[0];
+  const gs=D.sets.map(x=>({k:x.t==='chow'?'順':'刻',tiles:x.t==='chow'?[x.tile,x.tile+1,x.tile+2]:[x.tile,x.tile,x.tile]}));
+  gs.sort((a,b)=>a.tiles[0]-b.tiles[0]);
+  gs.push({k:'眼',tiles:[D.pair,D.pair]});
+  return gs;
+}
+function cardGroups(res){
+  const out=[]; const mk=(k,tiles,wild)=>({k,tiles,wild:wild||tiles.map(()=>false),win:-1});
+  const mtiles=m=>m.t==='chow'?[m.tile,m.tile+1,m.tile+2]:Array(m.t==='kong'?4:3).fill(m.tile);
+  const special=res.items&&res.items.some(i=>['shisanyao','jiuzi','shiliubuda','budafei','busanxf','budazalong','likgu','lik8'].indexOf(i.id)>=0);
+  if(isHK()){
+    const ks=res.kongs||[]; const left=E.all.slice();
+    ks.forEach(t=>{ for(let n=0;n<4;n++){ const i=left.indexOf(t); if(i>=0) left.splice(i,1); } out.push(mk('槓',[t,t,t,t])); });
+    const gs=special?null:layoutTiles(left,4-ks.length);
+    if(gs) gs.forEach(g=>out.push(mk(g.k,g.tiles))); else out.push(mk('牌型',left.slice().sort((a,b)=>a-b)));
+    return out;
+  }
+  E.melds.forEach(m=>out.push(mk(m.t==='chow'?'上':m.t==='pung'?'碰':(m.open===false?'暗槓':'明槓'),mtiles(m))));
+  const wb={}; let winTile=E.win, hand=E.hand.slice();
+  if(isWild()){
+    E.wildGroups.forEach(g=>{
+      const tiles=g.t==='chow'?[g.tile,g.tile+1,g.tile+2]:Array(g.t==='kong'?4:3).fill(g.tile);
+      const real={}; g.physical.filter(t=>t!==34).forEach(t=>{ real[t]=(real[t]||0)+1; });
+      const wild=tiles.map(t=>{ if(real[t]>0){ real[t]--; return false; } return true; });
+      out.push(mk(g.t==='chow'?'上(含百搭)':g.t==='pung'?'碰(含百搭)':(g.open?'明槓(含百搭)':'暗槓(含百搭)'),tiles,wild));
+    });
+    const rep=(res.replacements||[]).slice();
+    if(E.win===34){ winTile=res.win; const i=rep.indexOf(winTile); if(i>=0) rep.splice(i,1); wb[winTile]=(wb[winTile]||0)+1; }
+    hand=hand.map(t=>{ if(t!==34) return t; if(!rep.length) return t; const r=rep.shift(); wb[r]=(wb[r]||0)+1; return r; });
+  }
+  const conc=hand.concat(winTile==null?[]:[winTile]);
+  const nSets=5-E.melds.length-(isWild()?E.wildGroups.length:0);
+  const gs=special?null:layoutTiles(conc,nSets);
+  const cg=gs?gs:[mk('牌型',conc.slice().sort((a,b)=>a-b))];
+  cg.forEach(g=>{ g.wild=g.tiles.map(t=>{ if(wb[t]>0){ wb[t]--; return true; } return false; }); g.win=-1; });
+  let placed=false;
+  if(isWild()&&E.win===34){ for(const g of cg){ const i=g.tiles.findIndex((t,j)=>t===winTile&&g.wild[j]); if(i>=0){ g.win=i; placed=true; break; } } }
+  if(!placed&&winTile!=null){ for(const g of cg){ const i=g.tiles.indexOf(winTile); if(i>=0){ g.win=i; break; } } }
+  return out.concat(cg);
+}
+function shareCard(res,total,raw){
+  if(!res||res.error) return '';
+  if(isWild()&&!res.complete) return '';
+  let gs; try{ gs=cardGroups(res); }catch(e){ return ''; }
+  if(!gs||!gs.length) return '';
+  const m=wildMult(), fl=E.flowers.map((f,i)=>f?M.FLOWERS[i]:'').filter(Boolean);
+  const groupsHtml=gs.map(g=>'<div style="display:inline-flex;flex-direction:column;align-items:center;margin:3px 4px"><div style="display:inline-flex;gap:1px;padding:6px 6px 9px;border-radius:8px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.22)">'+g.tiles.map((t,i)=>cardTile(t,{wild:g.wild[i],win:g.win===i})).join('')+'</div><small style="opacity:.8;margin-top:2px;font-size:11px">'+g.k+'</small></div>').join('');
+  let totalHtml;
+  if(isHK()){ const cap=hkCap(); totalHtml='<div style="font-size:36px;font-weight:700;color:var(--acc);line-height:1.1">'+total+' 番</div>'+(raw>cap?'<div style="font-size:12px;opacity:.8">(疊加 '+raw+' 番,封頂 '+cap+' 番)</div>':''); }
+  else { totalHtml='<div style="font-size:36px;font-weight:700;color:var(--acc);line-height:1.1">'+(total*m)+' 番</div>'+(m>1?'<div style="font-size:12px;opacity:.8">'+total+' 番 × '+m+'(冇用百搭)</div>':'')+'<div style="font-size:11px;opacity:.7">牌型番數'+(curPreset()===4||true?'(已含底)':'')+',未計莊家及連莊加番</div>'; }
+  let who=''; if(E.winner!=null) who=nm(E.winner)+' '+(E.self?'自摸':'出銃'+(E.disc!=null?'('+nm(E.disc)+')':''));
+  return '<div id="shareCard" class="stl" style="background:linear-gradient(160deg,#173f2f,#0f2a1f);border:2px solid var(--acc);border-radius:16px;padding:14px 10px 12px;margin:12px 0;text-align:center"><div style="font-size:13px;opacity:.85;margin-bottom:8px">麻雀計番 · '+esc(gameName())+(who?'<br>'+who:'')+'</div><div style="display:flex;flex-wrap:wrap;justify-content:center">'+groupsHtml+'</div>'+(fl.length?'<div style="font-size:12px;opacity:.85;margin-top:4px">花牌:'+fl.join(' ')+'</div>':'')+'<div style="margin-top:8px;font-size:13px;opacity:.9">總番數</div>'+totalHtml+'<div style="font-size:10px;opacity:.55;margin-top:6px">麻雀計番 '+APP_VERSION+'</div></div><div class="hint">上面的圖形可直接截圖分享;下方是分項列表。牌型分組為示意。</div>';
+}
+function jiuziShape(c){
+  for(let su=0;su<3;su++){
+    const base=[3,1,1,1,1,1,1,1,3]; let ok=true,extra=0,tot=0;
+    for(let n=0;n<9;n++){ const x=c[su*9+n]; tot+=x; if(x<base[n]) ok=false; else extra+=x-base[n]; }
+    if(ok&&extra===1&&tot===14) return true;
+  }
+  return false;
+}
+function hkConcealed(ac){ return (E.flags.menqing===undefined&&E.all.length===14&&jiuziShape(ac))?true:!!E.flags.menqing; }
+function hkHintHtml(){
+  const N=E.all.length; if(!N) return '';
+  const ac=allCounts(), out=[];
+  if(N>14){
+    const k=N-14, quad=[]; for(let t=0;t<34;t++) if(ac[t]===4) quad.push(M.tName(t));
+    out.push('共 '+N+' 張牌,系統視為有 '+k+' 個槓'+(quad.length?'(四張相同:'+quad.join('、')+')':'')+'。');
+    if(N===15){ const opts=[]; for(let t=0;t<34;t++){ if(!ac[t]) continue; const c=ac.slice(); c[t]--; if(jiuziShape(c)) opts.push(M.tName(t)); } if(opts.length) out.push('若你其實是14張的九子連環,請刪走多出的一張('+opts.join('或')+'任一張):現在多了一張,系統因此當作有槓,而九子連環不能有槓。'); }
+  }
+  if(N===14&&jiuziShape(ac)){
+    if(E.flags.menqing===false) out.push('牌形符合九子連環,但你選了「否(有上、碰、槓過)」。九子連環必須門前清,請改選「是」。');
+    else if(E.flags.menqing===undefined) out.push('牌形符合九子連環:已自動按門前清計算。如有上、碰過牌,請選「否」。');
+  }
+  return out.length?'<div class="note">'+out.map(esc).join('<br>')+'</div>':'';
+}
 function diRow(){ return (isHK()||M.FANS.some(f=>f.id==='di'))?[]:[{id:'di',name:'底',fan:S.cfg.baseMult,fanC:null,manual:false}]; }
 function diTotal(items){ const d=(items||[]).find(x=>x.id==='di'); return (!isHK()&&d&&typeof d.total==='number')?d.total:0; }
 function adjustUI(){
