@@ -1,22 +1,21 @@
-麻雀計番 v1.3 更新說明
+麻雀計番 v1.3.1 更新說明
 
-要上傳(覆蓋)的檔案:app.js、index.html、sw.js、version.json
-engine.js、engine2.js、engine_hk.js、engine4.js、engine_wild.js、wild-worker.js 不用改(沿用 v1.2 beta 的版本)。
-上傳前先在 App「設定」複製或下載備份。
+上傳(覆蓋或新增)到網站根目錄:
+ app.js、index.html、sw.js、version.json、wild-worker.js(覆蓋)
+ mj-core.js(新增)
+ t_sup_check.js(新增,只供在電腦檢查用,不影響網頁)
+index.html 已加入 <script src="mj-core.js">,必須和 mj-core.js 一起上傳。
 
-P0
-- esc() 補上單引號與反引號。
-- 手動加番「連續尾牌食糊」預設從2開始,不能少於2。
-- 含百搭明牌不再用 prompt:只有一種可能時自動確定,有多種可能時在明牌區顯示代表牌選擇(點牌)。
-- 儲存失敗時彈出提示,請到「設定」匯出備份。
+文案精簡(6 項):入口頁百搭選項、座位頁提示、改名提示、全新局提示、算番頁三段操作提示、結算頁分享提示。
+ 連莊規則移到「開局設定」旁的 ❓,點一下才顯示。
 
-P1
-- 結算頁新增「分享去 IG Story」:1080×1920 直向圖,只列每人輸贏(已結算+未結拉數)、日期、玩法、食糊次數,及指向 https://lilikevin.github.io/mahjong/ 的二維碼(內置,不需連網,不載入函式庫)。
-- 在同一次點擊內同步畫圖並呼叫分享;不支援檔案分享時顯示圖片,請長按儲存。
+P3-1  mj-core.js:共用 decompose()。engine.js / engine2.js / engine_hk.js / engine4.js 各有一份相同的拆牌函數。
+      四份各改成一行(見下),改完行為與原本逐字相同(已用兩萬組隨機牌對照驗證)。
+      在改好四個引擎之前,舊的拆牌函數仍然有效,mj-core.js 只是多載入一個檔案,不影響使用。
+      每個引擎檔:找到 function decompose(cnt,nSets){ ... },整段(到下一個 function 之前)換成:
+        function decompose(cnt,nSets){ return MJCORE.decompose(cnt,nSets); }
+      位置:engine.js 在 function isLik 之前;engine2.js 在 function isLik2 之前;
+            engine_hk.js 在 function isShisan 之前;engine4.js 在 function isLik 之前。
 
-P2
-- index.html:加入 description 與 og 分享預覽(圖片為 icon-512.png);viewport 不再禁止縮放。
-- 按鈕選中時加 ✓;移除對縮放手勢的阻擋,只保留雙擊。
-- 版本時間不再寫死在 app.js:更新提示只比較版本號,更新時間讀自 version.json。以後發新版只需改 app.js 的 APP_VERSION 與 version.json。
-
-未包含:P3(合併 decompose、npm test)。
+P3-2  t_sup_check.js:在網站資料夾執行  node t_sup_check.js
+      檢查四套番表的不複合規則有沒有打錯番種 id、番表有沒有重複 id、有沒有取消自己。
