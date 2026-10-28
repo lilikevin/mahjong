@@ -1,6 +1,6 @@
 (function(){
 'use strict';
-const APP_VERSION='v1.3.1';
+const APP_VERSION='v1.3.2';
 const DEV_IG='kevinli999';
 let M=window.MJ;
 const KEY='mj_hk_tw_v1';
@@ -269,7 +269,7 @@ async function doUpgrade(){
   try{
     if('serviceWorker' in navigator){ const rs=await navigator.serviceWorker.getRegistrations(); await Promise.all(rs.map(r=>r.unregister())); }
     if(window.caches){ const ks=await caches.keys(); await Promise.all(ks.map(k=>caches.delete(k))); }
-    await Promise.all(['./','index.html','app.js','engine.js','engine2.js','engine_hk.js','engine4.js','engine_wild.js','wild-worker.js','manifest.json','sw.js','version.json','icon-192.png','icon-512.png'].map(f=>fetch(f,{cache:'reload'}).catch(()=>{})));
+    await Promise.all(['./','index.html','app.js','engine.js','engine2.js','mj-core.js','engine_hk.js','engine4.js','engine_wild.js','wild-worker.js','manifest.json','sw.js','version.json','icon-192.png','icon-512.png'].map(f=>fetch(f,{cache:'reload'}).catch(()=>{})));
   }catch(e){}
   location.reload();
 }
