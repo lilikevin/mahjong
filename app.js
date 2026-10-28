@@ -1,6 +1,6 @@
 (function(){
 'use strict';
-const APP_VERSION='v1.4.3-ui';
+const APP_VERSION='v1.4.4-ui';
 const DEV_IG='kevinli999';
 let M=window.MJ;
 const KEY='mj_hk_tw_v1';
@@ -492,8 +492,7 @@ function nameFieldFocus(el){
   if(!isNameField(el))return;
   const p=+el.dataset.playerName;if(!Number.isInteger(p)||p<0||p>3||nameEdits.has(p))return;
   const prior=String(el.value||playerDraft.names[p]||S.names[p]||('玩家'+(p+1))).trim();
-  nameEdits.set(p,{prior});
-  el.value='';el.placeholder='輸入玩家名稱…';
+  nameEdits.set(p,{prior});el.value='';el.placeholder='輸入玩家名稱…';
 }
 function settleNameField(el){
   if(!isNameField(el))return;
@@ -502,13 +501,9 @@ function settleNameField(el){
   const value=typed||(edit?edit.prior:String(playerDraft.names[p]||S.names[p]||('玩家'+(p+1))).trim());
   playerDraft.names[p]=value;el.value=value;nameEdits.delete(p);
 }
-function readPlayerNames(){
-  if(!playerDraft)return;
-  document.querySelectorAll('[data-player-name]').forEach(settleNameField);
-}
+function readPlayerNames(){if(playerDraft)document.querySelectorAll('[data-player-name]').forEach(settleNameField);}
 function viewPlayers(){
-  if(!playerDraft)openPlayerSetup();
-  const d=playerDraft;
+  if(!playerDraft)openPlayerSetup();const d=playerDraft;
   let h='<h3>四位玩家</h3><p class="hint">點入名稱會自動清空供修改；沒有輸入便還原原名。選擇 emoji 即可，不需要上傳頭像。</p>';
   for(let p=0;p<4;p++){
     h+='<div class="card"><div class="zl">玩家 '+(p+1)+'</div><label>名稱<input type="text" maxlength="10" autocomplete="off" autocorrect="off" spellcheck="false" placeholder="輸入玩家名稱…" data-player-name="'+p+'" data-chg="playerName" data-p="'+p+'" value="'+esc(d.names[p])+'"></label>';
@@ -517,7 +512,7 @@ function viewPlayers(){
   h+='<h3>座位安排</h3><div class="grid2">';
   for(let q=0;q<4;q++)h+='<label>'+WIND[q]+'位<select data-chg="playerSeat" data-s="'+q+'">'+[0,1,2,3].map(p=>'<option value="'+p+'"'+(d.seat[q]===p?' selected':'')+'>'+esc(d.avatars[p])+' '+esc(d.names[p])+'</option>').join('')+'</select></label>';
   h+='</div><label>莊家座位<select data-chg="playerDealer">'+Array.from(WIND).map((w,i)=>'<option value="'+i+'"'+(d.dealerSeat===i?' selected':'')+'>'+w+'</option>').join('')+'</select></label>';
-  h+='<div class="btnrow"><button class="primary" data-act="savePlayers">確認並返回牌桌</button>'+(S.playersReady?'<button data-act="cancelPlayers">取消修改</button>':'<button data-act="toChooser">返回玩法選擇</button>')+'</div>';return h;
+  return h+'<div class="btnrow"><button class="primary" data-act="savePlayers">確認並返回牌桌</button>'+(S.playersReady?'<button data-act="cancelPlayers">取消修改</button>':'<button data-act="toChooser">返回玩法選擇</button>')+'</div>';
 }
 function savePlayerSetup(){
   readPlayerNames();const d=playerDraft;if(!d)return false;
@@ -557,24 +552,16 @@ function viewEntryFlow(){
   }
   return h+'<div class="btnrow"><button data-act="tab" data-v="table">返回牌桌（保留本局）</button>'+(hasEntryDraft()?'<button data-act="clearEntry">放棄本局輸入</button>':'')+'</div>';
 }
-function tableLedgerTotals(){
-  const received=Array(4).fill(0),owed=Array(4).fill(0);
-  if(!isHK())S.ledger.forEach(r=>{received[r.to]+=r.amt;owed[r.from]+=r.amt;});
-  return {received,owed};
-}
-function playerLedgerHtml(p,totals){
-  if(isHK()||(!totals.received[p]&&!totals.owed[p]))return '';
-  return '<div class="mini" aria-label="未結算的拉"><div>未收拉 <span class="pos">'+totals.received[p]+'</span></div><div>未付拉 <span class="neg">'+totals.owed[p]+'</span></div></div>';
-}
+function tableDisplayBalances(){return isHK()?balances():totals();}
 
 function viewTable(){
-  const b=balances(),lt=tableLedgerTotals();
-  const card=s=>{ const p=S.seat[s]; return '<div class="card seat '+(s===S.dealerSeat?'dealer':'')+'" role="button" tabindex="0" data-act="startWinner" data-p="'+p+'" aria-label="選擇 '+esc(S.names[p])+' 食糊" style="cursor:pointer"><div class="sw">'+WIND[s]+'</div><div class="pn"><span style="font-size:1.6em" aria-hidden="true">'+avatar(p)+'</span><br>'+nm(p)+'</div><div class="mini">門風 '+windOf(p)+(s===S.dealerSeat?' · 莊':'')+'</div><div class="mini">已收付</div><div class="bal '+(b[p]>=0?'pos':'neg')+'">'+money(b[p])+'</div>'+playerLedgerHtml(p,lt)+'</div>'; };
+  const b=tableDisplayBalances();
+  const card=s=>{ const p=S.seat[s]; return '<div class="card seat '+(s===S.dealerSeat?'dealer':'')+'" role="button" tabindex="0" data-act="startWinner" data-p="'+p+'" aria-label="選擇 '+esc(S.names[p])+' 食糊" style="cursor:pointer"><div class="sw">'+WIND[s]+'</div><div class="pn"><span style="font-size:1.6em" aria-hidden="true">'+avatar(p)+'</span><br>'+nm(p)+'</div><div class="mini">門風 '+windOf(p)+(s===S.dealerSeat?' · 莊':'')+'</div><div class="bal '+(b[p]>=0?'pos':'neg')+'">'+money(b[p])+'</div></div>'; };
   let h='<div class="status">'+WIND[S.wind]+'風圈 · 莊家 '+nm(dealerPid())+' · 連莊 '+S.streak+' 次'+(isHK()?'':'(莊家加 '+(1+2*S.streak)+' 番)')+'<br><small>'+esc(gameName())+'</small></div>';
   if(lastEntryMessage)h+='<div class="note">'+esc(lastEntryMessage)+' <button data-act="tab" data-v="history">查看記錄</button><button data-act="undoRec">撤銷上一筆</button></div>';
   if(hasEntryDraft())h+='<div class="note">有未完成的本局輸入 <button class="primary" data-act="tab" data-v="calc">繼續輸入</button></div>';
   h+='<div class="cross"><div></div>'+card(3)+'<div></div>'+card(2)+'<div class="center">點選玩家<br><small>記錄食糊</small></div>'+card(0)+'<div></div>'+card(1)+'<div></div></div>';
-  h+='<p class="hint">點選玩家卡記錄食糊。「已收付」不包含未結算的拉；未收、未付分開顯示。</p>';
+  h+='<p class="hint">'+(isHK()?'格內金額為已收付淨額。':'格內大字為總淨額（已收付＋未收拉－未付拉）；拉數明細見下方。')+'</p>';
   if(!isHK())h+='<h3>未結算的拉</h3>'+(S.ledger.length?ledgerHtml(true):'<p class="hint">暫無未結算的拉</p>');
   h+='<h3>座位安排</h3><div class="grid2">';
   for(let s=0;s<4;s++){ h+='<label>'+WIND[s]+'位<select data-chg="seat" data-s="'+s+'">'+[0,1,2,3].map(p=>'<option value="'+p+'"'+(S.seat[s]===p?' selected':'')+'>'+nm(p)+'</option>').join('')+'</select></label>'; }
