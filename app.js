@@ -304,31 +304,30 @@ button, .t, .mt, [data-act], select{ min-height:44px; min-width:44px; }
 .oled-contrast .t{ border:1px solid #444 !important; }
 .progress{ height:6px; background:var(--bd); border-radius:3px; overflow:hidden; }
 .progress i{ display:block; height:100%; background:var(--acc); transition: width 200ms; }
-/* Responsive tile geometry and flower rows; does not change scoring. */
+/* Layout-only update: responsive editor, reserved pile slots, flower rows. */
 .flower-host{container-type:inline-size;container-name:flowerbuttons;max-width:100%}
 .flower-host .flower-grid{display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;width:100%}
 .flower-host .flower-grid .fl{box-sizing:border-box;min-width:0!important;width:100%!important;min-height:44px;margin:0!important;flex:none!important;padding:8px 2px}
 @container flowerbuttons (min-width:440px){.flower-host .flower-grid{grid-template-columns:repeat(8,minmax(0,1fr))}}
+#post-shape.flower-focus{outline:2px solid var(--acc);outline-offset:6px;border-radius:8px}
+.table-feedback{margin-top:10px}
 .pal{display:flex;flex-direction:column;gap:6px;margin:8px 0;max-width:100%}
 .pal>.row{display:grid!important;grid-template-columns:repeat(9,minmax(0,1fr));gap:4px;width:100%}
 .pal>.row>.t{box-sizing:border-box;width:100%!important;min-width:0!important;min-height:44px;margin:0!important;padding:6px 0!important;flex:none!important;font-size:15px;line-height:1.1}
-.stable-pile{max-width:650px;margin-left:auto;margin-right:auto}
-.stable-pile .stable-grid{display:grid!important;grid-template-columns:repeat(6,minmax(0,1fr));grid-auto-rows:64px;gap:6px;max-width:100%}
-.stable-grid>.mt,.stable-grid>.tile-slot{box-sizing:border-box;position:relative;width:100%!important;min-width:0!important;height:64px!important;min-height:0!important;margin:0!important;flex:none!important;transform:none!important;animation:none!important}
+body .stable-pile{display:block!important;box-sizing:border-box;width:100%!important;min-width:0!important;max-width:650px;margin-left:auto;margin-right:auto;float:none}
+body .stable-pile>.stable-grid{display:grid!important;box-sizing:border-box;grid-template-columns:repeat(6,minmax(0,1fr))!important;grid-auto-rows:64px!important;gap:6px;width:100%!important;min-width:0!important;max-width:none!important;flex:none!important;justify-items:stretch;align-items:stretch}
+body .stable-grid>.mt,body .stable-grid>.tile-slot{box-sizing:border-box;position:relative;display:inline-flex;align-items:center;justify-content:center;width:100%!important;max-width:none!important;min-width:0!important;height:64px!important;min-height:0!important;margin:0!important;flex:none!important;justify-self:stretch;transform:none!important;animation:none!important}
 .tile-slot{border:1px dashed var(--bd);border-radius:5px;opacity:.24;background:transparent}
 .tile-badge{position:absolute;top:-4px;right:-4px;z-index:2;font-style:normal;font-size:10px;line-height:1;background:var(--acc);color:var(--onacc);border-radius:9px;padding:3px 5px;pointer-events:none}
-@media(min-width:700px){.stable-pile .stable-grid{grid-template-columns:repeat(9,minmax(0,1fr))}}
-.body .grid2{grid-template-columns:repeat(2,minmax(0,1fr))}
-.body .grid2>*{min-width:0}
+@media(min-width:700px){body .stable-pile>.stable-grid{grid-template-columns:repeat(9,minmax(0,1fr))!important}}
+.body .grid2{grid-template-columns:repeat(2,minmax(0,1fr))}.body .grid2>*{min-width:0}
 .body .grid2 input:not([type=checkbox]),.body .grid2 select{box-sizing:border-box;max-width:100%;min-width:0;width:100%}
-.body .btnrow{flex-wrap:wrap}
-.adjrow input{box-sizing:border-box;flex:1 1 100%!important;order:-1;min-width:0!important;text-align:center}
-.adjrow button{flex:1 1 44px;min-width:44px}
+.body .btnrow{flex-wrap:wrap}.adjrow input{box-sizing:border-box;flex:1 1 100%!important;order:-1;min-width:0!important;text-align:center}.adjrow button{flex:1 1 44px;min-width:44px}
 .shape-editing{overflow:hidden!important;overscroll-behavior:none}
 .shape-screen,.shape-screen *{box-sizing:border-box}
 .shape-screen{position:fixed;left:0;right:0;top:0;width:100%;height:var(--shape-height,100vh);z-index:30;display:flex;flex-direction:column;overflow:hidden;background:var(--bg);color:inherit;padding-bottom:env(safe-area-inset-bottom,0px)}
 .shape-head{display:flex;align-items:center;justify-content:space-between;gap:8px;flex:none;min-height:44px;padding:4px 10px;border-bottom:1px solid var(--bd);font-size:15px}
-.shape-head>div{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.shape-head>div:first-child{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .shape-head button{min-height:36px;min-width:70px;flex:none;padding:6px 8px;font-size:14px}
 .shape-main{display:flex;flex-direction:column;gap:6px;flex:1;min-height:0;padding:6px 12px;overflow:auto;overscroll-behavior:contain}
 .shape-stats{flex:none;height:24px;line-height:24px;font-size:13px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;color:var(--acc)}
@@ -336,28 +335,32 @@ button, .t, .mt, [data-act], select{ min-height:44px; min-width:44px; }
 .shape-grid{display:grid;grid-template-columns:repeat(var(--shape-cols,6),var(--shape-tile-w,44px));grid-auto-rows:var(--shape-tile-h,58px);justify-content:center;gap:6px;width:100%;padding:0}
 .shape-grid>.mt,.shape-grid>.tile-slot{position:relative;width:var(--shape-tile-w,44px)!important;min-width:0!important;max-width:none!important;height:var(--shape-tile-h,58px)!important;min-height:0!important;max-height:none!important;margin:0!important;padding:0!important;flex:none!important;transform:none!important;transition:none!important;animation:none!important;touch-action:manipulation}
 .shape-grid>.mt b{font-size:21px}.shape-grid>.mt i{font-size:11px}.shape-grid>.mt.hon b{font-size:24px}
-.shape-grid>.mt.mk2{transform:none!important;background:#cfe9d6!important}
-.shape-grid>.mt.mark{outline-offset:-3px}.shape-grid>.mt:disabled{opacity:.42}
-.shape-tools{flex:none;display:flex;gap:6px;height:34px}
-.shape-tools button{flex:1;min-height:34px;padding:5px 8px;font-size:14px}
+.shape-grid>.mt.mk2{transform:none!important;background:#cfe9d6!important}.shape-grid>.mt.mark{outline-offset:-3px}.shape-grid>.mt:disabled{opacity:.42}
+.shape-tools{flex:none;display:flex;gap:6px;height:34px}.shape-tools button{flex:1;min-height:34px;padding:5px 8px;font-size:14px}
 .shape-stage{flex:1;min-height:192px;overflow:auto;overscroll-behavior:contain;display:flex;align-items:center;justify-content:center}
 .shape-stage>.pal{width:100%;max-width:620px;margin:0 auto}
 .shape-stage .pal>.row>.t{height:42px;min-height:42px!important;max-height:42px;font-size:14px;border-radius:6px}
-.shape-stage .pal .s0{color:#a0201a}.shape-stage .pal .s1{color:#1c4fa0}.shape-stage .pal .s2{color:#1a7a3a}.shape-stage .pal .s3{color:#222}
-.shape-stage .pal .t{background:#f7f3e3!important}
-.shape-group-tools{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:6px;width:100%;font-size:14px}
+.shape-stage .pal .s0{color:#a0201a}.shape-stage .pal .s1{color:#1c4fa0}.shape-stage .pal .s2{color:#1a7a3a}.shape-stage .pal .s3{color:#222}.shape-stage .pal .t{background:#f7f3e3!important}
+.shape-group-tools{display:flex;flex-direction:column;gap:6px;width:100%;max-width:650px;font-size:14px}
+.shape-meld-groups{display:flex;flex-wrap:wrap;justify-content:center;align-items:flex-start;gap:6px}
+.shape-meld-groups .mg{box-sizing:border-box;flex:0 0 auto;min-width:0;min-height:0;margin:0;padding:5px 6px;gap:3px;max-width:100%}
+.shape-meld-groups .mg .row{display:flex!important;flex-wrap:nowrap;gap:2px}
+.shape-meld-groups .mg .mt{box-sizing:border-box;flex:0 0 30px;width:30px!important;min-width:0!important;height:42px!important;min-height:0!important;padding:0!important;margin:0!important;transform:none!important;animation:none!important}
+.shape-meld-groups .mg .mt b{font-size:18px}.shape-meld-groups .mg .mt i{font-size:10px}
+.shape-meld-groups .mg .mt.hon b{font-size:22px}.shape-meld-groups .mg small{font-size:11px;line-height:1.2;white-space:normal}
+.shape-group-actions,.shape-choices{display:flex;flex-wrap:wrap;gap:6px;align-items:center;justify-content:center}
 .shape-group-tools button{min-height:36px;padding:6px;font-size:14px}
-.shape-choices{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
 .shape-win-status{font-size:14px;line-height:1.5;text-align:center;padding:6px}
 .shape-footer{flex:none;background:var(--card);border-top:1px solid var(--bd);padding:6px 10px 8px}
-.shape-segments{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
-.shape-segments button{min-width:0!important;min-height:44px;padding:7px 1px;font-size:14px;line-height:1.15;white-space:nowrap}
-.shape-segments button.on:after{content:''}
+.shape-segments{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}.shape-segments button{min-width:0!important;min-height:44px;padding:7px 1px;font-size:14px;line-height:1.15;white-space:nowrap}.shape-segments button.on:after{content:''}
 .shape-hint{height:32px;line-height:16px;padding:2px 0;font-size:12px;overflow:hidden}
-.shape-finish{display:grid;grid-template-columns:1fr 2fr;gap:6px}
-.shape-finish button{min-width:0!important;min-height:44px;padding:7px 3px;font-size:14px}
-.shape-reviewed{display:flex;align-items:center;justify-content:space-between;gap:8px}
-.shape-reviewed button{flex:none}
+.shape-finish{display:grid;grid-template-columns:1fr 2fr;gap:6px}.shape-finish button{min-width:0!important;min-height:44px;padding:7px 3px;font-size:14px}
+.shape-reviewed{display:flex;align-items:center;justify-content:space-between;gap:8px}.shape-reviewed button{flex:none}
+.shape-head-actions{display:flex;gap:4px;align-items:center;flex:none}.shape-compact-tools{display:none}
+.shape-compact .shape-head{min-height:40px;padding:2px 8px}.shape-compact .shape-head button{min-width:0;min-height:34px;padding:4px 6px;font-size:12px}.shape-compact .shape-compact-tools{display:flex;gap:4px}
+.shape-compact .shape-main{padding:4px 12px;gap:6px}.shape-compact .shape-stats{height:20px;line-height:20px;font-size:12px}.shape-compact .shape-tools{display:none}
+.shape-compact .shape-stage{min-height:188px}.shape-compact .shape-stage .pal{gap:4px}.shape-compact .shape-stage .pal>.row>.t{height:44px;min-height:44px!important;max-height:44px}
+.shape-compact .shape-hint{height:24px;line-height:12px;font-size:11px}
 `+
 `
 body{background:var(--bg)!important}
@@ -732,6 +735,7 @@ function viewTable(){
   const b=tableDisplayBalances();
   const card=s=>{ const p=S.seat[s]; const name=nm(p); return '<div class="card seat '+(s===S.dealerSeat?'dealer':'')+'" role="button" tabindex="0" data-act="startWinner" data-p="'+p+'" aria-label="選擇 '+esc(name)+' 食糊" style="cursor:pointer" title="'+esc(name)+'"><div class="sw">'+WIND[s]+'</div><div class="pn" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"><span style="font-size:1.6em" aria-hidden="true">'+avatar(p)+'</span><br>'+esc(name)+'</div><div class="mini">門風 '+windOf(p)+(s===S.dealerSeat?' · 莊':'')+'</div><div class="bal '+(b[p]>=0?'pos':'neg')+'">'+money(b[p])+'</div></div>'; };
   let h='<div class="status '+(S.cfg.largeFont?'large-font':'')+'"><span class="badge">莊 '+nm(dealerPid())+'</span> '+WIND[S.wind]+'風圈 · 連莊 <span class="badge">'+S.streak+' 次</span>'+(isHK()?'':'(莊家加 '+(1+2*S.streak)+' 番)')+'<br><small>'+esc(gameName())+'</small></div>';
+  let notices='';
   if(lastEntryMessage){
     let undoBtn='';
     if(lastUndo){
@@ -739,11 +743,12 @@ function viewTable(){
     } else {
       undoBtn='<button data-act="undoRec">撤銷上一筆</button>';
     }
-    h+='<div class="note">'+esc(lastEntryMessage)+' <button data-act="tab" data-v="history">查看記錄</button>'+undoBtn+'</div>';
+    notices+='<div class="note">'+esc(lastEntryMessage)+' <button data-act="tab" data-v="history">查看記錄</button>'+undoBtn+'</div>';
   }
-  if(draftCache){ h+='<div class="note">找到未完成草稿（莊家 '+WIND[draftCache.ctx.wind]+'風圈 連莊 '+draftCache.ctx.streak+'）<button class="primary" data-act="applyDraft">繼續輸入</button><button data-act="discardDraft">放棄草稿</button></div>'; }
-  if(hasEntryDraft())h+='<div class="note">有未完成的本局輸入 <button class="primary" data-act="tab" data-v="calc">繼續輸入</button></div>';
+  if(draftCache){ notices+='<div class="note">找到未完成草稿（莊家 '+WIND[draftCache.ctx.wind]+'風圈 連莊 '+draftCache.ctx.streak+'）<button class="primary" data-act="applyDraft">繼續輸入</button><button data-act="discardDraft">放棄草稿</button></div>'; }
+  if(hasEntryDraft())notices+='<div class="note">有未完成的本局輸入 <button class="primary" data-act="tab" data-v="calc">繼續輸入</button></div>';
   h+='<div class="cross"><div></div>'+card(3)+'<div></div>'+card(2)+'<div class="center">點選玩家<br><small>記錄食糊</small></div>'+card(0)+'<div></div>'+card(1)+'<div></div></div>';
+  if(notices)h+='<div class="table-feedback">'+notices+'</div>';
   h+='<p class="hint">'+(isHK()?'格內金額為已收付淨額。':'格內大字為總淨額（已收付＋未收拉－未付拉）；拉數明細見下方。')+'</p>';
   if(!isHK())h+='<h3>未結算的拉</h3>'+(S.ledger.length?ledgerHtml(true):'<p class="hint">暫無未結算的拉</p>');
   h+='<h3>座位安排</h3><div class="grid2">';
@@ -797,38 +802,35 @@ function shapePoolHtml(editor){
   return '<div class="'+(editor?'shape-pile':'zone poolbox stable-pile')+'"><div class="'+(editor?'shape-grid':'tiles stable-grid')+'">'+html+blank+'</div></div>';
 }
 function shapeSummaryHtml(){
-  const n=E.all.length+E.wildGroups.reduce((v,g)=>v+g.physical.length,0);
-  const win=E.win==null?'未選':M.tName(E.win);
+  const n=E.all.length+E.wildGroups.reduce((v,g)=>v+g.physical.length,0),win=E.win==null?'未選':M.tName(E.win);
   return '<div class="card shape-reviewed"><div class="zl">牌型已確認 · '+n+' 張 · 食糊 '+esc(win)+'</div><button data-act="shapeEdit">修改牌型</button></div>';
 }
 function shapeGroupTools(){
-  let h='';
-  E.melds.forEach((m,i)=>{
-    const label=(m.t==='chow'?'上':m.t==='pung'?'碰':m.open===false?'暗槓':'明槓')+' '+M.tName(m.tile);
-    h+='<button data-act="rmMeld" data-i="'+i+'">'+esc(label)+' ×</button>';
-    if(m.t==='kong')h+='<button data-act="kongToggle" data-t="'+m.tile+'">切換明／暗槓</button>';
-  });
-  E.wildGroups.forEach((g,i)=>{h+='<button data-act="wildRemoveGroup" data-i="'+i+'">百搭'+(g.t==='chow'?'上':g.t==='pung'?'碰':'槓')+' '+esc(M.tName(g.tile))+' ×</button>';});
+  let groups=E.melds.map((m,i)=>meldGroup(m,i)).join('');
+  groups+=E.wildGroups.map((g,i)=>{
+    const label=g.t==='chow'?'上':g.t==='pung'?'碰':g.open===false?'暗槓':'明槓';
+    return '<div class="mg" data-act="wildRemoveGroup" data-i="'+i+'"><div class="row">'+g.physical.map(t=>mt(t)).join('')+'</div><small>'+label+'（含百搭，代表'+esc(M.tName(g.tile))+'） ×</small></div>';
+  }).join('');
+  let h='<div class="shape-meld-groups">'+(groups||'<span class="hint">尚未標明牌；沒有明牌可略過。</span>')+'</div>';
   if(isWild()&&S.cfg.wildMeld){
-    h+='<button data-act="mode" data-v="jmeld" class="'+(E.mode==='jmeld'?'on':'')+'">選含百搭的明牌</button>';
+    h+='<div class="shape-group-actions"><button data-act="mode" data-v="jmeld" class="'+(E.mode==='jmeld'?'on':'')+'">選含百搭的明牌</button>';
     if(E.mode==='jmeld')h+='<button data-act="wildGroup" data-v="chow">加入上牌</button><button data-act="wildGroup" data-v="pung">加入碰牌</button><button data-act="wildGroup" data-v="kong" data-open="1">加入明槓</button><button data-act="wildGroup" data-v="kong" data-open="0">加入暗槓</button><button data-act="wildCancelJ">取消選取</button>';
+    h+='</div>';
   }
   if(E.pickRep){
     const pr=E.pickRep;
     h+='<div class="shape-choices"><span>這組代表：</span>'+pr.cands.map(t=>'<button data-act="repPick" data-t="'+t+'">'+esc(pr.grp.t==='chow'?(t%9+1)+''+(t%9+2)+(t%9+3)+M.SUITS[Math.floor(t/9)]:M.tName(t))+'</button>').join('')+'<button data-act="repCancel">取消</button></div>';
   }
-  return '<div class="shape-group-tools">'+(h||'<span class="hint">點牌堆標記明牌；沒有明牌可以略過。</span>')+'</div>';
+  return '<div class="shape-group-tools">'+h+'</div>';
 }
 function shapeEditorHtml(){
   const md=E.mode,marking=md==='meld'||md==='jmeld';
   const hint=md==='pick'?'點牌盤新增手牌；點牌堆刪牌':md==='meld'?'點牌堆標明牌；再點取消':md==='jmeld'?'點牌堆選3或4張，再選上／碰／槓':'點牌堆指定食糊牌；再點取消';
-  const count=E.all.length+E.wildGroups.reduce((n,g)=>n+g.physical.length,0);
-  const marked=E.marks.reduce((n,x)=>n+(x||0),0);
+  const count=E.all.length+E.wildGroups.reduce((n,g)=>n+g.physical.length,0),marked=E.marks.reduce((n,x)=>n+(x||0),0);
   const common=pending.length&&pending[0].ron?pending[0].ron.winTile:null;
-  let h='<div class="shape-screen" role="region" aria-label="牌型編輯"><header class="shape-head"><div>'+playerLabel(E.winner)+' <small>'+(E.self?'自摸':'食 '+nm(E.disc))+'</small></div><button data-act="shapeBack">返回牌桌</button></header>';
+  let h='<div class="shape-screen" role="region" aria-label="牌型編輯"><header class="shape-head"><div>'+playerLabel(E.winner)+' <small>'+(E.self?'自摸':'食 '+nm(E.disc))+'</small></div><div class="shape-head-actions"><span class="shape-compact-tools"><button data-act="undoTile">退牌</button><button data-act="clearHand">清空</button></span><button data-act="shapeBack">返回牌桌</button></div></header>';
   h+='<main class="shape-main"><div class="shape-stats">共'+count+'張 · 明牌'+marked+'張 · '+(E.win==null?'未選食糊牌':'食糊 '+esc(M.tName(E.win)))+(common!=null?' · 共同 '+esc(M.tName(common)):'')+'</div>';
-  h+=shapePoolHtml(true);
-  h+='<div class="shape-tools"><button data-act="undoTile">退一張</button><button data-act="clearHand">全部清空</button></div>';
+  h+=shapePoolHtml(true)+'<div class="shape-tools"><button data-act="undoTile">退一張</button><button data-act="clearHand">全部清空</button></div>';
   h+='<div class="shape-stage">'+(md==='pick'?palette():marking?shapeGroupTools():'<div class="shape-win-status">'+(E.win==null?'請在牌堆選食糊牌。':'已選 '+esc(M.tName(E.win))+'；確定後繼續花牌及特殊情況。')+'</div>')+'</div></main>';
   h+='<footer class="shape-footer"><div class="shape-segments" role="group" aria-label="輸入模式">'+[['pick','① 選牌'],['meld','② 標明牌'],['win','③ 選食糊牌']].map(([mode,label])=>'<button data-act="mode" data-v="'+mode+'" class="'+((mode==='meld'?marking:md===mode)?'on':'')+'" aria-pressed="'+((mode==='meld'?marking:md===mode)?'true':'false')+'">'+label+'</button>').join('')+'</div>';
   h+='<div class="shape-hint" aria-live="polite">'+esc(shapeError||hint)+'</div><div class="shape-finish"><button data-act="shapeBack">稍後繼續</button><button class="primary" data-act="shapeContinue">確定牌型，繼續</button></div></footer></div>';
@@ -838,14 +840,24 @@ function fitShapeEditor(){
   const box=document.querySelector('.shape-screen');if(!box)return;
   const vv=window.visualViewport,height=Math.floor(vv?vv.height:window.innerHeight),width=Math.floor(vv?vv.width:window.innerWidth);
   box.style.setProperty('--shape-height',height+'px');box.style.top=(vv?vv.offsetTop:0)+'px';
+  const compact=height<620;box.classList.toggle('shape-compact',compact);
   const wide=width>=700&&height>=420,cols=wide?9:6,rows=wide?2:3;
   const head=box.querySelector('.shape-head'),foot=box.querySelector('.shape-footer');
   const headH=head?head.getBoundingClientRect().height:46,footH=foot?foot.getBoundingClientRect().height:136;
-  const budget=height-headH-footH-34-38-28-192;
+  const safe=parseFloat(getComputedStyle(box).paddingBottom)||0,budget=height-safe-headH-footH-(compact?228:280);
   const tileH=Math.max(44,Math.min(74,Math.floor((budget-6*(rows-1))/rows)));
   const tileW=Math.max(34,Math.min(62,Math.floor((width-32-6*(cols-1))/cols),Math.floor(tileH*.78)));
-  box.style.setProperty('--shape-cols',cols);box.style.setProperty('--shape-rows',rows);
-  box.style.setProperty('--shape-tile-h',tileH+'px');box.style.setProperty('--shape-tile-w',tileW+'px');
+  box.style.setProperty('--shape-cols',cols);box.style.setProperty('--shape-rows',rows);box.style.setProperty('--shape-tile-h',tileH+'px');box.style.setProperty('--shape-tile-w',tileW+'px');
+}
+function focusFlowerSection(){
+  const target=document.getElementById('post-shape');if(!target)return;
+  const vv=window.visualViewport,top=vv?vv.offsetTop:0,vh=vv?vv.height:window.innerHeight;
+  const nav=document.querySelector('#app nav');let covered=0;
+  if(nav){const nr=nav.getBoundingClientRect();covered=Math.max(0,Math.min(top+vh,nr.bottom)-Math.max(top,nr.top));}
+  const rect=target.getBoundingClientRect(),desired=top+(vh-covered)/2;
+  const y=Math.max(0,window.scrollY+rect.top+rect.height/2-desired);
+  window.scrollTo({top:y,behavior:'auto'});
+  target.classList.add('flower-focus');
 }
 function inputSection(){
   if(isHK()) return inputSectionHK();
@@ -1229,8 +1241,7 @@ function render(){
   derive();
   applyTheme();
   const el=document.getElementById('app');
-  const editing=shapeEditorActive();
-  document.body.classList.toggle('shape-editing',editing);
+  const editing=shapeEditorActive();document.body.classList.toggle('shape-editing',editing);
   if(editing){el.innerHTML=shapeEditorHtml();window.scrollTo(0,0);fitShapeEditor();return;}
   if(!S.game||tab==='chooser'){ el.innerHTML='<div class="body">'+updBanner()+viewChooser()+'</div>'; window.scrollTo(0,0); return; }
   if(!S.playersReady&&tab!=='players')openPlayerSetup();
@@ -1238,7 +1249,7 @@ function render(){
   const tabs=[['table','牌桌'],['calc','算番'],['history','歷史'],['settle','結算'],['settings','設定']];
   el.innerHTML='<div class="body">'+updBanner()+a2hsBanner()+(views[tab]||viewTable)()+'</div><nav>'+(tab==='players'?'':tabs.map(t=>'<button class="'+(tab===t[0]?'on':'')+'" data-act="tab" data-v="'+t[0]+'">'+t[1]+'</button>').join(''))+'</nav>';
   window.scrollTo(0,y);
-  if(postShapeScroll){postShapeScroll=false;const target=document.getElementById('post-shape');if(target)target.scrollIntoView({block:'start'});}
+  if(postShapeScroll){postShapeScroll=false;focusFlowerSection();}
 }
 function advance(keep,fromDraw){
   if(keep){ if(!fromDraw) S.streak++; }
