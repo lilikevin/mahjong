@@ -483,19 +483,16 @@ const nameEdits=new Map();
 function avatar(p){return esc((S.avatars||DEFAULT_AVATARS)[p]||DEFAULT_AVATARS[p]);}
 function playerLabel(p){return avatar(p)+' '+nm(p);}
 function hasEntryDraft(){return hasCurrentData()||pending.length>0||E.flowers.some(Boolean)||E.extra.length>0||E.adjust!==0||Object.keys(E.flags).some(k=>E.flags[k]);}
-function openPlayerSetup(){
-  nameEdits.clear();playerDraft={names:S.names.slice(),avatars:(S.avatars||DEFAULT_AVATARS).slice(),seat:S.seat.slice(),dealerSeat:S.dealerSeat};tab='players';
-}
+function openPlayerSetup(){nameEdits.clear();playerDraft={names:S.names.slice(),avatars:(S.avatars||DEFAULT_AVATARS).slice(),seat:S.seat.slice(),dealerSeat:S.dealerSeat};tab='players';}
 function isNameField(el){return !!(el&&el.dataset&&el.dataset.playerName!=null&&playerDraft);}
 function nameFieldFocus(el){
-  if(!isNameField(el))return;
-  const p=+el.dataset.playerName;if(!Number.isInteger(p)||p<0||p>3||nameEdits.has(p))return;
+  if(!isNameField(el))return;const p=+el.dataset.playerName;
+  if(!Number.isInteger(p)||p<0||p>3||nameEdits.has(p))return;
   const prior=String(el.value||playerDraft.names[p]||S.names[p]||('玩家'+(p+1))).trim();
   nameEdits.set(p,{prior});el.value='';el.placeholder='輸入玩家名稱…';
 }
 function settleNameField(el){
-  if(!isNameField(el))return;
-  const p=+el.dataset.playerName;if(!Number.isInteger(p)||p<0||p>3)return;
+  if(!isNameField(el))return;const p=+el.dataset.playerName;if(!Number.isInteger(p)||p<0||p>3)return;
   const edit=nameEdits.get(p),typed=String(el.value||'').trim().slice(0,10);
   const value=typed||(edit?edit.prior:String(playerDraft.names[p]||S.names[p]||('玩家'+(p+1))).trim());
   playerDraft.names[p]=value;el.value=value;nameEdits.delete(p);
@@ -521,10 +518,7 @@ function savePlayerSetup(){
   S.names=names;S.avatars=d.avatars.map((e,p)=>PLAYER_EMOJIS.includes(e)?e:DEFAULT_AVATARS[p]);S.seat=d.seat.slice();S.dealerSeat=d.dealerSeat;S.playersReady=true;
   playerDraft=null;nameEdits.clear();tab='table';toast('玩家設定已儲存');return true;
 }
-function finishEntry(message){
-  E=newEntry();pending=[];entryStep='pick';tab='table';lastEntryMessage=message;
-  wildStop();wildDone=null;wildKey='';window.scrollTo(0,0);toast(message);
-}
+function finishEntry(message){E=newEntry();pending=[];entryStep='pick';tab='table';lastEntryMessage=message;wildStop();wildDone=null;wildKey='';window.scrollTo(0,0);toast(message);}
 function beginWinner(p){
   if(!Number.isInteger(p)||!S.seat.includes(p)){toast('請選擇食糊者');return false;}
   if(pending.length>=3){toast('已加入三位，請確認本局');tab='calc';entryStep='pick';return false;}
@@ -544,11 +538,8 @@ function viewEntryFlow(){
     h+='<h3>'+(pending.length?'選擇另一位食糊者':'選擇本局食糊者')+'</h3><div class="grid2">';
     S.seat.forEach(p=>{const disabled=pending.some(w=>w.p===p)||pending.length>=3||(pending.length&&pending[0].disc===p);h+='<button data-act="startWinner" data-p="'+p+'"'+(disabled?' disabled':'')+'>'+playerLabel(p)+'<br><small>'+windOf(p)+'位</small></button>';});h+='</div>';
     if(pending.length)h+='<div class="btnrow"><button class="primary" data-act="confirm">確認本局（'+pending.length+' 位食糊者）</button></div>';
-  }else if(entryStep==='method'){
-    h+='<h3>'+playerLabel(E.winner)+' 食糊</h3><p class="hint">選擇食糊方式，下一步輸入牌型。</p><div class="seg two"><button data-act="chooseMethod" data-v="self">自摸</button><button data-act="chooseMethod" data-v="ron">食炮</button></div><div class="btnrow"><button data-act="entryPick">重新選擇贏家</button></div>';
-  }else if(entryStep==='payer'){
-    h+='<h3>'+playerLabel(E.winner)+' 食炮</h3><p class="hint">選擇出銃者（放炮者）</p><div class="grid2">'+S.seat.filter(p=>p!==E.winner).map(p=>'<button data-act="choosePayer" data-p="'+p+'">'+playerLabel(p)+'</button>').join('')+'</div><div class="btnrow"><button data-act="entryMethod">返回食糊方式</button></div>';
-  }
+  }else if(entryStep==='method')h+='<h3>'+playerLabel(E.winner)+' 食糊</h3><p class="hint">選擇食糊方式，下一步輸入牌型。</p><div class="seg two"><button data-act="chooseMethod" data-v="self">自摸</button><button data-act="chooseMethod" data-v="ron">食炮</button></div><div class="btnrow"><button data-act="entryPick">重新選擇贏家</button></div>';
+  else if(entryStep==='payer')h+='<h3>'+playerLabel(E.winner)+' 食炮</h3><p class="hint">選擇出銃者（放炮者）</p><div class="grid2">'+S.seat.filter(p=>p!==E.winner).map(p=>'<button data-act="choosePayer" data-p="'+p+'">'+playerLabel(p)+'</button>').join('')+'</div><div class="btnrow"><button data-act="entryMethod">返回食糊方式</button></div>';
   return h+'<div class="btnrow"><button data-act="tab" data-v="table">返回牌桌（保留本局）</button>'+(hasEntryDraft()?'<button data-act="clearEntry">放棄本局輸入</button>':'')+'</div>';
 }
 function tableDisplayBalances(){return isHK()?balances():totals();}
@@ -713,72 +704,84 @@ function viewInstantControls(){
   return h;
 }
 
-function validLedgerSnapshot(rows){
+function historyCompactValidLedger(rows){
   return Array.isArray(rows)&&rows.every(r=>r&&Number.isInteger(r.from)&&r.from>=0&&r.from<4&&Number.isInteger(r.to)&&r.to>=0&&r.to<4&&Number.isFinite(r.amt));
 }
-function ledgerFigures(rows){
-  const incoming=[0,0,0,0],outgoing=[0,0,0,0];
-  rows.forEach(r=>{incoming[r.to]+=r.amt;outgoing[r.from]+=r.amt;});
-  return {incoming,outgoing,net:incoming.map((n,p)=>n-outgoing[p])};
-}
 function finalizeFinancialSnapshots(){
-  // Seal only records created by this build, after the action has finished updating the ledger.
   S.history.forEach((r,i)=>{
     if(r.financePending!==true)return;
     const next=S.history[i+1];
-    const after=next&&validLedgerSnapshot(next.ledgerBefore)?next.ledgerBefore:(i===S.history.length-1?S.ledger:null);
-    if(!validLedgerSnapshot(after))return;
+    const after=next&&historyCompactValidLedger(next.ledgerBefore)?next.ledgerBefore:(i===S.history.length-1?S.ledger:null);
+    if(!historyCompactValidLedger(after))return;
     r.ledgerAfter=copyL(after);r.financeSchema=1;delete r.financePending;
   });
 }
-function historyFinancials(index){
-  const r=S.history[index];
-  const cash=[0,1,2,3].map(p=>Number.isFinite((r.deltas||[])[p])?r.deltas[p]:0);
+function historyCompactSnapshot(index){
+  const r=S.history[index];if(!r)return {known:false,before:null,after:null};
   const mode=r.financeMode||S.game;
-  if(mode==='hk')return {complete:true,cash,total:cash.slice(),pending:[0,0,0,0],receivableChange:[0,0,0,0],payableChange:[0,0,0,0],mode};
-  const before=r.ledgerBefore,next=S.history[index+1];
-  let after=r.ledgerAfter;
-  if(!validLedgerSnapshot(after)){
-    if(next&&validLedgerSnapshot(next.ledgerBefore))after=next.ledgerBefore;
-    else if(index===S.history.length-1&&validLedgerSnapshot(S.ledger))after=S.ledger;
+  if(mode==='hk')return {known:true,before:[],after:[]};
+  const before=historyCompactValidLedger(r.ledgerBefore)?r.ledgerBefore:null;
+  let after=historyCompactValidLedger(r.ledgerAfter)?r.ledgerAfter:null;
+  if(after===null){
+    const next=S.history[index+1];
+    if(next&&historyCompactValidLedger(next.ledgerBefore))after=next.ledgerBefore;
+    else if(index===S.history.length-1&&historyCompactValidLedger(S.ledger))after=S.ledger;
   }
-  if(!validLedgerSnapshot(before)||!validLedgerSnapshot(after))return {complete:false,cash,total:null,pending:null,mode};
-  const a=ledgerFigures(before),b=ledgerFigures(after);
-  const pending=b.net.map((n,p)=>n-a.net[p]);
-  return {complete:true,cash,total:cash.map((n,p)=>n+pending[p]),pending,
-    receivableChange:b.incoming.map((n,p)=>n-a.incoming[p]),payableChange:b.outgoing.map((n,p)=>n-a.outgoing[p]),mode};
+  return {known:before!==null&&after!==null,before,after};
+}
+function historyCompactNet(rows){
+  const net=[0,0,0,0];rows.forEach(r=>{net[r.to]+=r.amt;net[r.from]-=r.amt;});return net;
+}
+function historyCompactChange(index,snapshot){
+  const r=S.history[index];
+  if(!r||!snapshot.known||!Array.isArray(r.deltas)||r.deltas.length!==4||!r.deltas.every(Number.isFinite))return null;
+  const before=historyCompactNet(snapshot.before),after=historyCompactNet(snapshot.after);
+  return r.deltas.map((cash,p)=>cash+after[p]-before[p]);
+}
+function historyCompactName(p){return esc((S.names&&S.names[p])||('玩家'+(p+1)));}
+function historyCompactPlayer(p){
+  const defaults=['🐉','🐯','🐼','🦊'],emoji=(S.avatars&&S.avatars[p])||defaults[p]||'🙂';
+  return esc(emoji)+' '+historyCompactName(p);
 }
 function historyMoneyHtml(index){
-  const f=historyFinancials(index);
-  let h='<div class="hint">本局淨變動（完成後總額 − 開始前總額）</div><div class="prev">';
-  h+=S.seat.map(p=>{
-    const value=f.complete?f.total[p]:null;
-    let cell='<div><small>'+playerLabel(p)+'</small><b'+(value==null?'':' class="'+(value>=0?'pos':'neg')+'"')+'>'+(value==null?'—':money(value))+'</b>';
-    cell+='<small style="display:block">已收付 '+money(f.cash[p])+'</small>';
-    if(f.complete&&f.mode!=='hk')cell+='<small style="display:block">未結算變動 '+money(f.pending[p])+'</small>';
-    return cell+'</div>';
+  const snapshot=historyCompactSnapshot(index),change=historyCompactChange(index,snapshot);
+  const seats=Array.isArray(S.seat)&&S.seat.length===4?S.seat:[0,1,2,3];
+  let h='<div class="zl">本局淨變動</div><div class="prev">';
+  h+=seats.map(p=>{
+    const value=change?change[p]:null;
+    return '<div><small>'+historyCompactPlayer(p)+'</small><b'+(value===null?'':' class="'+(value>=0?'pos':'neg')+'"')+'>'+(value===null?'—':money(value))+'</b></div>';
   }).join('');h+='</div>';
-  if(!f.complete)h+='<div class="warn">舊紀錄缺少拉數快照，無法確認本局總淨變動；小字只顯示已收付，未假設未結算金額為 0。</div>';
-  else if(f.mode!=='hk'){
-    h+='<div class="hint">未結算變動為本筆記錄造成的拉數淨額變化，包含新增、結清、踢半等；不是目前累計拉數。</div>';
-    const both=[0,1,2,3].filter(p=>f.receivableChange[p]!==0&&f.payableChange[p]!==0);
-    if(both.length)h+='<div class="hint">'+both.map(p=>playerLabel(p)+'：未收拉變動 '+money(f.receivableChange[p])+'／未付拉變動 '+money(f.payableChange[p])).join('；')+'</div>';
+  if(change===null)h+='<div class="hint">舊紀錄資料不足</div>';
+  h+='<div class="zl">尚未結算金額</div>';
+  if(snapshot.after===null)h+='<div class="hint">資料不足</div>';
+  else{
+    const rows=snapshot.after.filter(r=>r.amt!==0);
+    h+=rows.length?rows.map(r=>'<div class="hint">'+historyCompactName(r.from)+' 欠 '+historyCompactName(r.to)+' $'+esc(r.amt)+' (拉'+esc(r.k==null?1:r.k)+'口)</div>').join(''):'<div class="hint">無</div>';
+  }
+  return h;
+}
+function viewHistory(){
+  if(!S.history.length)return '<p class="hint">目前沒有紀錄</p>';
+  let h='<div class="btnrow"><button data-act="undoRec">撤銷最後一局</button></div>';
+  for(let index=S.history.length-1;index>=0;index--){
+    const r=S.history[index],t=new Date(r.time);
+    const time=Number.isNaN(t.getTime())?'—':t.getHours()+':'+String(t.getMinutes()).padStart(2,'0');
+    const title=r.kind==='win'?'食糊':r.kind==='draw'?'流局':r.kind==='settle'?esc(r.name||'結清'):'籌碼:'+esc(r.name||'');
+    h+='<div class="card rec"><div class="rh"><b>#'+(index+1)+'</b> '+title+' <small>'+(WIND[r.wind]||'東')+'風圈 · 莊 '+historyCompactName(r.dealer)+' 連莊'+esc(r.streak==null?0:r.streak)+' · '+time+'</small></div>';
+    if(r.kind==='win'){
+      (r.winners||[]).forEach(w=>{
+        const who=historyCompactName(w.p)+(w.self?' 自摸':' 食 '+historyCompactName(w.disc)+' 出銃');
+        const bao=w.bao!=null&&w.bao!==w.p?'(由 '+historyCompactName(w.bao)+' 包)':'';
+        const raw=w.raw!=null&&w.raw>w.total?'<small>(疊加 '+esc(w.raw)+' 番,封頂)</small>':'';
+        const fans=(w.fans||[]).map(f=>esc(f.name)+(f.n>1?'×'+esc(f.n):'')+' '+esc(f.total)).join(' · ');
+        h+='<div class="rw">'+who+bao+' — <b>'+esc(w.total)+'番</b>'+raw+(fans?'<div class="hint">'+fans+'</div>':'')+'</div>';
+      });
+    }
+    h+=historyMoneyHtml(index)+'</div>';
   }
   return h;
 }
 
-function viewHistory(){
-  if(!S.history.length) return '<p class="hint">目前沒有紀錄</p>';
-  let h='<div class="btnrow"><button data-act="undoRec">撤銷最後一局</button></div>';
-  S.history.slice().reverse().forEach((r,ri)=>{
-    const no=S.history.length-ri; const t=new Date(r.time);
-    h+='<div class="card rec"><div class="rh"><b>#'+no+'</b> '+(r.kind==='win'?'食糊':r.kind==='draw'?'流局':r.kind==='settle'?esc(r.name||'結清'):'籌碼:'+esc(r.name))+' <small>'+WIND[r.wind]+'風圈 · 莊 '+nm(r.dealer)+' 連莊'+r.streak+' · '+t.getHours()+':'+String(t.getMinutes()).padStart(2,'0')+'</small></div>';
-    if(r.kind==='win') r.winners.forEach(w=>{ h+='<div class="rw">'+nm(w.p)+(w.self?' 自摸':' 食 '+nm(w.disc)+' 出銃')+(w.bao!=null&&w.bao!==w.p?'(由 '+nm(w.bao)+' 包)':'')+' — <b>'+w.total+'番</b>'+(w.raw&&w.raw>w.total?'<small>(疊加 '+w.raw+' 番,封頂)</small>':'')+'<div class="hint">'+w.fans.map(f=>esc(f.name)+(f.n>1?'×'+f.n:'')+' '+f.total).join(' · ')+'</div></div>'; });
-    (r.events||[]).forEach(e=>{ h+='<div class="hint">• '+evText(e)+'</div>'; });
-    h+=historyMoneyHtml(no-1)+'</div>';
-  });
-  return h;
-}
 function totals(){ const c=balances(), p=pendingBal(); return [0,1,2,3].map(i=>c[i]+p[i]); }
 function summaryText(){
   const c=balances(), p=pendingBal(), a=totals(); let t='麻雀結算(共 '+S.history.length+' 局)\n';
