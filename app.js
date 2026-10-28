@@ -38,7 +38,7 @@ const OPT_INST=[
 const defHK=()=>({preset:'10-128',minFan:3,bao12:true,baoSan:true,flowers:false,renzhuang:true,ratio:0.5,over:{}});
 const PLAYER_EMOJIS=['🐉','🐯','🐼','🦊','🐱','🐶','🦁','🐸','🐰','🐨','🐵','🐧','🦉','🐢','🦋','🐙','🌸','🌻','🍀','⭐','🌙','🔥','🍉','🍊'];
 const DEFAULT_AVATARS=PLAYER_EMOJIS.slice(0,4);
-const defState=()=>({game:null,avatars:DEFAULT_AVATARS.slice(),playersReady:false,names:['玩家1','玩家2','玩家3','玩家4'],seat:[0,1,2,3],dealerSeat:0,streak:0,wind:0,history:[],ledger:[],cfg:{fanValue:1,baseMult:5,minFan:0,drawKeeps:true,preset:1,wildLimit:4,wildPreset:3,wildMeld:false,wildNoMult:true,wildMultN:3,kongKeep:{1:false,2:false,3:false,4:true},overs:{1:{},2:{},3:{},4:{},hk:{}},instAmts:{1:{},2:{},3:{},4:{},hk:{}},customTables:[],activeCustom:{},hk:defHK(),theme:Object.assign({},DEFAULT_THEME),useSegment:false,wizard:false,largeFont:false,useShortAnim:true}});
+const defState=()=>({game:null,avatars:DEFAULT_AVATARS.slice(),playersReady:false,names:['玩家1','玩家2','玩家3','玩家4'],seat:[0,1,2,3],dealerSeat:0,streak:0,wind:0,history:[],ledger:[],cfg:{fanValue:1,baseMult:5,minFan:0,drawKeeps:true,preset:1,wildLimit:4,wildPreset:3,wildMeld:false,wildNoMult:true,wildMultN:3,kongKeep:{1:false,2:false,3:false,4:true},overs:{1:{},2:{},3:{},4:{},hk:{}},instAmts:{1:{},2:{},3:{},4:{},hk:{}},customTables:[],activeCustom:{},hk:defHK(),theme:Object.assign({},DEFAULT_THEME),useSegment:true,wizard:false,largeFont:false,useShortAnim:true}});
 function norm(j){
   const d=defState(); const s=Object.assign(d,j,{cfg:Object.assign(d.cfg,j.cfg||{}),ledger:j.ledger||[]});
   const th=Object.assign({},DEFAULT_THEME,(j.cfg&&j.cfg.theme)||{});
@@ -59,7 +59,7 @@ function norm(j){
   c.wildMeld=!!c.wildMeld; c.wildNoMult=c.wildNoMult!==false;
   c.wildMultN=(Number.isFinite(+c.wildMultN)&&+c.wildMultN>=1&&+c.wildMultN<=100)?+c.wildMultN:3;
   c.kongKeep=Object.assign({1:false,2:false,3:false,4:true},c.kongKeep||{});
-  c.useSegment=!!c.useSegment; c.wizard=!!c.wizard; c.largeFont=!!c.largeFont; c.useShortAnim=c.useShortAnim!==false;
+  c.useSegment=true; c.wizard=false; c.largeFont=!!c.largeFont; c.useShortAnim=c.useShortAnim!==false;
   if(s.game!=='tw'&&s.game!=='hk'&&s.game!=='wild') s.game=(s.history&&s.history.length)?'tw':null;
   s.names=[0,1,2,3].map(i=>String((s.names||[])[i]||('玩家'+(i+1))).slice(0,10));
   s.avatars=[0,1,2,3].map(i=>PLAYER_EMOJIS.includes((j.avatars||[])[i])?j.avatars[i]:DEFAULT_AVATARS[i]);
@@ -158,7 +158,7 @@ pickM();
 if(!window.MJ4){ try{ const sc=document.createElement('script'); sc.src='engine4.js'; sc.onload=()=>{ pickM(); render(); }; document.head.appendChild(sc); }catch(e){} }
 let lastSaveWarn=0;
 const save=()=>{ finalizeFinancialSnapshots(); try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){ const t=Date.now(); if(t-lastSaveWarn>8000){ lastSaveWarn=t; toast('儲存失敗(記憶體可能已滿)。請到「設定」匯出備份'); } } try{ saveDraft(); }catch(e){} };
-const newEntry=()=>({shapeDone:false,winner:null,self:true,disc:null,hkWin:null,all:[],wildGroups:[],jsel:{},adjust:0,pickRep:null,marks:Array(34).fill(0),kongOpen:{},melds:[],hand:[],win:null,partBad:false,mode:'pick',flowers:Array(8).fill(false),flags:{},excl:{},extra:[],bao:null});
+const newEntry=()=>({shapeDone:false,hkKongs:{},winner:null,self:true,disc:null,hkWin:null,all:[],wildGroups:[],jsel:{},adjust:0,pickRep:null,marks:Array(34).fill(0),kongOpen:{},melds:[],hand:[],win:null,partBad:false,mode:'pick',flowers:Array(8).fill(false),flags:{},excl:{},extra:[],bao:null});
 let _savedTab=null; try{ _savedTab=localStorage.getItem('mj_tab'); }catch(e){}
 let E=newEntry(), pending=[], tab=(_savedTab && ['chooser','players','calc','table','history','settings'].includes(_savedTab) ? _savedTab : (S.game? 'table' : 'chooser')), wildPick=false;
 let inst={id:null,mode:'one',payee:null,payer:null,mult:1};
@@ -169,6 +169,7 @@ const dealerPid=()=>S.seat[S.dealerSeat];
 const windIdx=p=>(seatOf(p)-S.dealerSeat+4)%4;
 const windOf=p=>WIND[windIdx(p)];
 const nm=p=>esc(S.names[p]);
+function tileName(t){if(t===34)return '百搭';if(t==null)return '未選';return M.tName(t)||'未知牌';}
 const pkey=()=>isHK()?'hk':isWild()?'wild'+S.cfg.wildPreset:String(S.cfg.preset);
 const OV=()=>S.cfg.overs[pkey()]||(S.cfg.overs[pkey()]={});
 function phList(){ return (isHK()||curPreset()===4)?[]:PH_FANS.filter(p=>!M.FANS.some(f=>f.id===p.id)); }
@@ -304,63 +305,64 @@ button, .t, .mt, [data-act], select{ min-height:44px; min-width:44px; }
 .oled-contrast .t{ border:1px solid #444 !important; }
 .progress{ height:6px; background:var(--bd); border-radius:3px; overflow:hidden; }
 .progress i{ display:block; height:100%; background:var(--acc); transition: width 200ms; }
-/* Layout-only update: responsive editor, reserved pile slots, flower rows. */
-.flower-host{container-type:inline-size;container-name:flowerbuttons;max-width:100%}
-.flower-host .flower-grid{display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;width:100%}
-.flower-host .flower-grid .fl{box-sizing:border-box;min-width:0!important;width:100%!important;min-height:44px;margin:0!important;flex:none!important;padding:8px 2px}
-@container flowerbuttons (min-width:440px){.flower-host .flower-grid{grid-template-columns:repeat(8,minmax(0,1fr))}}
-#post-shape.flower-focus{outline:2px solid var(--acc);outline-offset:6px;border-radius:8px}
+/* One five-mode editor; three reserved rows at every tile count. */
 .table-feedback{margin-top:10px}
+.flower-host{container-type:inline-size;container-name:flowerbuttons;width:100%;max-width:100%}
+.flower-host .flower-grid{display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;width:100%}
+.flower-grid .fl{box-sizing:border-box;width:100%!important;min-width:0!important;min-height:44px;margin:0!important;flex:none!important;padding:7px 2px}
+@container flowerbuttons (min-width:440px){.flower-host .flower-grid{grid-template-columns:repeat(8,minmax(0,1fr))}}
 .pal{display:flex;flex-direction:column;gap:6px;margin:8px 0;max-width:100%}
 .pal>.row{display:grid!important;grid-template-columns:repeat(9,minmax(0,1fr));gap:4px;width:100%}
-.pal>.row>.t{box-sizing:border-box;width:100%!important;min-width:0!important;min-height:44px;margin:0!important;padding:6px 0!important;flex:none!important;font-size:15px;line-height:1.1}
-body .stable-pile{display:block!important;box-sizing:border-box;width:100%!important;min-width:0!important;max-width:650px;margin-left:auto;margin-right:auto;float:none}
-body .stable-pile>.stable-grid{display:grid!important;box-sizing:border-box;grid-template-columns:repeat(6,minmax(0,1fr))!important;grid-auto-rows:64px!important;gap:6px;width:100%!important;min-width:0!important;max-width:none!important;flex:none!important;justify-items:stretch;align-items:stretch}
-body .stable-grid>.mt,body .stable-grid>.tile-slot{box-sizing:border-box;position:relative;display:inline-flex;align-items:center;justify-content:center;width:100%!important;max-width:none!important;min-width:0!important;height:64px!important;min-height:0!important;margin:0!important;flex:none!important;justify-self:stretch;transform:none!important;animation:none!important}
-.tile-slot{border:1px dashed var(--bd);border-radius:5px;opacity:.24;background:transparent}
-.tile-badge{position:absolute;top:-4px;right:-4px;z-index:2;font-style:normal;font-size:10px;line-height:1;background:var(--acc);color:var(--onacc);border-radius:9px;padding:3px 5px;pointer-events:none}
-@media(min-width:700px){body .stable-pile>.stable-grid{grid-template-columns:repeat(9,minmax(0,1fr))!important}}
+.pal>.row>.t{width:100%!important;min-width:0!important;min-height:44px;margin:0!important;padding:6px 0!important;flex:none!important;font-size:15px;line-height:1.1;box-sizing:border-box}
 .body .grid2{grid-template-columns:repeat(2,minmax(0,1fr))}.body .grid2>*{min-width:0}
 .body .grid2 input:not([type=checkbox]),.body .grid2 select{box-sizing:border-box;max-width:100%;min-width:0;width:100%}
 .body .btnrow{flex-wrap:wrap}.adjrow input{box-sizing:border-box;flex:1 1 100%!important;order:-1;min-width:0!important;text-align:center}.adjrow button{flex:1 1 44px;min-width:44px}
-.shape-editing{overflow:hidden!important;overscroll-behavior:none}
-.shape-screen,.shape-screen *{box-sizing:border-box}
-.shape-screen{position:fixed;left:0;right:0;top:0;width:100%;height:var(--shape-height,100vh);z-index:30;display:flex;flex-direction:column;overflow:hidden;background:var(--bg);color:inherit;padding-bottom:env(safe-area-inset-bottom,0px)}
-.shape-head{display:flex;align-items:center;justify-content:space-between;gap:8px;flex:none;min-height:44px;padding:4px 10px;border-bottom:1px solid var(--bd);font-size:15px}
-.shape-head>div:first-child{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.shape-head button{min-height:36px;min-width:70px;flex:none;padding:6px 8px;font-size:14px}
-.shape-main{display:flex;flex-direction:column;gap:6px;flex:1;min-height:0;padding:6px 12px;overflow:auto;overscroll-behavior:contain}
-.shape-stats{flex:none;height:24px;line-height:24px;font-size:13px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;color:var(--acc)}
-.shape-pile{flex:none;height:calc(var(--shape-rows,3)*var(--shape-tile-h,58px) + (var(--shape-rows,3) - 1)*6px);overflow:auto;overscroll-behavior:contain;padding:0 4px}
-.shape-grid{display:grid;grid-template-columns:repeat(var(--shape-cols,6),var(--shape-tile-w,44px));grid-auto-rows:var(--shape-tile-h,58px);justify-content:center;gap:6px;width:100%;padding:0}
-.shape-grid>.mt,.shape-grid>.tile-slot{position:relative;width:var(--shape-tile-w,44px)!important;min-width:0!important;max-width:none!important;height:var(--shape-tile-h,58px)!important;min-height:0!important;max-height:none!important;margin:0!important;padding:0!important;flex:none!important;transform:none!important;transition:none!important;animation:none!important;touch-action:manipulation}
-.shape-grid>.mt b{font-size:21px}.shape-grid>.mt i{font-size:11px}.shape-grid>.mt.hon b{font-size:24px}
-.shape-grid>.mt.mk2{transform:none!important;background:#cfe9d6!important}.shape-grid>.mt.mark{outline-offset:-3px}.shape-grid>.mt:disabled{opacity:.42}
-.shape-tools{flex:none;display:flex;gap:6px;height:34px}.shape-tools button{flex:1;min-height:34px;padding:5px 8px;font-size:14px}
-.shape-stage{flex:1;min-height:192px;overflow:auto;overscroll-behavior:contain;display:flex;align-items:center;justify-content:center}
-.shape-stage>.pal{width:100%;max-width:620px;margin:0 auto}
-.shape-stage .pal>.row>.t{height:42px;min-height:42px!important;max-height:42px;font-size:14px;border-radius:6px}
-.shape-stage .pal .s0{color:#a0201a}.shape-stage .pal .s1{color:#1c4fa0}.shape-stage .pal .s2{color:#1a7a3a}.shape-stage .pal .s3{color:#222}.shape-stage .pal .t{background:#f7f3e3!important}
-.shape-group-tools{display:flex;flex-direction:column;gap:6px;width:100%;max-width:650px;font-size:14px}
-.shape-meld-groups{display:flex;flex-wrap:wrap;justify-content:center;align-items:flex-start;gap:6px}
-.shape-meld-groups .mg{box-sizing:border-box;flex:0 0 auto;min-width:0;min-height:0;margin:0;padding:5px 6px;gap:3px;max-width:100%}
-.shape-meld-groups .mg .row{display:flex!important;flex-wrap:nowrap;gap:2px}
-.shape-meld-groups .mg .mt{box-sizing:border-box;flex:0 0 30px;width:30px!important;min-width:0!important;height:42px!important;min-height:0!important;padding:0!important;margin:0!important;transform:none!important;animation:none!important}
-.shape-meld-groups .mg .mt b{font-size:18px}.shape-meld-groups .mg .mt i{font-size:10px}
-.shape-meld-groups .mg .mt.hon b{font-size:22px}.shape-meld-groups .mg small{font-size:11px;line-height:1.2;white-space:normal}
-.shape-group-actions,.shape-choices{display:flex;flex-wrap:wrap;gap:6px;align-items:center;justify-content:center}
-.shape-group-tools button{min-height:36px;padding:6px;font-size:14px}
-.shape-win-status{font-size:14px;line-height:1.5;text-align:center;padding:6px}
-.shape-footer{flex:none;background:var(--card);border-top:1px solid var(--bd);padding:6px 10px 8px}
-.shape-segments{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}.shape-segments button{min-width:0!important;min-height:44px;padding:7px 1px;font-size:14px;line-height:1.15;white-space:nowrap}.shape-segments button.on:after{content:''}
-.shape-hint{height:32px;line-height:16px;padding:2px 0;font-size:12px;overflow:hidden}
-.shape-finish{display:grid;grid-template-columns:1fr 2fr;gap:6px}.shape-finish button{min-width:0!important;min-height:44px;padding:7px 3px;font-size:14px}
-.shape-reviewed{display:flex;align-items:center;justify-content:space-between;gap:8px}.shape-reviewed button{flex:none}
-.shape-head-actions{display:flex;gap:4px;align-items:center;flex:none}.shape-compact-tools{display:none}
-.shape-compact .shape-head{min-height:40px;padding:2px 8px}.shape-compact .shape-head button{min-width:0;min-height:34px;padding:4px 6px;font-size:12px}.shape-compact .shape-compact-tools{display:flex;gap:4px}
-.shape-compact .shape-main{padding:4px 12px;gap:6px}.shape-compact .shape-stats{height:20px;line-height:20px;font-size:12px}.shape-compact .shape-tools{display:none}
-.shape-compact .shape-stage{min-height:188px}.shape-compact .shape-stage .pal{gap:4px}.shape-compact .shape-stage .pal>.row>.t{height:44px;min-height:44px!important;max-height:44px}
-.shape-compact .shape-hint{height:24px;line-height:12px;font-size:11px}
+.editor-open{overflow:hidden!important;overscroll-behavior:none}
+.editor-screen,.editor-screen *{box-sizing:border-box}
+.editor-screen{position:fixed;left:0;right:0;top:0;width:100%;height:var(--editor-height,100vh);z-index:30;display:flex;flex-direction:column;overflow:hidden;background:var(--bg);color:inherit;padding-bottom:env(safe-area-inset-bottom,0px)}
+.editor-head{display:flex;align-items:center;justify-content:space-between;gap:8px;flex:none;min-height:44px;padding:4px 10px;border-bottom:1px solid var(--bd);font-size:15px}
+.editor-head>div:first-child{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.editor-head button{min-height:36px;min-width:70px;flex:none;padding:6px 8px;font-size:14px}
+.editor-head-actions{display:flex;gap:4px;align-items:center;flex:none}.editor-compact-tools{display:none}
+.editor-main{display:flex;flex-direction:column;gap:6px;flex:1;min-height:0;padding:6px 12px;overflow:auto;overscroll-behavior:contain}
+.editor-stats{flex:none;height:24px;line-height:24px;font-size:13px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;color:var(--acc)}
+.editor-pile{box-sizing:border-box;display:flex;align-items:center;justify-content:center;flex:none;height:var(--pile-frame-h,192px);overflow:auto;overscroll-behavior:contain;padding:0 4px;max-width:680px;width:100%;margin:0 auto}
+.editor-grid{display:grid!important;grid-template-columns:repeat(var(--pile-cols,6),var(--tile-w,44px));grid-auto-rows:var(--tile-h,58px);justify-content:center;align-content:center;gap:6px;width:100%;min-width:0;flex:none}
+.editor-grid>.mt,.editor-grid>.tile-slot{position:relative;width:var(--tile-w,44px)!important;min-width:0!important;max-width:none!important;height:var(--tile-h,58px)!important;min-height:0!important;max-height:none!important;margin:0!important;padding:0!important;flex:none!important;transform:none!important;transition:none!important;animation:none!important;touch-action:manipulation}
+.editor-grid>.mt b{font-size:var(--face-size,22px)}.editor-grid>.mt i{font-size:var(--suit-size,11px)}.editor-grid>.mt.hon b{font-size:calc(var(--face-size,22px) + 2px)}
+.editor-grid>.mt.mk2{transform:none!important;background:#cfe9d6!important}.editor-grid>.mt.mark{outline-offset:-3px}.editor-grid>.mt:disabled{opacity:1}.editor-grid>.mt.unavailable:disabled{opacity:.4}
+.tile-slot{border:1px dashed var(--bd);border-radius:5px;opacity:.24;background:transparent}
+.tile-badge{position:absolute;top:-4px;right:-4px;z-index:2;font-style:normal;font-size:var(--badge-size,10px);line-height:1;background:var(--acc);color:var(--onacc);border-radius:9px;padding:3px 4px;pointer-events:none}
+.editor-tools{flex:none;display:flex;gap:6px;height:34px;max-width:680px;width:100%;margin:0 auto}.editor-tools button{flex:1;min-height:34px;padding:5px 8px;font-size:14px}
+.editor-panel{flex:1;min-height:192px;overflow:auto;overscroll-behavior:contain;display:flex;align-items:center;justify-content:center}
+.editor-panel>.pal{width:100%;max-width:620px;margin:0 auto}
+.editor-panel .pal>.row>.t{height:42px;min-height:42px!important;max-height:42px;font-size:14px;border-radius:6px}
+.editor-panel .pal .s0{color:#a0201a}.editor-panel .pal .s1{color:#1c4fa0}.editor-panel .pal .s2{color:#1a7a3a}.editor-panel .pal .s3{color:#222}.editor-panel .pal .t{background:#f7f3e3!important}
+.editor-group-tools{width:100%;max-width:650px;display:flex;flex-direction:column;gap:6px;font-size:14px}
+.editor-meld-groups,.editor-hk-quads{display:flex;flex-wrap:wrap;justify-content:center;align-items:flex-start;gap:6px}
+.editor-meld-groups .mg,.editor-hk-quad{flex:0 0 auto;min-width:0;min-height:0;margin:0;padding:5px 6px;max-width:100%;border-radius:8px;background:var(--btn2)}
+.editor-meld-groups .mg .row,.editor-hk-quad>.row{display:flex!important;flex-wrap:nowrap;gap:2px;justify-content:center}
+.editor-meld-groups .mt,.editor-hk-quad .mt{flex:0 0 30px;width:30px!important;min-width:0!important;height:42px!important;min-height:0!important;padding:0!important;margin:0!important;transform:none!important;animation:none!important}
+.editor-meld-groups .mt b,.editor-hk-quad .mt b{font-size:18px}.editor-meld-groups .mt i,.editor-hk-quad .mt i{font-size:10px}
+.editor-meld-groups .mg small{font-size:11px;line-height:1.2;white-space:normal}
+.editor-group-actions,.editor-menqing,.editor-kong-choices{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:5px}
+.editor-group-tools button{min-height:34px;min-width:0;padding:5px;font-size:12px}
+.editor-kong-choices button.on:after,.editor-menqing button.on:after{content:''}
+.editor-flowers{width:100%;max-width:650px}.editor-panel-title{font-size:14px;color:var(--acc);margin-bottom:8px}
+.editor-panel .editor-flags{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;width:100%;max-width:650px;margin:auto}
+.editor-flags label{display:flex;align-items:center;gap:6px;min-height:44px;padding:6px;border-radius:8px;font-size:13px;background:var(--card)}
+.editor-flags input{flex:none;min-width:0;min-height:0;width:20px;height:20px}
+.editor-win-status{font-size:14px;line-height:1.5;text-align:center;padding:6px}
+.editor-footer{flex:none;background:var(--card);border-top:1px solid var(--bd);padding:6px 8px 8px}
+.editor-segments{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:4px}
+.editor-segments button{min-width:0!important;min-height:44px;padding:7px 0;font-size:13px;line-height:1.15;white-space:nowrap}.editor-segments button.on:after{content:''}
+.editor-hint{height:32px;line-height:16px;padding:2px 0;font-size:12px;overflow:hidden}
+.editor-finish{display:grid;grid-template-columns:1fr 2fr;gap:6px}.editor-finish button{min-width:0!important;min-height:44px;padding:7px 2px;font-size:14px}
+.editor-reviewed{display:flex;align-items:center;justify-content:space-between;gap:8px}.editor-reviewed button{flex:none}
+.editor-compact .editor-head{min-height:40px;padding:2px 8px}.editor-compact .editor-head button{min-width:0;min-height:34px;padding:4px 6px;font-size:12px}.editor-compact .editor-compact-tools{display:flex;gap:4px}
+.editor-compact .editor-main{padding:4px 12px;gap:6px}.editor-compact .editor-stats{height:20px;line-height:20px;font-size:12px}.editor-compact .editor-tools{display:none}
+.editor-compact .editor-panel{min-height:188px}.editor-compact .editor-panel .pal{gap:4px}.editor-compact .editor-panel .pal>.row>.t{height:44px;min-height:44px!important;max-height:44px}
+.editor-compact .editor-hint{height:24px;line-height:12px;font-size:11px}
 `+
 `
 body{background:var(--bg)!important}
@@ -404,7 +406,7 @@ function mt(t,o){
   if(t===34){o=o||{};const tag=o.tag||'span';return '<'+tag+' '+(o.attrs||'')+' class="mt '+(o.cls||'')+'" style="color:#8b2670"><b>百</b><i>搭</i></'+tag+'>';}
   o=o||{}; const tag=o.tag||'span';
   const at=(o.attrs||'')+' class="mt '+(t<27?'s'+M.suitOf(t):'hon h'+(t-27))+(o.back?' back':'')+(o.cls?' '+o.cls:'')+'"';
-  const inner=(t<27?'<b>'+NUMCH[M.numOf(t)]+'</b><i>'+M.SUITS[M.suitOf(t)]+'</i>':'<b>'+M.tName(t)+'</b>')+(o.badge?'<em class="tile-badge">'+esc(o.badge)+'</em>':'');
+  const inner=(t<27?'<b>'+NUMCH[M.numOf(t)]+'</b><i>'+M.SUITS[M.suitOf(t)]+'</i>':'<b>'+tileName(t)+'</b>')+(o.badge?'<em class="tile-badge">'+esc(o.badge)+'</em>':'');
   return '<'+tag+' '+at+'>'+inner+'</'+tag+'>';
 }
 function meldGroup(m,i){
@@ -531,8 +533,14 @@ function bestMelds(){
 }
 function derive(){
   const ac=allCounts();
-  if(isHK()){ const lock=(pending.length&&pending[0].ron)?pending[0].ron.winTile:null;
-    if(lock!=null) E.hkWin=E.all.includes(lock)?lock:null; else if(E.hkWin!=null&&!E.all.includes(E.hkWin)) E.hkWin=null; }
+  if(isHK()){
+    if(!E.hkKongs||typeof E.hkKongs!=='object')E.hkKongs={};
+    Object.keys(E.hkKongs).forEach(t=>{if(ac[+t]!==4)delete E.hkKongs[t];});
+    const lock=pending.length&&pending[0].ron?pending[0].ron.winTile:null;
+    if(lock!=null)E.hkWin=E.all.includes(lock)?lock:null;
+    else if(E.hkWin!=null&&!E.all.includes(E.hkWin))E.hkWin=null;
+    E.melds=[];E.hand=E.all.slice();return;
+  }
   for(let t=0;t<34;t++){ if(E.marks[t]>ac[t]) E.marks[t]=ac[t]; if(E.marks[t]<0) E.marks[t]=0; }
   if(E.win!=null){ const unm=ac[E.win]-(E.marks[E.win]||0); if(unm<1) E.win=null; }
   E.melds=bestMelds();
@@ -546,30 +554,37 @@ function ctxExtra(){ const x={useFlowers:isHK()?hkFlowerMode():true,kongKeep:isH
 function combos(arr,k){ const res=[]; (function r(i,cur){ if(cur.length===k){ res.push(cur.slice()); return; } for(let j=i;j<arr.length;j++){ cur.push(arr[j]); r(j+1,cur); cur.pop(); } })(0,[]); return res; }
 /* 廣東牌:只需選齊全部牌。槓由牌數推算;食糊牌自動取最高番;門前清由牌堆下方的問題回答 */
 function analyzeHK(){
-  const N=E.all.length;
-  if(!N) return null;
+  const N=E.all.length;if(!N)return null;
   const k=N-14;
-  if(k<0) return {error:'牌數不足:現有 '+N+' 張,廣東牌需要 14 張(有槓每槓多 1 張)'};
-  if(k>4) return {error:'牌數過多:現有 '+N+' 張'};
-  const ac=allCounts(); const quad=[]; for(let t=0;t<34;t++) if(ac[t]===4) quad.push(t);
-  if(k>quad.length) return {error:'現有 '+N+' 張,即有 '+k+' 個槓,但只有 '+quad.length+' 款牌有 4 張'};
-  const R=RL(); let best=null, cnt=0; const fixWin=(!E.self&&E.hkWin!=null)?E.hkWin:null;
-  combos(quad,k).forEach(cb=>{
-    const melds=cb.map(t=>({t:'kong',tile:t,open:true}));
-    const c=ac.slice(); cb.forEach(t=>{ c[t]-=4; });
-    const hand=[]; for(let t=0;t<34;t++) for(let i=0;i<c[t];i++) hand.push(t);
-    const seen={};
+  if(k<0)return {error:'牌數不足：現有 '+N+' 張，廣東牌需14張，有槓每槓多1張'};
+  if(k>4)return {error:'牌數過多：現有 '+N+' 張'};
+  const ac=allCounts(),quad=[];for(let t=0;t<34;t++)if(ac[t]===4)quad.push(t);
+  if(k>quad.length)return {error:'應有 '+k+' 個槓，但只有 '+quad.length+' 款牌有4張'};
+  const chosen=E.hkKongs||{},forced=quad.filter(t=>chosen[t]==='open'||chosen[t]==='closed');
+  if(forced.length>k)return {error:'已指定槓數超過牌數所需'};
+  const choices=combos(quad.filter(t=>chosen[t]!=='none'),k).filter(cb=>forced.every(t=>cb.includes(t)));
+  if(!choices.length)return {error:'槓組與牌數不符，請在「槓／門清」修正'};
+  const fixWin=E.hkWin!=null?E.hkWin:null,R=RL();let best=null,cnt=0;
+  const byWin=new Map();
+  choices.forEach(cb=>{
+    const melds=cb.map(t=>({t:'kong',tile:t,open:chosen[t]!=='closed'})),c=ac.slice();cb.forEach(t=>{c[t]-=4;});
+    const hand=[];for(let t=0;t<34;t++)for(let i=0;i<c[t];i++)hand.push(t);
+    const seen=new Set();
     hand.forEach(w=>{
-      if(fixWin!=null&&w!==fixWin) return;
-      if(seen[w]) return; seen[w]=1;
-      let r=null;
-      try{ r=M.analyze(Object.assign({hand:hand,melds:melds,win:w,flowers:E.flowers,selfDraw:E.self,flags:E.flags,concealed:hkConcealed(ac)},ctxExtra()),OV()); }catch(e){}
+      if(fixWin!=null&&w!==fixWin||seen.has(w))return;seen.add(w);
+      let r=null;try{r=M.analyze(Object.assign({hand,melds,win:w,flowers:E.flowers,selfDraw:E.self,flags:E.flags,concealed:hkConcealed(ac)},ctxExtra()),OV());}catch(e){}
       cnt++;
-      if(r&&!r.error&&r.items){ let tot=0; r.items.forEach(x=>{ tot+=M.valueOf(R,x); }); if(!best||tot>best.total) best={items:r.items,total:tot,count:0,waits:r.waits,kongs:cb.slice()}; }
+      if(r&&!r.error&&r.items){
+        let total=0;r.items.forEach(x=>{total+=M.valueOf(R,x);});
+        const sig=r.items.map(x=>x.id+':'+(x.n==null?1:x.n)+':'+!!x.closed).sort().join('|');
+        const prev=byWin.get(w);if(!prev||total>prev.total)byWin.set(w,{total,sig});
+        if(!best||total>best.total)best={items:r.items,total,count:0,waits:r.waits,kongs:cb.slice(),selectedWin:w};
+      }
     });
   });
-  if(!best) return {error:fixWin!=null?'以放炮牌「'+M.tName(fixWin)+'」計不成食糊牌形(放炮牌必須在手牌內,不能是槓出的牌)':'這副牌組不成食糊牌形'};
-  best.count=cnt; best.autoMq=(E.flags.menqing===undefined&&N===14&&jiuziShape(ac)); return best;
+  if(!best)return {error:fixWin!=null?'放炮／食糊牌必須在扣除槓後的手牌內，並能組成食糊牌形':'這副牌組不成食糊牌形'};
+  best.count=cnt;best.needsSelect=fixWin==null&&new Set([...byWin.values()].map(x=>x.total+'|'+x.sig)).size>1;
+  best.autoMq=E.flags.menqing===undefined&&N===14&&jiuziShape(ac);return best;
 }
 function analyze(){
   if(isWild()) return wildResult();
@@ -593,7 +608,7 @@ function curItems(res){
   if(E.adjust) mapped.push({id:'adjust',name:'手動調整番數(beta)',n:1,unit:E.adjust,total:E.adjust});
   return mapped;
 }
-function tileBtn(t){ return '<button class="t s'+M.suitOf(t)+'" data-act="tile" data-t="'+t+'">'+M.tName(t)+'</button>'; }
+function tileBtn(t){ return '<button class="t s'+M.suitOf(t)+'" data-act="tile" data-t="'+t+'">'+tileName(t)+'</button>'; }
 function palette(){
   let h='<div class="pal">';
   for(let su=0;su<3;su++){ h+='<div class="row">'; for(let n=1;n<=9;n++) h+=tileBtn(su*9+n-1); h+='</div>'; }
@@ -782,175 +797,121 @@ function nextStepText(){
   }
   return '點選食糊玩家';
 }
-let shapeError='',postShapeScroll=false;
-function shapeEditorActive(){return tab==='calc'&&entryStep==='hand'&&!!S.cfg.useSegment&&!isHK()&&!E.shapeDone;}
-function flowerButtonsHtml(){
-  return '<div class="flower-host"><div class="flowers flower-grid">'+M.FLOWERS.map((f,i)=>'<button class="fl '+(E.flowers[i]?'on':'')+'" data-act="flower" data-i="'+i+'">'+esc(f)+'</button>').join('')+'</div></div>';
+let editorError='',jumpToResults=false;
+function editorActive(){return tab==='calc'&&entryStep==='hand'&&!E.shapeDone;}
+function editorWin(){return isHK()?E.hkWin:E.win;}
+function physicalEntries(){
+  const entries=E.all.map(t=>({t,group:null}));
+  if(isWild())E.wildGroups.forEach((g,i)=>g.physical.forEach(t=>entries.push({t,group:i})));
+  return entries.sort((a,b)=>a.t-b.t||(a.group==null?-1:a.group)-(b.group==null?-1:b.group));
 }
-function shapePoolHtml(editor){
-  const used=Array(35).fill(0);let winTaken=false;
+function editorCapacity(n){return n<=18?18:n<=21?21:24;}
+function editorColumns(n){return n<=18?6:n<=21?7:8;}
+function flowerButtonsHtml(){return '<div class="flower-host"><div class="flowers flower-grid">'+M.FLOWERS.map((f,i)=>'<button class="fl '+(E.flowers[i]?'on':'')+'" data-act="flower" data-i="'+i+'">'+esc(f)+'</button>').join('')+'</div></div>';}
+function specialFlagsHtml(){
+  const flags=(M.FLAGS||DEFAULT_FLAGS).filter(a=>!(isHK()&&a[0]==='menqing')).concat((isHK()||curPreset()===4)?[]:HUAHU.map(h=>[h[0],h[1]]));
+  return '<div class="flags editor-flags">'+flags.map(([id,name])=>'<label><input type="checkbox" data-chg="flag" data-k="'+id+'"'+(E.flags[id]?' checked':'')+'>'+esc(name)+'</label>').join('')+'</div>';
+}
+function editorPoolHtml(){
+  const entries=physicalEntries(),used=Array(35).fill(0),win=editorWin();let winTaken=false;
+  const lock=pending.length&&pending[0].ron?pending[0].ron.winTile:null,readonly=E.mode==='flowers'||E.mode==='flags';
+  const tiles=entries.map(({t,group})=>{
+    const hkKind=(E.hkKongs||{})[t],isKong=isHK()&&(hkKind==='open'||hkKind==='closed');
+    const index=group==null?used[t]++:0,isMeld=group!=null||isKong||(!isHK()&&group==null&&index<(E.marks[t]||0));
+    let badge=isMeld?(isKong&&hkKind==='closed'?'暗':'明'):'',cls=isMeld?'mk2':'';
+    if(!isMeld&&group==null&&index<(E.marks[t]||0)+(E.jsel[t]||0))cls='mark';
+    else if(!isMeld&&t===win&&!winTaken){badge='食';cls='mark';winTaken=true;}
+    const unavailable=E.mode==='win'&&(isMeld||(lock!=null&&t!==lock)||(t===34&&!E.self));
+    const action=group==null?'poolTap':'wildRemoveGroup',target=group==null?'data-t="'+t+'"':'data-i="'+group+'"';
+    return mt(t,{tag:'button',badge,cls:cls+(unavailable?' unavailable':''),attrs:'data-act="'+action+'" '+target+' aria-label="'+esc(tileName(t)+(badge?' '+badge:''))+'"'+(readonly||unavailable?' disabled':'')});
+  }).join('');
+  const empty=Array(Math.max(0,editorCapacity(entries.length)-entries.length)).fill('<span class="tile-slot" aria-hidden="true"></span>').join('');
+  return '<div class="editor-pile"><div class="editor-grid">'+tiles+empty+'</div></div>';
+}
+function setHKKong(t,value){
+  if(!isHK()||allCounts()[t]!==4){editorError='只有四張相同的牌可以指定為槓';return;}
   const lock=pending.length&&pending[0].ron?pending[0].ron.winTile:null;
-  const html=E.all.slice().sort((a,b)=>a-b).map(t=>{
-    const index=used[t]++,mk=E.marks[t]||0,js=E.jsel[t]||0,isMeld=index<mk;
-    let badge=isMeld?'明':'',cls=isMeld?'mk2':'';
-    if(!isMeld&&index<mk+js)cls='mark';
-    else if(!isMeld&&t===E.win&&!winTaken){winTaken=true;badge='食';cls='mark';}
-    const disabled=editor&&E.mode==='win'&&lock!=null&&t!==lock;
-    return mt(t,{tag:'button',cls,badge,attrs:'data-act="poolTap" data-t="'+t+'" aria-label="'+esc(M.tName(t)+(badge?' '+badge:''))+'"'+(disabled?' disabled':'')});
-  }).join('');
-  const blank=Array(Math.max(0,18-E.all.length)).fill('<span class="tile-slot" aria-hidden="true"></span>').join('');
-  return '<div class="'+(editor?'shape-pile':'zone poolbox stable-pile')+'"><div class="'+(editor?'shape-grid':'tiles stable-grid')+'">'+html+blank+'</div></div>';
+  if(value!=='none'&&lock===t){editorError='共同放炮牌不能放入槓組';return;}
+  const chosen=E.hkKongs||(E.hkKongs={}),k=Math.max(0,E.all.length-14);
+  const others=Object.keys(chosen).filter(x=>+x!==t&&(chosen[x]==='open'||chosen[x]==='closed')).length;
+  if(value!=='none'&&others>=k){editorError='這副牌的張數只容許 '+k+' 個槓';return;}
+  chosen[t]=value;E.excl={};if(value!=='none'&&E.hkWin===t)E.hkWin=null;
 }
-function shapeSummaryHtml(){
-  const n=E.all.length+E.wildGroups.reduce((v,g)=>v+g.physical.length,0),win=E.win==null?'未選':M.tName(E.win);
-  return '<div class="card shape-reviewed"><div class="zl">牌型已確認 · '+n+' 張 · 食糊 '+esc(win)+'</div><button data-act="shapeEdit">修改牌型</button></div>';
+function hkGroupTools(){
+  const ac=allCounts(),quads=[];for(let t=0;t<34;t++)if(ac[t]===4)quads.push(t);
+  const needK=Math.max(0,E.all.length-14),chosen=E.hkKongs||{};
+  let h='<div class="editor-meld-head">'+(needK?'按張數需確認 '+needK+' 個槓':'沒有槓可以略過槓組')+'</div><div class="editor-hk-quads">';
+  h+=quads.map(t=>{
+    const value=chosen[t]||'none',open=value==='open',closed=value==='closed';
+    return '<div class="editor-hk-quad"><div class="row">'+[0,1,2,3].map((_,i)=>mt(t,{back:closed&&(i===0||i===3)})).join('')+'</div><div class="editor-kong-choices">'+[['none','不作槓'],['open','明槓'],['closed','暗槓']].map(([v,name])=>'<button data-act="hkKong" data-t="'+t+'" data-v="'+v+'" class="'+(value===v?'on':'')+'">'+name+'</button>').join('')+'</div></div>';
+  }).join('')+'</div>';
+  h+='<div class="editor-menqing"><span>門清狀態</span><button data-act="menqing" data-v="1" class="'+(E.flags.menqing===true?'on':'')+'">是</button><button data-act="menqing" data-v="0" class="'+(E.flags.menqing===false?'on':'')+'">否</button></div>';
+  return h+'<button data-act="mode" data-v="win">食糊牌：'+esc(E.hkWin==null?'未指定（單人可選填）':tileName(E.hkWin))+'</button>';
 }
-function shapeGroupTools(){
-  let groups=E.melds.map((m,i)=>meldGroup(m,i)).join('');
-  groups+=E.wildGroups.map((g,i)=>{
-    const label=g.t==='chow'?'上':g.t==='pung'?'碰':g.open===false?'暗槓':'明槓';
-    return '<div class="mg" data-act="wildRemoveGroup" data-i="'+i+'"><div class="row">'+g.physical.map(t=>mt(t)).join('')+'</div><small>'+label+'（含百搭，代表'+esc(M.tName(g.tile))+'） ×</small></div>';
-  }).join('');
-  let h='<div class="shape-meld-groups">'+(groups||'<span class="hint">尚未標明牌；沒有明牌可略過。</span>')+'</div>';
+function ordinaryGroupTools(){
+  let h='<div class="editor-meld-groups">'+E.melds.map((m,i)=>meldGroup(m,i)).join('');
+  h+=E.wildGroups.map((g,i)=>'<div class="mg" data-act="wildRemoveGroup" data-i="'+i+'"><div class="row">'+g.physical.map(t=>mt(t)).join('')+'</div><small>'+(g.t==='chow'?'上':g.t==='pung'?'碰':g.open===false?'暗槓':'明槓')+'（含百搭） ×</small></div>').join('');
+  if(!E.melds.length&&!E.wildGroups.length)h+='<span class="hint">沒有明牌可略過。</span>';h+='</div>';
   if(isWild()&&S.cfg.wildMeld){
-    h+='<div class="shape-group-actions"><button data-act="mode" data-v="jmeld" class="'+(E.mode==='jmeld'?'on':'')+'">選含百搭的明牌</button>';
+    h+='<div class="editor-group-actions"><button data-act="mode" data-v="jmeld" class="'+(E.mode==='jmeld'?'on':'')+'">選含百搭明牌</button>';
     if(E.mode==='jmeld')h+='<button data-act="wildGroup" data-v="chow">加入上牌</button><button data-act="wildGroup" data-v="pung">加入碰牌</button><button data-act="wildGroup" data-v="kong" data-open="1">加入明槓</button><button data-act="wildGroup" data-v="kong" data-open="0">加入暗槓</button><button data-act="wildCancelJ">取消選取</button>';
     h+='</div>';
   }
-  if(E.pickRep){
-    const pr=E.pickRep;
-    h+='<div class="shape-choices"><span>這組代表：</span>'+pr.cands.map(t=>'<button data-act="repPick" data-t="'+t+'">'+esc(pr.grp.t==='chow'?(t%9+1)+''+(t%9+2)+(t%9+3)+M.SUITS[Math.floor(t/9)]:M.tName(t))+'</button>').join('')+'<button data-act="repCancel">取消</button></div>';
-  }
-  return '<div class="shape-group-tools">'+h+'</div>';
-}
-function shapeEditorHtml(){
-  const md=E.mode,marking=md==='meld'||md==='jmeld';
-  const hint=md==='pick'?'點牌盤新增手牌；點牌堆刪牌':md==='meld'?'點牌堆標明牌；再點取消':md==='jmeld'?'點牌堆選3或4張，再選上／碰／槓':'點牌堆指定食糊牌；再點取消';
-  const count=E.all.length+E.wildGroups.reduce((n,g)=>n+g.physical.length,0),marked=E.marks.reduce((n,x)=>n+(x||0),0);
-  const common=pending.length&&pending[0].ron?pending[0].ron.winTile:null;
-  let h='<div class="shape-screen" role="region" aria-label="牌型編輯"><header class="shape-head"><div>'+playerLabel(E.winner)+' <small>'+(E.self?'自摸':'食 '+nm(E.disc))+'</small></div><div class="shape-head-actions"><span class="shape-compact-tools"><button data-act="undoTile">退牌</button><button data-act="clearHand">清空</button></span><button data-act="shapeBack">返回牌桌</button></div></header>';
-  h+='<main class="shape-main"><div class="shape-stats">共'+count+'張 · 明牌'+marked+'張 · '+(E.win==null?'未選食糊牌':'食糊 '+esc(M.tName(E.win)))+(common!=null?' · 共同 '+esc(M.tName(common)):'')+'</div>';
-  h+=shapePoolHtml(true)+'<div class="shape-tools"><button data-act="undoTile">退一張</button><button data-act="clearHand">全部清空</button></div>';
-  h+='<div class="shape-stage">'+(md==='pick'?palette():marking?shapeGroupTools():'<div class="shape-win-status">'+(E.win==null?'請在牌堆選食糊牌。':'已選 '+esc(M.tName(E.win))+'；確定後繼續花牌及特殊情況。')+'</div>')+'</div></main>';
-  h+='<footer class="shape-footer"><div class="shape-segments" role="group" aria-label="輸入模式">'+[['pick','① 選牌'],['meld','② 標明牌'],['win','③ 選食糊牌']].map(([mode,label])=>'<button data-act="mode" data-v="'+mode+'" class="'+((mode==='meld'?marking:md===mode)?'on':'')+'" aria-pressed="'+((mode==='meld'?marking:md===mode)?'true':'false')+'">'+label+'</button>').join('')+'</div>';
-  h+='<div class="shape-hint" aria-live="polite">'+esc(shapeError||hint)+'</div><div class="shape-finish"><button data-act="shapeBack">稍後繼續</button><button class="primary" data-act="shapeContinue">確定牌型，繼續</button></div></footer></div>';
+  if(E.pickRep){const pr=E.pickRep;h+='<div class="editor-group-actions"><span>這組代表：</span>'+pr.cands.map(t=>'<button data-act="repPick" data-t="'+t+'">'+esc(pr.grp.t==='chow'?(t%9+1)+''+(t%9+2)+(t%9+3)+M.SUITS[Math.floor(t/9)]:tileName(t))+'</button>').join('')+'<button data-act="repCancel">取消</button></div>';}
   return h;
 }
-function fitShapeEditor(){
-  const box=document.querySelector('.shape-screen');if(!box)return;
+function editorHint(){
+  if(editorError)return editorError;
+  if(E.mode==='pick')return '點牌盤加牌；點牌堆刪牌';
+  if(E.mode==='jmeld')return '選3或4張牌，再選上／碰／槓';
+  if(E.mode==='meld')return isHK()?'確認槓組、明／暗槓及門清狀態':'點牌堆標明牌；點明牌組可移除';
+  if(E.mode==='flowers')return '點花牌選取或取消；沒有可略過';
+  if(E.mode==='flags')return '勾選本局特殊情況；沒有可略過';
+  if(isHK())return pending.length?'請選共同放炮牌，須與其他食糊者相同':'食糊牌可選填；影響番種時須補選';
+  return '點牌堆選食糊牌；再點同款牌取消';
+}
+function editorPanelHtml(){
+  if(E.mode==='pick')return palette();
+  if(E.mode==='meld'||E.mode==='jmeld')return '<div class="editor-group-tools">'+(isHK()?hkGroupTools():ordinaryGroupTools())+'</div>';
+  if(E.mode==='flowers')return '<div class="editor-flowers"><div class="editor-panel-title">花牌 · 已選 '+E.flowers.filter(Boolean).length+' 張</div>'+flowerButtonsHtml()+'</div>';
+  if(E.mode==='flags')return specialFlagsHtml();
+  const win=editorWin();
+  return '<div class="editor-win-status">'+(win==null?(isHK()?'未指定食糊牌；單人可先繼續，影響番種時會要求補選。':'未選食糊牌'):('已選 '+esc(tileName(win))+(win===34?'（只限自摸）':'')))+'<div class="hint">可切換花牌／特殊，完成後查看結果。</div></div>';
+}
+function editorHtml(){
+  const mode=E.mode,marking=mode==='meld'||mode==='jmeld',n=physicalEntries().length,win=editorWin(),max=isHK()?18:22;
+  const marked=isHK()?Object.values(E.hkKongs||{}).filter(v=>v==='open'||v==='closed').length*4:E.marks.reduce((n,x)=>n+(x||0),0);
+  const lock=pending.length&&pending[0].ron?pending[0].ron.winTile:null;
+  const steps=[['pick','選牌'],['meld',isHK()?'槓／門清':'明牌'],['win','食糊'],['flowers','花牌'],['flags','特殊']];
+  let h='<div class="editor-screen" role="region" aria-label="五段式輸入"><header class="editor-head"><div>'+playerLabel(E.winner)+' <small>'+(E.self?'自摸':'食 '+nm(E.disc))+'</small></div><div class="editor-head-actions"><span class="editor-compact-tools"><button data-act="undoTile">退牌</button><button data-act="clearHand">清空</button></span><button data-act="editorBack">返回牌桌</button></div></header>';
+  h+='<main class="editor-main"><div class="editor-stats">共'+n+'張'+(n>max?'（超出上限'+max+'）':'')+' · 明／槓'+marked+'張 · '+(win==null?'未選食糊牌':'食糊 '+esc(tileName(win)))+(lock!=null?' · 共同 '+esc(tileName(lock)):'')+'</div>';
+  h+=editorPoolHtml()+'<div class="editor-tools"><button data-act="undoTile">退一張</button><button data-act="clearHand">全部清空</button></div><div class="editor-panel" aria-label="目前模式內容">'+editorPanelHtml()+'</div></main>';
+  h+='<footer class="editor-footer"><div class="editor-segments" role="group" aria-label="輸入模式">'+steps.map(([v,label],i)=>'<button data-act="mode" data-v="'+v+'" aria-label="第'+(i+1)+'段：'+label+'" aria-pressed="'+(v==='meld'?marking:mode===v)+'" class="'+((v==='meld'?marking:mode===v)?'on':'')+'">'+label+'</button>').join('')+'</div><div class="editor-hint" aria-live="polite">'+esc(editorHint())+'</div><div class="editor-finish"><button data-act="editorBack">稍後繼續</button><button class="primary" data-act="editorFinish">完成輸入，查看結果</button></div></footer></div>';
+  return h;
+}
+function fitEditor(){
+  const box=document.querySelector('.editor-screen');if(!box)return;
   const vv=window.visualViewport,height=Math.floor(vv?vv.height:window.innerHeight),width=Math.floor(vv?vv.width:window.innerWidth);
-  box.style.setProperty('--shape-height',height+'px');box.style.top=(vv?vv.offsetTop:0)+'px';
-  const compact=height<620;box.classList.toggle('shape-compact',compact);
-  const wide=width>=700&&height>=420,cols=wide?9:6,rows=wide?2:3;
-  const head=box.querySelector('.shape-head'),foot=box.querySelector('.shape-footer');
-  const headH=head?head.getBoundingClientRect().height:46,footH=foot?foot.getBoundingClientRect().height:136;
-  const safe=parseFloat(getComputedStyle(box).paddingBottom)||0,budget=height-safe-headH-footH-(compact?228:280);
-  const tileH=Math.max(44,Math.min(74,Math.floor((budget-6*(rows-1))/rows)));
-  const tileW=Math.max(34,Math.min(62,Math.floor((width-32-6*(cols-1))/cols),Math.floor(tileH*.78)));
-  box.style.setProperty('--shape-cols',cols);box.style.setProperty('--shape-rows',rows);box.style.setProperty('--shape-tile-h',tileH+'px');box.style.setProperty('--shape-tile-w',tileW+'px');
+  box.style.setProperty('--editor-height',height+'px');box.style.top=(vv?vv.offsetTop:0)+'px';
+  const compact=height<620;box.classList.toggle('editor-compact',compact);
+  const head=box.querySelector('.editor-head').getBoundingClientRect().height,foot=box.querySelector('.editor-footer').getBoundingClientRect().height;
+  const safe=parseFloat(getComputedStyle(box).paddingBottom)||0,budget=height-head-foot-safe-(compact?228:280);
+  const frameCell=Math.max(44,Math.min(86,Math.floor((budget-12)/3)));
+  const usable=Math.min(660,width-32),baseW=Math.min(62,Math.floor((usable-30)/6),Math.floor(frameCell*.78));
+  const baseH=Math.floor(baseW/.78),cols=editorColumns(physicalEntries().length),scale=6/cols;
+  const tileW=Math.min(Math.floor(baseW*scale),Math.floor((usable-(cols-1)*6)/cols)),tileH=Math.floor(tileW/.78);
+  box.style.setProperty('--pile-frame-h',(baseH*3+12)+'px');box.style.setProperty('--pile-cols',cols);
+  box.style.setProperty('--tile-w',Math.max(24,tileW)+'px');box.style.setProperty('--tile-h',Math.max(31,tileH)+'px');
+  box.style.setProperty('--face-size',Math.max(15,Math.floor(22*scale))+'px');box.style.setProperty('--suit-size',Math.max(9,Math.floor(11*scale))+'px');box.style.setProperty('--badge-size',Math.max(8,Math.floor(10*scale))+'px');
 }
-function focusFlowerSection(){
-  const target=document.getElementById('post-shape');if(!target)return;
-  const vv=window.visualViewport,top=vv?vv.offsetTop:0,vh=vv?vv.height:window.innerHeight;
-  const nav=document.querySelector('#app nav');let covered=0;
-  if(nav){const nr=nav.getBoundingClientRect();covered=Math.max(0,Math.min(top+vh,nr.bottom)-Math.max(top,nr.top));}
-  const rect=target.getBoundingClientRect(),desired=top+(vh-covered)/2;
-  const y=Math.max(0,window.scrollY+rect.top+rect.height/2-desired);
-  window.scrollTo({top:y,behavior:'auto'});
-  target.classList.add('flower-focus');
+function editorSummaryHtml(){
+  const count=physicalEntries().length,win=editorWin();
+  return '<div class="card editor-reviewed"><div><div class="zl">輸入已完成 · '+count+' 張 · 花牌'+E.flowers.filter(Boolean).length+'張</div><small>食糊牌：'+esc(win==null?'自動分析':tileName(win))+'</small></div><button data-act="editorEdit">修改輸入</button></div>';
 }
-function inputSection(){
-  if(isHK()) return inputSectionHK();
-  const md=E.mode, w=isWild();
-  const useSeg=S.cfg.useSegment;
-  // fixed height mode hint (item 5)
-  const tipText=md==='pick'?'點牌盤新增手牌':(md==='meld'?'標記明牌':(md==='jmeld'?'選3或4張含百搭明牌':'點選食糊牌'));
-  const tip=md==='pick'?'① 點牌盤入牌堆 ② 點牌堆刪牌 ③ 點「明牌」框空白,進入下一步'
-    :(md==='meld'?'① 點牌堆標明牌 ② 再點取消 ③ 點「食糊牌」框空白,進入下一步'
-    :(md==='jmeld'?'① 點牌堆選3或4張 ② 再點取消 ③ 按下面上／碰／槓'
-    :'① 點牌堆指食糊牌 ② 再點取消 ③ 往下加花牌與特殊情況'));
-  let h='';
-  // wizard steps (16) - actual content switching
-  let wizardStep=0;
-  if(S.cfg.wizard){
-    const steps=['贏家','手牌','花牌/確認'];
-    if(entryStep==='pick'||entryStep==='method'||entryStep==='payer') wizardStep=0;
-    else if(hasCurrentData()||E.melds.length>0||E.wildGroups.length>0) wizardStep=1;
-    else wizardStep=0;
-    if(E.flowers.some(Boolean)||E.extra.length>0||E.win!=null) wizardStep=Math.max(wizardStep,2);
-    // if has winner but no hand, step 1; if has hand and win, step 2
-    if(E.winner!=null && E.all.length>0) wizardStep=1;
-    if(E.win!=null) wizardStep=2;
-    h+='<div class="card"><div class="zl">精簡嚮導（'+(wizardStep+1)+'/3）</div><div style="display:flex;gap:6px;margin-bottom:8px;">'+steps.map((s,i)=>'<div style="flex:1;text-align:center;padding:6px;border-radius:999px;background:'+(i===wizardStep?'var(--acc)':'var(--btn)')+';color:'+(i===wizardStep?'var(--onacc)':'inherit')+'">'+(i+1)+'. '+s+'</div>').join('')+'</div>';
-    h+='<div class="btnrow"><button '+(wizardStep===0?'disabled':'')+' data-act="wizPrev">上一步</button><button '+(wizardStep===2?'disabled':'')+' data-act="wizNext">下一步</button></div></div>';
-  }
-  // item 12 common ron locking display
-  if(pending.length>0){
-    const common = pending[0].ron ? pending[0].ron.winTile : null;
-    if(common!=null){
-      h+='<div class="note" style="position:sticky;top:0;z-index:3;">共同放炮牌鎖定：'+mt(common)+' <small>食糊牌選擇器只允許同一張</small></div>';
-    }
-    // item 11 chips
-    h+='<div class="card"><div class="zl">已加入 (晶片可刪)</div><div>';
-    h+=pending.map((pw,idx)=>{
-      const name=playerLabel(pw.p);
-      const disc = S.names[pw.disc]||'';
-      return '<span class="chip">'+esc(name)+' 食 '+esc(disc)+' '+pw.total+'番 <span class="x" data-act="rmPending" data-i="'+idx+'">✕</span></span>';
-    }).join('');
-    h+='</div></div>';
-  }
-  // item 5 fixed height mode hint
-  h+='<h3>① 輸入牌型</h3>';
-  h+='<div class="modebar-fixed">'+esc(tipText)+' - '+esc(tip)+'</div>';
-  // item 6 optional segmented
-  if(useSeg){
-    h+='<div class="seg three sticky-footer" style="position:sticky;top:40px;z-index:4;"><button class="'+(md==='pick'?'on':'')+'" data-act="mode" data-v="pick">選牌</button><button class="'+(md==='meld'||md==='jmeld'?'on':'')+'" data-act="mode" data-v="meld">標明牌</button><button class="'+(md==='win'?'on':'')+'" data-act="mode" data-v="win">選食糊牌</button></div>';
-  }
-  h+=palette();
-  h+='<div class="zl">牌堆 <small>已輸入 '+E.all.length+' 張'+((w&&E.wildGroups.length)?'':' / 需 '+(need()+E.melds.reduce((n,m)=>n+(m.t==='kong'?4:3),0))+' 張')+'</small></div>';
-  // progress bar for remaining (item 4-like)
-  const meldTileCount=E.melds.reduce((n,m)=>n+(m.t==='kong'?4:3),0);
-  const needN=need()+meldTileCount;
-  if(!(w&&E.wildGroups.length)){
-    const pct=Math.max(0, Math.min(100, Math.round(Math.min(E.all.length,needN)/needN*100)));
-    h+='<div class="progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="'+pct+'"><i style="width:'+pct+'%"></i></div>';
-  }
-  h+=shapePoolHtml(false);
-  h+='<div class="btnrow"><button data-act="undoTile">退一張</button><button data-act="clearHand">全部清空</button></div>';
-  if(!S.cfg.wizard || wizardStep>=1){ h+='<h3>② 確認明牌</h3><div class="card entered">';
-  h+='<div class="zl" style="margin-top:0">明牌 <small>'+(E.melds.length+(w?E.wildGroups.length:0))+' 組(點空白處選明牌,點牌可取消)</small></div>';
-  h+='<div class="zone tap'+(md==='meld'?' active':'')+'" data-act="mode" data-v="meld">'+((E.melds.length||(w&&E.wildGroups.length))?E.melds.map((m,i)=>meldGroup(m,i)).join('')+(w?E.wildGroups.map((g,i)=>'<div class="mg" data-act="wildRemoveGroup" data-i="'+i+'"><div class="row">'+g.physical.map(t=>mt(t)).join('')+'</div><small>'+(g.t==='chow'?'上':g.t==='pung'?'碰':g.open?'明槓':'暗槓')+'(含百搭,代表'+M.tName(g.tile)+') ✕</small></div>').join(''):''):'<span class="hint">點此選明牌(沒有明牌可略過)</span>')+'</div>';
-  if(w&&E.partAmbig) h+='<div class="hint">明牌標記有多種分法,目前按其中一種計算;如不符,請調整標記。</div>';
-  if(w&&S.cfg.wildMeld){
-    h+='<div class="btnrow"><button class="'+(md==='jmeld'?'on':'')+'" data-act="mode" data-v="jmeld">選含百搭的明牌</button></div>';
-    if(md==='jmeld') h+='<div class="btnrow"><button data-act="wildGroup" data-v="chow">加入上牌</button><button data-act="wildGroup" data-v="pung">加入碰牌</button><button data-act="wildGroup" data-v="kong" data-open="1">加入明槓</button><button data-act="wildGroup" data-v="kong" data-open="0">加入暗槓</button><button data-act="wildCancelJ">取消選取</button></div>';
-    if(E.pickRep){
-      const pr=E.pickRep, chowName=t=>(t%9+1)+''+(t%9+2)+(t%9+3)+M.SUITS[Math.floor(t/9)];
-      h+='<div class="note"><b>這組代表哪張牌?</b>(點選)</div><div class="tiles" style="margin:6px 0">'+pr.cands.map(t=>pr.grp.t==='chow'?'<button data-act="repPick" data-t="'+t+'" style="padding:10px 12px">'+chowName(t)+'</button>':mt(t,{tag:'button',attrs:'data-act="repPick" data-t="'+t+'"'})).join('')+'</div><div class="btnrow"><button data-act="repCancel">取消</button></div>';
-    }
-  }
-  h+='</div>'; } if(!S.cfg.wizard || wizardStep>=2){ h+='<h3>③ 確認食糊牌</h3><div class="card entered"><div class="zl" style="margin-top:0">食糊牌(胡牌) <small>'+(E.win!=null?'點牌可取消':'點空白處指名')+(w?(E.win===34?'(百搭只限自摸)':''):'')+'</small></div>';
-  h+='<div class="zone winzone tap'+(md==='win'?' active':'')+'" data-act="mode" data-v="win">'+(E.win!=null?mt(E.win,{tag:'button',cls:'big selected',attrs:'data-act="clearWin"'}):'<span class="hint">點此選食糊牌</span>')+'</div>';
-  h+='</div>'; } 
-  h+='<div class="btnrow"><button data-act="goFlowers">繼續：花牌及特殊情況</button></div>';
-  return h;
-}
+function inputSection(){return editorSummaryHtml();}
+function inputSectionHK(){return editorSummaryHtml();}
 
-function inputSectionHK(){
-  const mq=E.flags.menqing;
-  let h='<h3>輸入牌</h3>';
-  h+='<div class="modebar">選牌:點上方牌盤選齊全部的牌(有槓時,每個槓多一張),點牌堆裡的牌可刪除。不用標明牌和食糊牌。</div>';
-  h+=palette();
-  h+=hkFlowerInput();
-  h+='<div class="zl">牌堆 <small>已輸入 '+E.all.length+' 張 / 需 '+(isHK()? '14+槓數' : need()+'張')+'</small></div>';
-  h+=shapePoolHtml(false);
-  h+='<div class="btnrow"><button data-act="undoTile">退一張</button><button data-act="clearHand">全部清空</button></div>';
-  h+=hkWinPicker();
-  h+='<div class="card askcard"><div class="zl" style="margin-top:0">是不是門前清?(胡牌前沒有上、碰、槓過牌)</div>'
-    +'<div class="seg two"><button class="'+(mq===true?'on':'')+'" data-act="menqing" data-v="1">是(門前清)</button><button class="'+(mq===false?'on':'')+'" data-act="menqing" data-v="0">否(有上、碰、槓過)</button></div>'
-    +'<div class="hint">'+(hkFlowerMode()?'花牌規則下不另計「門前清」番;但選「是」才會計坎坎糊、九子連環。':'選「是」才會計門前清、坎坎糊、九子連環。')+'未選擇時按「否」計算(只計對對糊);牌形符合九子連環時會自動按門前清計算。</div></div>';
-  return h;
-}
+
 function resultHint(res){
   if(isWild()) return wildHint(res);
   if(isHK()){
@@ -968,7 +929,7 @@ function resultHint(res){
 }
 function viewCalc(){
   if(entryStep!=='hand')return viewEntryFlow();
-  if(shapeEditorActive())return shapeEditorHtml();
+  if(editorActive())return editorHtml();
   const res=analyze(); const items=curItems(res);
   const rawTotal=Math.max(0,items.reduce((a,x)=>a+x.total,0));
   const total=isHK()?Math.min(rawTotal,hkCap()):rawTotal;
@@ -976,16 +937,13 @@ function viewCalc(){
   let h='<div class="status">目前:<b>'+WIND[S.wind]+'風圈</b> · 莊家 '+nm(dealerPid())+' · 連莊 '+S.streak+' 次<br>食糊者(胡牌)'+nm(E.winner)+' 的門風:<b>'+windOf(E.winner)+'風</b>'+(E.winner===dealerPid()?'(莊家)':'')+'</div>';
   h+='<div class="hint">各家門風:'+S.seat.map(p=>nm(p)+' '+windOf(p)).join(' · ')+'<br>玩法:'+gameName()+'</div>';
   if(pending.length){ h+='<div class="note">已加入 '+pending.length+' 位食糊者:'+pending.map(w=>nm(w.p)+' '+w.total+'番').join('、')+'</div>';
-    const pr=ronProblems(false); h+=pr.length?'<div class="warn">'+pr.map(esc).join('<br>')+'</div>':'<div class="hint">雙響／三響:放炮牌必須相同('+esc(M.tName(pending[0].ron.winTile))+'),四家合共每款牌最多 4 張。</div>'; }
+    const pr=ronProblems(false); h+=pr.length?'<div class="warn">'+pr.map(esc).join('<br>')+'</div>':'<div class="hint">雙響／三響:放炮牌必須相同('+esc(tileName(pending[0].ron.winTile))+'),四家合共每款牌最多 4 張。</div>'; }
   h+='<h3>食糊者：'+playerLabel(E.winner)+'</h3><div class="btnrow"><button data-act="entryPick">改選贏家</button><button data-act="tab" data-v="table">返回牌桌（保留輸入）</button></div>';
   h+='<div class="seg two"><button class="'+(E.self?'on':'')+'" data-act="self" data-v="1">自摸</button><button class="'+(!E.self?'on':'')+'" data-act="self" data-v="0">別家出銃</button></div>';
   if(!E.self){ h+='<div class="lbl">出銃者(放槍)</div>'+winnerBtns('disc',E.disc); }
-  if(!isHK())h+=(S.cfg.useSegment?shapeSummaryHtml():inputSection())+'<section id="post-shape"><h3>④ 加入花牌</h3>'+flowerButtonsHtml()+'</section>';
-  const flagList=(M.FLAGS||DEFAULT_FLAGS).filter(a=>!(isHK()&&a[0]==='menqing')).concat((isHK()||curPreset()===4)?[]:HUAHU.map(h2=>[h2[0],h2[1]]));
-  h+='<h3>'+(isHK()?'特殊情況':'⑤ 確定特殊情況')+'</h3><div class="flags">'+flagList.map(a=>'<label><input type="checkbox" data-chg="flag" data-k="'+a[0]+'"'+(E.flags[a[0]]?' checked':'')+'>'+a[1]+'</label>').join('')+'</div>';
-  if(!isHK()&&curPreset()!==4) h+='<p class="hint">勾選「花糊」:其番數直接加在本局食糊者的番數上,一併按本局結算,不另外拉落下一鋪。</p>';
-  if(isHK()) h+=inputSection();
-  h+='<h3>'+(isHK()?'番數結果':'⑥ 番數結果')+'</h3>';
+  h+=editorSummaryHtml();
+  if(isHK()&&res&&res.needsSelect&&E.hkWin==null)h+='<div class="warn">不同食糊牌影響番種，請修改輸入並補選食糊牌。</div>';
+  h+='<h3 id="result-top">番數結果</h3>';
   h+=resultHint(res);
   h+=shareCard(res,total,rawTotal);
   if(baoVisible()){
@@ -1193,8 +1151,6 @@ function viewSettings(){
   if(isWild()) h+='<h3>百搭設定</h3><div class="card"><div class="note">本場加 '+S.cfg.wildLimit+' 張通用百搭;要改數量,請到「更換玩法」重新選擇。百搭可代34種非花牌,真白板仍是白板;代入後同款牌連明牌最多4張;不額外加百搭番。</div><div class="zl">百搭可用於明牌</div><div class="seg"><button class="'+(!S.cfg.wildMeld?'on':'')+'" data-act="wildOpt" data-k="wildMeld" data-v="0">關</button><button class="'+(S.cfg.wildMeld?'on':'')+'" data-act="wildOpt" data-k="wildMeld" data-v="1">開</button></div><div class="zl">冇用百搭,全部番數加倍</div><div class="seg"><button class="'+(!S.cfg.wildNoMult?'on':'')+'" data-act="wildOpt" data-k="wildNoMult" data-v="0">關</button><button class="'+(S.cfg.wildNoMult?'on':'')+'" data-act="wildOpt" data-k="wildNoMult" data-v="1">開</button></div><label>倍數<input type="number" min="1" max="100" step="1" data-chg="wildMultN" value="'+S.cfg.wildMultN+'"></label></div>';
   // P2 settings: 6,16,17,18,21
   h+='<h3>輸入體驗設定</h3><div class="card">'
-    +'<label>三段式切換（選牌｜標明牌｜選食糊牌）<select data-chg="useSegment"><option value="0"'+(!S.cfg.useSegment?' selected':'')+'>關（預設）</option><option value="1"'+(S.cfg.useSegment?' selected':'')+'>開</option></select></label>'
-    +'<label>精簡／嚮導模式<select data-chg="wizard"><option value="0"'+(!S.cfg.wizard?' selected':'')+'>精簡（預設）</option><option value="1"'+(S.cfg.wizard?' selected':'')+'>嚮導</option></select></label>'
     +'<label>牌桌字級放大<select data-chg="largeFont"><option value="0"'+(!S.cfg.largeFont?' selected':'')+'>關（預設）</option><option value="1"'+(S.cfg.largeFont?' selected':'')+'>開（大字）</option></select></label>'
     +'<label>短動畫（尊重減少動態）<select data-chg="useShortAnim"><option value="1"'+(S.cfg.useShortAnim?' selected':'')+'>開（預設150ms）</option><option value="0"'+(!S.cfg.useShortAnim?' selected':'')+'>關</option></select></label>'
     +'<div class="zl">儲存容量：約 <span id="storageSize">'+getStorageSizeKB()+' KB</span> <button data-act="calcStorage">重新計算</button></div>'
@@ -1241,15 +1197,15 @@ function render(){
   derive();
   applyTheme();
   const el=document.getElementById('app');
-  const editing=shapeEditorActive();document.body.classList.toggle('shape-editing',editing);
-  if(editing){el.innerHTML=shapeEditorHtml();window.scrollTo(0,0);fitShapeEditor();return;}
+  const editing=editorActive();document.body.classList.toggle('editor-open',editing);
+  if(editing){el.innerHTML=editorHtml();window.scrollTo(0,0);fitEditor();return;}
   if(!S.game||tab==='chooser'){ el.innerHTML='<div class="body">'+updBanner()+viewChooser()+'</div>'; window.scrollTo(0,0); return; }
   if(!S.playersReady&&tab!=='players')openPlayerSetup();
   const views={players:viewPlayers,table:viewTable,calc:viewCalc,history:viewHistory,settle:viewSettle,settings:viewSettings};
   const tabs=[['table','牌桌'],['calc','算番'],['history','歷史'],['settle','結算'],['settings','設定']];
   el.innerHTML='<div class="body">'+updBanner()+a2hsBanner()+(views[tab]||viewTable)()+'</div><nav>'+(tab==='players'?'':tabs.map(t=>'<button class="'+(tab===t[0]?'on':'')+'" data-act="tab" data-v="'+t[0]+'">'+t[1]+'</button>').join(''))+'</nav>';
   window.scrollTo(0,y);
-  if(postShapeScroll){postShapeScroll=false;focusFlowerSection();}
+  if(jumpToResults){jumpToResults=false;const target=document.getElementById('result-top');if(target)target.scrollIntoView({block:'start'});}
 }
 function advance(keep,fromDraw){
   if(keep){ if(!fromDraw) S.streak++; }
@@ -1287,20 +1243,31 @@ function resetGameData(){
   S.history=[]; S.ledger=[]; S.streak=0; S.wind=0; S.dealerSeat=0; E=newEntry();pending=[];entryStep='pick';lastEntryMessage='';playerDraft=null;nameEdits.clear();
 }
 function act(a,d){
-  if(['mode','tile','poolTap','clearHand','clearWin','undoTile','shapeEdit'].includes(a))shapeError='';
+  if(['mode','tile','poolTap','clearHand','clearWin','undoTile','editorEdit'].includes(a))editorError='';
   derive();
   if(E.pickRep&&a!=='repPick'&&a!=='repCancel') E.pickRep=null;
   if(isWild()&&wildAction(a,d)){save();render();return;}
   switch(a){
-    case 'goFlowers':postShapeScroll=true;break;
-    case 'shapeBack':setTab('table');window.scrollTo(0,0);break;
-    case 'shapeEdit':E.shapeDone=false;setTab('calc');window.scrollTo(0,0);break;
-    case 'shapeContinue':{
-      if(E.pickRep||Object.keys(E.jsel).length){shapeError='請先完成或取消正在選取的含百搭明牌';render();return;}
-      if(!E.all.length&&!E.wildGroups.length){shapeError='請先輸入手牌';render();return;}
-      if(E.win==null){shapeError='請先選食糊牌';render();return;}
-      if(!E.self&&E.win===34){shapeError='百搭不能作為放炮牌';render();return;}
-      shapeError='';E.shapeDone=true;postShapeScroll=true;setTab('calc');break;
+    case 'editorBack':setTab('table');window.scrollTo(0,0);break;
+    case 'editorEdit':E.shapeDone=false;setTab('calc');window.scrollTo(0,0);break;
+    case 'editorFinish':{
+      if(E.pickRep||Object.keys(E.jsel).length){editorError='請先完成或取消含百搭明牌';E.mode='jmeld';render();return;}
+      if(!E.all.length&&!E.wildGroups.length){editorError='請先輸入手牌';E.mode='pick';render();return;}
+      if(isHK()){
+        const k=E.all.length-14,n=Object.values(E.hkKongs||{}).filter(v=>v==='open'||v==='closed').length;
+        if(k>=0&&k<=4&&n!==k){E.mode='meld';editorError='請確認 '+k+' 個槓及其明／暗狀態';render();return;}
+        if(typeof E.flags.menqing!=='boolean'){E.mode='meld';editorError='請確認門清狀態';render();return;}
+        const r=analyzeHK();
+        if(r&&!r.error&&r.needsSelect&&E.hkWin==null){E.mode='win';editorError='不同食糊牌影響番種，請補選';render();return;}
+        if(!E.self&&pending.length&&E.hkWin==null){E.mode='win';editorError='多響須指定同一張放炮牌';render();return;}
+        if(r&&r.error){editorError=r.error;render();return;}
+      }else if(E.win==null){E.mode='win';editorError='請先選食糊牌';render();return;}
+      if(!E.self&&E.win===34){E.mode='win';editorError='百搭不能作為放炮牌';render();return;}
+      editorError='';E.shapeDone=true;jumpToResults=true;setTab('calc');break;
+    }
+    case 'hkKong':setHKKong(+d.t,d.v);break;
+    case 'hkKongToggle':{
+      const t=+d.t;setHKKong(t,(E.hkKongs||{})[t]==='closed'?'open':'closed');break;
     }
     case 'startWinner':beginWinner(+d.p);break;
     case 'editPlayers':
@@ -1420,6 +1387,24 @@ function act(a,d){
       break; }
     case 'poolTap': {
       const t=+d.t, ac=allCounts();
+      if(E.mode==='flowers'||E.mode==='flags')return;
+      if(isHK()){
+        if(E.mode==='pick'){const i=E.all.indexOf(t);if(i>=0)E.all.splice(i,1);}
+        else if(E.mode==='meld'){
+          const v=(E.hkKongs||{})[t];setHKKong(t,v==='open'?'closed':v==='closed'?'none':'open');
+        }else if(E.mode==='win'){
+          const lock=pending.length&&pending[0].ron?pending[0].ron.winTile:null;
+          if(lock!=null&&t!==lock){editorError='須選共同放炮牌 '+tileName(lock);render();return;}
+          if((E.hkKongs||{})[t]==='open'||(E.hkKongs||{})[t]==='closed'){editorError='食糊牌不能在槓組內';render();return;}
+          E.hkWin=E.hkWin===t?null:t;
+        }
+        E.excl={};break;
+      }
+      if(E.mode==='win'){
+        const lock=pending.length&&pending[0].ron?pending[0].ron.winTile:null;
+        if(lock!=null&&t!==lock){editorError='須選共同放炮牌 '+tileName(lock);render();return;}
+        if(t===34&&!E.self){editorError='百搭只限自摸';render();return;}
+      }
       if(E.mode==='pick'){ const i=E.all.indexOf(t); if(i>=0) E.all.splice(i,1); E.excl={}; }
       else if(E.mode==='jmeld'){ const free=ac[t]-(E.marks[t]||0), cur=E.jsel[t]||0; if(cur<free) E.jsel[t]=cur+1; else delete E.jsel[t]; }
       else if(E.mode==='meld'){
@@ -1439,7 +1424,7 @@ function act(a,d){
       for(let i=E.all.length-1;i>=0;i--){ const t=E.all[i]; if((E.marks[t]||0)<tileCount(t)){ E.all.splice(i,1); break; } }
       if(!E.all.length) E.mode='pick';
       E.excl={}; break; }
-    case 'clearHand': E.wildGroups=[]; E.jsel={}; E.all=[]; E.marks=Array(34).fill(0); E.kongOpen={}; E.melds=[]; E.win=null; E.mode='pick'; E.excl={}; break;
+    case 'clearHand': E.wildGroups=[];E.jsel={};E.all=[];E.marks=Array(34).fill(0);E.kongOpen={};E.hkKongs={};E.hkWin=null;E.melds=[];E.win=null;E.mode='pick';E.excl={};break;
     case 'rmPending': { const idx=+d.i; if(Number.isInteger(idx)&&pending[idx]){ pending.splice(idx,1); toast('已移除'); } break; }
     case 'rmMeld': {
       const m=E.melds[+d.i];
@@ -1454,6 +1439,7 @@ function act(a,d){
     case 'hkWin': { if(!(pending.length&&pending[0].ron)) E.hkWin=(E.hkWin===+d.t)?null:+d.t; E.excl={}; break; }
     case 'clearEntry':if(hasEntryDraft()&&!confirm('放棄本局所有未記錄輸入（包括已加入的食糊者）？'))return;wildStop();wildDone=null;wildKey='';E=newEntry();pending=[];entryStep='pick';break;
     case 'addWinner': {
+      if(isHK()&&!E.self&&E.hkWin==null){E.shapeDone=false;E.mode='win';editorError='加入另一位前，先指定共同放炮牌';setTab('calc');render();return;}
       // 1. 先檢查已加入者
       {
         const pendRon = pending.map(w=>w.ron).filter(Boolean);
@@ -1481,7 +1467,7 @@ function act(a,d){
       const disc=E.disc; E=newEntry(); E.self=false; E.disc=disc;
       E.winner=null;entryStep='pick';window.scrollTo(0,0);toast(pending.length>=3?'已加入三位，請確認本局':'已加入，請選擇另一位食糊者或確認本局'); break; }
     case 'confirm': {
-      if(shapeEditorActive()){shapeError='先確定牌型，再填寫花牌及特殊情況';render();return;}
+      if(editorActive()){editorError='完成五段輸入後，先查看結果再確認記錄';render();return;}
       // 1. 先檢查已加入者完整性
       {
         const pendRon = pending.map(w=>w.ron).filter(Boolean);
@@ -1657,8 +1643,8 @@ function chg(k,el){
     case 'wildN': { const n=Math.floor(Number(v)); S.cfg.wildLimit=(n>=1&&n<=50)?n:S.cfg.wildLimit; break; }
     case 'wildMultN': { const n=Math.floor(Number(v)); S.cfg.wildMultN=(n>=1&&n<=100)?n:S.cfg.wildMultN; break; }
     case 'kongKeep': S.cfg.kongKeep[curPreset()]=(v==='1'); break;
-    case 'useSegment': S.cfg.useSegment=v==='1'; break;
-    case 'wizard': S.cfg.wizard=v==='1'; break;
+    case 'useSegment': S.cfg.useSegment=true; break;
+    case 'wizard': S.cfg.wizard=false; break;
     case 'largeFont': S.cfg.largeFont=v==='1'; break;
     case 'useShortAnim': S.cfg.useShortAnim=v==='1'; break;
     case 'adjv': { const n=Math.round(Number(v)); E.adjust=isNaN(n)?0:Math.max(-999,Math.min(999,n)); break; }
@@ -1815,9 +1801,9 @@ function hkHintHtml(){
   const N=E.all.length; if(!N) return '';
   const ac=allCounts(), out=[];
   if(N>14){
-    const k=N-14, quad=[]; for(let t=0;t<34;t++) if(ac[t]===4) quad.push(M.tName(t));
+    const k=N-14, quad=[]; for(let t=0;t<34;t++) if(ac[t]===4) quad.push(tileName(t));
     out.push('共 '+N+' 張牌,系統視為有 '+k+' 個槓'+(quad.length?'(四張相同:'+quad.join('、')+')':'')+'。');
-    if(N===15){ const opts=[]; for(let t=0;t<34;t++){ if(!ac[t]) continue; const c=ac.slice(); c[t]--; if(jiuziShape(c)) opts.push(M.tName(t)); } if(opts.length) out.push('若你其實是14張的九子連環,請刪走多出的一張('+opts.join('或')+'任一張):現在多了一張,系統因此當作有槓,而九子連環不能有槓。'); }
+    if(N===15){ const opts=[]; for(let t=0;t<34;t++){ if(!ac[t]) continue; const c=ac.slice(); c[t]--; if(jiuziShape(c)) opts.push(tileName(t)); } if(opts.length) out.push('若你其實是14張的九子連環,請刪走多出的一張('+opts.join('或')+'任一張):現在多了一張,系統因此當作有槓,而九子連環不能有槓。'); }
   }
   if(N===14&&jiuziShape(ac)){
     if(E.flags.menqing===false) out.push('牌形符合九子連環,但你選了「否(有上、碰、槓過)」。九子連環必須門前清,請改選「是」。');
@@ -1834,7 +1820,7 @@ function adjustUI(){
 function hkFlowerMode(){ return !!S.cfg.hk.flowers||E.flowers.some(Boolean); }
 function hkFlowerInput(){
   const fl=E.flowers,n=fl.filter(Boolean).length;
-  let h='<div class="zl">花牌 <small>(點選輸入,自動判斷;已輸入 '+n+' 張)</small></div>'+flowerButtonsHtml();
+  let h='<div class="zl">花牌 <small>(點選輸入,自動判斷;已輸入 '+n+' 張)</small></div><div class="flowers">'+M.FLOWERS.map((f,i)=>'<button class="fl '+(fl[i]?'on':'')+'" data-act="flower" data-i="'+i+'">'+f+'</button>').join('')+'</div>';
   h+='<div class="hint">'+hkFlowerSummary()+'</div>';
   return h;
 }
@@ -1945,7 +1931,7 @@ function wildHint(r){
   if(wildBusy) return h+'<div class="note">最高番搜尋中;可取消,不會把中途結果當成最優解。</div>';
   if(!r) return h+'<div class="hint">輸入完成後按「搜尋最高番」。</div>';
   if(r.error) return h+'<div class="warn">'+esc(r.error)+'</div>';
-  return h+'<div class="ok">完整搜尋完成:'+r.count+' 種代入及食糊牌組合;牌型最高 '+r.total+' 番。<br>手牌百搭代入:'+(r.replacements.map(t=>M.tName(t)).join('、')||'無')+(E.win===34?'<br>自摸百搭當作:'+M.tName(r.win):'')+'<br>聽牌種類(含可摸百搭):'+r.waits+'</div>';
+  return h+'<div class="ok">完整搜尋完成:'+r.count+' 種代入及食糊牌組合;牌型最高 '+r.total+' 番。<br>手牌百搭代入:'+(r.replacements.map(t=>tileName(t)).join('、')||'無')+(E.win===34?'<br>自摸百搭當作:'+tileName(r.win):'')+'<br>聽牌種類(含可摸百搭):'+r.waits+'</div>';
 }
 
 
@@ -2091,15 +2077,15 @@ function checkRonSet(ws,{allowPartial=false}={}){
   const out=[],def=[...new Set(ws.map(w=>w.winTile).filter(t=>t!=null))];
   const unknown=ws.filter(w=>w.winTile==null),common=getLockedCommon(ws),tot=Array(35).fill(0);
   ws.forEach(w=>w.phys.forEach((n,t)=>{tot[t]+=n;}));
-  if(def.length>1)out.push('放炮牌必須相同,但目前有 '+def.map(t=>M.tName(t)).join('、'));
+  if(def.length>1)out.push('放炮牌必須相同,但目前有 '+def.map(t=>tileName(t)).join('、'));
   if(def.includes(34))out.push('百搭不能作為放炮牌');
   if(!allowPartial&&unknown.length)out.push('雙響／三響:每位食糊者都要指定同一張放炮牌');
   if(common!=null&&common<34){
     const c=tot.slice();let missing=false;
     unknown.forEach(w=>{if((w.phys[common]||0)>0)c[common]--;else missing=true;});c[common]++;
-    for(let t=0;t<34;t++)if(c[t]>4)out.push(M.tName(t)+' 合計'+(t===common?'至少 ':' ')+c[t]+' 張'+(t===common?'（已計共同放炮牌）':''));
-    if(missing)out.push('尚未輸入共同放炮牌「'+M.tName(common)+'」／牌數待確認');
-    else if(allowPartial&&unknown.length)out.push('牌數待確認：請指定共同放炮牌「'+M.tName(common)+'」');
+    for(let t=0;t<34;t++)if(c[t]>4)out.push(tileName(t)+' 合計'+(t===common?'至少 ':' ')+c[t]+' 張'+(t===common?'（已計共同放炮牌）':''));
+    if(missing)out.push('尚未輸入共同放炮牌「'+tileName(common)+'」／牌數待確認');
+    else if(allowPartial&&unknown.length)out.push('牌數待確認：請指定共同放炮牌「'+tileName(common)+'」');
   }else if(def.length===0){
     let possible=false;
     for(let t=0;t<34;t++){
@@ -2114,10 +2100,10 @@ function checkRonSet(ws,{allowPartial=false}={}){
   return [...new Set(out)];
 }
 function checkFinalTiles(ws){
-  if(ws.length===1&&ws[0].self){
+  if(ws.length===1&&(ws[0].self||(isHK()&&ws[0].ron&&ws[0].ron.winTile==null))){
     const r=ws[0].ron;if(!r)return ['缺少牌型資料，請重新輸入'];
     const c=r.phys.slice(),out=[];if(r.winTile!=null&&r.winTile<34)c[r.winTile]++;
-    for(let t=0;t<34;t++)if(c[t]>4)out.push(M.tName(t)+' 合計 '+c[t]+' 張');
+    for(let t=0;t<34;t++)if(c[t]>4)out.push(tileName(t)+' 合計 '+c[t]+' 張');
     if(isWild()&&c[34]>S.cfg.wildLimit)out.push('百搭超過本場上限');return out;
   }
   return checkRonSet(ws.map(w=>w.ron),{allowPartial:false});
@@ -2157,10 +2143,12 @@ function validateCurrentEntry(){
   if(!r||r.error||!r.items||(isWild()&&!r.complete)){
     toast(r&&r.error?r.error:(isWild()?'請先完成百搭最高番搜尋':'請先完成有效的食糊牌型'));return false;
   }
+  if(isHK()&&(typeof E.flags.menqing!=='boolean'||Object.values(E.hkKongs||{}).filter(v=>v==='open'||v==='closed').length!==E.all.length-14)){toast('請修改輸入，確認槓組及門清狀態');return false;}
+  if(isHK()&&r.needsSelect&&E.hkWin==null){toast('不同食糊牌影響番種，請修改輸入並補選食糊牌');return false;}
   if(!E.self){
     if(E.disc==null){toast('請選擇出銃者(放槍)');return false;}
     if(E.disc===E.winner){toast('出銃者不能是食糊者');return false;}
-    if(curWinTile()==null){toast(isHK()?'請先指定放炮牌':'請先指定食糊牌(即放炮牌)');return false;}
+    if(curWinTile()==null&&(!isHK()||pending.length)){toast(isHK()?'多響須先指定共同放炮牌':'請先指定食糊牌(即放炮牌)');return false;}
     if(curWinTile()===34){toast('百搭不能作為放炮牌');return false;}
   }
   return true;
@@ -2171,7 +2159,7 @@ function hkWinPicker(){
   const lock=(pending.length&&pending[0].ron)?pending[0].ron.winTile:null;
   const uniq=Array.from(new Set(E.all)).sort((a,b)=>a-b);
   let h='<div class="card askcard"><div class="zl" style="margin-top:0">放炮牌 <small>'+(lock!=null?'(雙響／三響:須與上一位相同)':'(選填;雙響／三響必須指定)')+'</small></div>';
-  if(lock!=null) h+=E.all.includes(lock)?'<div class="tiles">'+mt(lock)+'</div>':'<div class="warn">你的牌裡沒有 '+esc(M.tName(lock))+',不能同時食這張放炮牌</div>';
+  if(lock!=null) h+=E.all.includes(lock)?'<div class="tiles">'+mt(lock)+'</div>':'<div class="warn">你的牌裡沒有 '+esc(tileName(lock))+',不能同時食這張放炮牌</div>';
   else h+='<div class="tiles">'+(uniq.length?uniq.map(t=>mt(t,{tag:'button',cls:E.hkWin===t?'mark':'',attrs:'data-act="hkWin" data-t="'+t+'"'})).join(''):'<span class="hint">先輸入牌</span>')+'</div>';
   return h+'</div>';
 }
@@ -2188,8 +2176,8 @@ document.addEventListener('click',e=>{
   if(Date.now()-lastTouchAct<700) return;
   const el=e.target.closest('[data-act]'); if(el) act(el.dataset.act,el.dataset);
 });
-window.addEventListener('resize',fitShapeEditor);
-if(window.visualViewport){window.visualViewport.addEventListener('resize',fitShapeEditor);window.visualViewport.addEventListener('scroll',fitShapeEditor);}
+window.addEventListener('resize',fitEditor);
+if(window.visualViewport){window.visualViewport.addEventListener('resize',fitEditor);window.visualViewport.addEventListener('scroll',fitEditor);}
 document.addEventListener('focusin',e=>{if(isNameField(e.target))nameFieldFocus(e.target);});
 document.addEventListener('focusout',e=>{if(isNameField(e.target))settleNameField(e.target);});
 document.addEventListener('keydown',e=>{
