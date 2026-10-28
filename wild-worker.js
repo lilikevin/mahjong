@@ -1,5 +1,5 @@
 /* Local scoring only: no AI or cloud service is called. */
-importScripts('engine_wild.js');
+importScripts('mj-core.js','engine_wild.js');
 let ready,ENGINE;
 async function loadEngines(){
  for(const file of ['engine.js','engine2.js','engine4.js']){

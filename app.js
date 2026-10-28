@@ -1,6 +1,6 @@
 (function(){
 'use strict';
-const APP_VERSION='v1.3';
+const APP_VERSION='v1.3.1';
 const DEV_IG='kevinli999';
 let M=window.MJ;
 const KEY='mj_hk_tw_v1';
@@ -80,7 +80,7 @@ const save=()=>{ try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){ cons
 const newEntry=()=>({winner:null,self:true,disc:null,all:[],wildGroups:[],jsel:{},adjust:0,pickRep:null,marks:Array(34).fill(0),kongOpen:{},melds:[],hand:[],win:null,partBad:false,mode:'pick',flowers:Array(8).fill(false),flags:{},excl:{},extra:[],bao:null});
 let E=newEntry(), pending=[], tab='table', wildPick=false;
 let inst={id:null,mode:'one',payee:null,payer:null,mult:1};
-let upd=null, updDismissed=false, checking=false, a2hsHidden=false, buildInfo=null, storyImg=null;
+let upd=null, updDismissed=false, checking=false, a2hsHidden=false, buildInfo=null, storyImg=null, ruleHelp=false;
 const esc=s=>String(s).replace(/[&<>"'`]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;','`':'&#96;'}[c]));
 const seatOf=p=>S.seat.indexOf(p);
 const dealerPid=()=>S.seat[S.dealerSeat];
@@ -455,15 +455,16 @@ function viewChooser(){
   h+='<button data-act="game" data-v="wild">港式台牌（通用百搭）<small>16張；開局選百搭數量，自動搜尋最高番</small></button>';
   if(wildPick){
     const c=S.cfg, onoff=k=>'<div class="seg"><button style="padding:12px 4px;margin:0;text-align:center" class="'+(!c[k]?'on':'')+'" data-act="wildOpt" data-k="'+k+'" data-v="0">關</button><button style="padding:12px 4px;margin:0;text-align:center" class="'+(c[k]?'on':'')+'" data-act="wildOpt" data-k="'+k+'" data-v="1">開</button></div>';
-    h+='<div class="card askcard"><div class="zl" style="margin-top:0">百搭可用於上／碰／槓(預設關:百搭只可在自己手牌內當牌)</div>'+onoff('wildMeld')
+    h+='<div class="card askcard"><div class="zl" style="margin-top:0">百搭可用於明牌</div>'+onoff('wildMeld')
       +'<div class="zl">冇用百搭，全部番數加倍</div>'+onoff('wildNoMult')
-      +'<label>倍數(乘全部番數,包括底、莊家及連莊)<input type="number" min="1" max="100" step="1" data-chg="wildMultN" value="'+c.wildMultN+'"></label>'
-      +'<div class="zl">本場牌組加入幾張通用百搭？(整副牌的數量，不是你手持的張數)</div><div class="seg">'+[2,4,6,8,16].map(n=>'<button style="text-align:center;padding:14px 2px;margin:0" class="'+(c.wildLimit===n?'on':'')+'" data-act="game" data-v="wild" data-n="'+n+'">'+n+'</button>').join('')+'</div>'
+      +'<label>倍數<input type="number" min="1" max="100" step="1" data-chg="wildMultN" value="'+c.wildMultN+'"></label>'
+      +'<div class="zl">本場加入幾張百搭？</div><div class="seg">'+[2,4,6,8,16].map(n=>'<button style="text-align:center;padding:14px 2px;margin:0" class="'+(c.wildLimit===n?'on':'')+'" data-act="game" data-v="wild" data-n="'+n+'">'+n+'</button>').join('')+'</div>'
       +'<div class="grid2" style="margin-top:8px"><label>自訂數量(1至50)<input type="number" min="1" max="50" step="1" data-chg="wildN" value="'+c.wildLimit+'"></label><button class="primary" style="margin-top:18px;text-align:center" data-act="game" data-v="wild" data-n="'+c.wildLimit+'">用 '+c.wildLimit+' 張開始</button></div>'
-      +'<div class="hint">百搭愈多，搜尋最高番愈慢；16張以上可能要等較久。</div></div>';
+      +'<div class="hint">百搭可用於明牌:預設關,百搭只可在自己手牌內當牌。倍數會乘全部番數(含底、莊家及連莊)。數量是整副牌加入的張數,不是你手持的張數;愈多搜尋愈慢。</div></div>';
   }
   h+='<button data-act="game" data-v="hk">廣東牌（13張）<small>四組面子加一對眼，三番起糊，10番封頂，二五雞・半辣上等計分表；可輸入花牌自動判斷</small></button>';
   if(!window.MJHK) h+='<div class="warn">未能載入廣東牌檔案(engine_hk.js),請確認已上傳。</div>';
+  if(!window.MJCORE) h+='<div class="warn">未能載入共用檔案(mj-core.js),計番可能失敗,請確認已上傳並已加入 index.html。</div>';
   if(S.game) h+='<div class="btnrow"><button data-act="tab" data-v="table" style="text-align:center;font-size:15px">返回目前牌局(現為'+gameLabel(S.game)+')</button></div>';
   h+='<div class="dev" style="text-align:center">'+APP_VERSION+' · 開發者:Instagram <a href="https://www.instagram.com/'+DEV_IG+'/" target="_blank" rel="noopener">@'+DEV_IG+'</a></div></div>';
   return h;
@@ -471,19 +472,19 @@ function viewChooser(){
 function viewTable(){
   const b=balances();
   const card=s=>{ const p=S.seat[s]; return '<div class="card seat '+(s===S.dealerSeat?'dealer':'')+'"><div class="sw">'+WIND[s]+'</div><div class="pn" data-act="rename" data-p="'+p+'">'+nm(p)+'</div><div class="mini">門風 '+windOf(p)+(s===S.dealerSeat?' · 莊':'')+'</div><div class="bal '+(b[p]>=0?'pos':'neg')+'">'+money(b[p])+'</div></div>'; };
-  let h='<div class="status">'+WIND[S.wind]+'風圈 · 莊家 '+nm(dealerPid())+' · 連莊 '+S.streak+' 次'+(isHK()?'':'(莊家加 '+(1+2*S.streak)+' 番)')+'</div>';
+  let h='<div class="status">'+WIND[S.wind]+'風圈 · 莊家 '+nm(dealerPid())+' · 連莊 '+S.streak+' 次'+(isHK()?'':'(莊家加 '+(1+2*S.streak)+' 番)')+'<br><small>'+esc(gameName())+'</small></div>';
   h+='<div class="cross"><div></div>'+card(3)+'<div></div>'+card(2)+'<div class="center">座位<br><small>(實際位置)</small></div>'+card(0)+'<div></div>'+card(1)+'<div></div></div>';
-  h+='<p class="hint">格內金額為已收付的現金淨額。'+(isHK()?'食糊莊家連莊(可在設定關閉),流局莊家輪替。':'連莊與換莊會依食糊結果自動計算,流局不增加連莊數。')+'目前玩法:'+gameName()+'</p>';
+  h+='<p class="hint">格內金額為已收付淨額。</p>';
   if(!isHK()) h+='<h3>未結算的拉</h3>'+ledgerHtml(true);
   h+='<h3>座位安排</h3><div class="grid2">';
   for(let s=0;s<4;s++){ h+='<label>'+WIND[s]+'位<select data-chg="seat" data-s="'+s+'">'+[0,1,2,3].map(p=>'<option value="'+p+'"'+(S.seat[s]===p?' selected':'')+'>'+nm(p)+'</option>').join('')+'</select></label>'; }
-  h+='</div><p class="hint">點玩家名稱可改名。換座位時會自動與原本坐該位置的人對調。</p>';
-  h+='<h3>開局設定</h3><div class="grid2">';
+  h+='</div><p class="hint">點玩家名稱可改名。換位自動對調。</p>';
+  h+='<h3>開局設定 <small data-act="ruleHelp" style="cursor:pointer;padding:0 6px">❓</small></h3>'+(ruleHelp?'<div class="hint">'+(isHK()?'食糊莊家連莊(可在設定關閉),流局莊家輪替。':'連莊與換莊依食糊結果自動計算,流局不增加連莊數。')+'</div>':'')+'<div class="grid2">';
   h+='<label>莊家座位<select data-chg="dealerSeat">'+[0,1,2,3].map(s=>'<option value="'+s+'"'+(S.dealerSeat===s?' selected':'')+'>'+WIND[s]+'位 '+nm(S.seat[s])+'</option>').join('')+'</select></label>';
   h+='<label>風圈<select data-chg="wind">'+[0,1,2,3].map(s=>'<option value="'+s+'"'+(S.wind===s?' selected':'')+'>'+WIND[s]+'風圈</option>').join('')+'</select></label>';
   h+='<div class="stepper">連莊次數(自動,必要時手動修正)<button data-act="streak" data-d="-1">−</button><b>'+S.streak+'</b><button data-act="streak" data-d="1">＋</button></div></div>';
   h+='<div class="btnrow"><button class="primary" data-act="tab" data-v="calc">開始算番</button><button data-act="draw">流局</button></div>';
-  h+='<h3>牌局管理</h3><div class="btnrow"><button class="danger" data-act="newGame">開始全新局</button>'+(hasPrev()?'<button data-act="restoreGame">還原上一場牌局</button>':'')+'</div><p class="hint">全新局會清空所有紀錄、未結算的拉、連莊與風圈,並由東風圈、東位坐莊重新開始。玩家名稱、座位與設定會保留。清空前會自動保存上一場,可用「還原上一場牌局」找回。</p>';
+  h+='<h3>牌局管理</h3><div class="btnrow"><button class="danger" data-act="newGame">開始全新局</button>'+(hasPrev()?'<button data-act="restoreGame">還原上一場牌局</button>':'')+'</div><p class="hint">清空紀錄、拉數、連莊。名稱設定保留,已自動備份上一場。</p>';
   return h;
 }
 function baoVisible(){
@@ -494,10 +495,10 @@ function baoVisible(){
 function inputSection(){
   if(isHK()) return inputSectionHK();
   const md=E.mode, w=isWild();
-  const tip=md==='pick'?'選牌:點上方牌盤加牌'+(w?'(百搭用「百搭」鍵)':'')+',點牌堆裡的牌可刪除。選齊後,點下面「明牌」框的空白處。'
-    :(md==='meld'?'選明牌:點牌堆裡已上(吃)、碰、槓出來的牌(再點可取消)。沒有明牌就直接點「食糊牌」框的空白處。'
-    :(md==='jmeld'?'選含百搭的明牌:點牌堆選3或4張(可含百搭),再按下面的上／碰／槓。'
-    :'選食糊牌:點牌堆裡最後食糊(胡牌)的那一張,再點一次可取消。'));
+  const tip=md==='pick'?'① 點牌盤入牌堆 ② 點牌堆刪牌 ③ 點「明牌」框空白,進入下一步'
+    :(md==='meld'?'① 點牌堆標明牌 ② 再點取消 ③ 點「食糊牌」框空白,進入下一步'
+    :(md==='jmeld'?'① 點牌堆選3或4張 ② 再點取消 ③ 按下面上／碰／槓'
+    :'① 點牌堆指食糊牌 ② 再點取消 ③ 往下加花牌與特殊情況'));
   let h='<h3>① 輸入牌型</h3>';
   h+='<div class="modebar">'+tip+'</div>';
   h+=palette();
@@ -643,7 +644,7 @@ function viewSettle(){
   if(!isHK()) h+='<h3>未結算的拉</h3>'+ledgerHtml(false);
   h+='<h3>建議轉帳'+(isHK()?'':'(未結拉數按全額計)')+'</h3>';
   h+=tr.length?tr.map(x=>'<div class="tr">'+nm(x.from)+' → '+nm(x.to)+' <b>$'+x.amt+'</b></div>').join(''):'<p class="hint">目前無需轉帳</p>';
-  h+='<div class="btnrow"><button class="primary" data-act="copySum">複製結算文字</button><button class="primary" data-act="shareStory">分享去 IG Story</button>'+((!isHK()&&S.ledger.length)?'<button data-act="payAll">結清全部拉數</button>':'')+'</div><div class="hint">分享圖只列每人輸贏,並附網頁二維碼。手機會彈出分享選單;不支援時會顯示圖片,請長按儲存。</div>';
+  h+='<div class="btnrow"><button class="primary" data-act="copySum">複製結算文字</button><button class="primary" data-act="shareStory">分享去 IG Story</button>'+((!isHK()&&S.ledger.length)?'<button data-act="payAll">結清全部拉數</button>':'')+'</div><div class="hint">分享圖含輸贏及二維碼,不支援時長按儲存。</div>';
   if(storyImg) h+='<div class="modal" data-act="closeStory"><div class="mbox" data-act="noop"><img src="'+storyImg+'" alt="結算圖" style="width:100%;border-radius:10px"><div class="hint" style="color:#fff;font-size:14px">長按圖片儲存,再到 Instagram 限動上傳。</div><div class="btnrow"><button class="primary" data-act="closeStory">關閉</button></div></div></div>';
   return h;
 }
@@ -671,7 +672,7 @@ function viewSettings(){
   const c=S.cfg;
   let h='<h3>版本資訊</h3><div class="card"><div>目前版本:<b>'+APP_VERSION+'</b></div>'+(buildInfo?'<div>更新時間:<b>'+esc(buildInfo)+'</b></div>':'')+''+(upd?'<div class="pos">最新版本:<b>'+esc(upd.version)+'</b>'+(upd.updated?'('+esc(upd.updated)+')':'')+'</div>':'')+'<div class="dev">開發者:Instagram <a href="https://www.instagram.com/'+DEV_IG+'/" target="_blank" rel="noopener">@'+DEV_IG+'</a></div><div class="btnrow">'+(upd?'<button class="primary" data-act="upgrade">立即升級</button>':'')+'<button data-act="checkUpd">'+(checking?'檢查中…':'檢查更新')+'</button></div><div class="hint">App 開啟時會自動檢查。升級只會更新程式,不會清除你的紀錄。</div></div>';
   h+='<h3>玩法</h3><div class="card"><div>目前玩法:<b>'+gameLabel(S.game)+'</b></div><div class="btnrow"><button data-act="toChooser">更換玩法</button></div></div>';
-  if(isWild()) h+='<h3>百搭設定</h3><div class="card"><div class="note">本場牌組加 '+S.cfg.wildLimit+' 張通用百搭;要改數量,請到「更換玩法」重新選擇。百搭可代34種非花牌,真白板仍是白板;代入後同款牌連明牌最多4張;不額外加百搭番。</div><div class="zl">百搭可用於上／碰／槓</div><div class="seg"><button class="'+(!S.cfg.wildMeld?'on':'')+'" data-act="wildOpt" data-k="wildMeld" data-v="0">關</button><button class="'+(S.cfg.wildMeld?'on':'')+'" data-act="wildOpt" data-k="wildMeld" data-v="1">開</button></div><div class="zl">冇用百搭,全部番數加倍</div><div class="seg"><button class="'+(!S.cfg.wildNoMult?'on':'')+'" data-act="wildOpt" data-k="wildNoMult" data-v="0">關</button><button class="'+(S.cfg.wildNoMult?'on':'')+'" data-act="wildOpt" data-k="wildNoMult" data-v="1">開</button></div><label>倍數(乘全部番數,包括底、莊家及連莊)<input type="number" min="1" max="100" step="1" data-chg="wildMultN" value="'+S.cfg.wildMultN+'"></label></div>';
+  if(isWild()) h+='<h3>百搭設定</h3><div class="card"><div class="note">本場加 '+S.cfg.wildLimit+' 張通用百搭;要改數量,請到「更換玩法」重新選擇。百搭可代34種非花牌,真白板仍是白板;代入後同款牌連明牌最多4張;不額外加百搭番。</div><div class="zl">百搭可用於明牌</div><div class="seg"><button class="'+(!S.cfg.wildMeld?'on':'')+'" data-act="wildOpt" data-k="wildMeld" data-v="0">關</button><button class="'+(S.cfg.wildMeld?'on':'')+'" data-act="wildOpt" data-k="wildMeld" data-v="1">開</button></div><div class="zl">冇用百搭,全部番數加倍</div><div class="seg"><button class="'+(!S.cfg.wildNoMult?'on':'')+'" data-act="wildOpt" data-k="wildNoMult" data-v="0">關</button><button class="'+(S.cfg.wildNoMult?'on':'')+'" data-act="wildOpt" data-k="wildNoMult" data-v="1">開</button></div><label>倍數<input type="number" min="1" max="100" step="1" data-chg="wildMultN" value="'+S.cfg.wildMultN+'"></label></div>';
   if(isHK()) h+=hkSettings();
   else {
     h+='<h3>番表預設</h3><div class="presetbtns">'
@@ -746,6 +747,7 @@ function act(a,d){
   switch(a){
     case 'tab': tab=d.v; break;
     case 'toChooser': tab='chooser'; wildPick=false; break;
+    case 'ruleHelp': ruleHelp=!ruleHelp; break;
     case 'menqing': E.flags.menqing=(d.v==='1'); E.excl={}; break;
     case 'game': {
       const v=d.v;

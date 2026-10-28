@@ -30,23 +30,7 @@ function buildRules(over){
   return R;
 }
 function valueOf(R,it){ const r=R[it.id]; if(!r) return 0; return r.fan*(it.n===undefined?1:it.n); }
-function decompose(cnt,nSets){
-  const res=[];
-  for(let p=0;p<34;p++){
-    if(cnt[p]<2) continue;
-    cnt[p]-=2;
-    const sets=[];
-    (function rec(){
-      let i=0; while(i<34&&cnt[i]===0) i++;
-      if(i===34){ if(sets.length===nSets) res.push({pair:p,sets:sets.map(s=>({t:s.t,tile:s.tile}))}); return; }
-      if(sets.length>=nSets) return;
-      if(cnt[i]>=3){ cnt[i]-=3; sets.push({t:'pung',tile:i}); rec(); sets.pop(); cnt[i]+=3; }
-      if(i<27&&numOf(i)<=7&&cnt[i+1]>0&&cnt[i+2]>0){ cnt[i]--;cnt[i+1]--;cnt[i+2]--; sets.push({t:'chow',tile:i}); rec(); sets.pop(); cnt[i]++;cnt[i+1]++;cnt[i+2]++; }
-    })();
-    cnt[p]+=2;
-  }
-  return res;
-}
+function decompose(cnt,nSets){ return MJCORE.decompose(cnt,nSets); }
 function isShisan(cnt){
   if(!YAO.every(t=>cnt[t]>=1)) return false;
   let tot=0,dbl=0;
