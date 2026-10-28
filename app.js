@@ -158,7 +158,7 @@ pickM();
 if(!window.MJ4){ try{ const sc=document.createElement('script'); sc.src='engine4.js'; sc.onload=()=>{ pickM(); render(); }; document.head.appendChild(sc); }catch(e){} }
 let lastSaveWarn=0;
 const save=()=>{ finalizeFinancialSnapshots(); try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){ const t=Date.now(); if(t-lastSaveWarn>8000){ lastSaveWarn=t; toast('儲存失敗(記憶體可能已滿)。請到「設定」匯出備份'); } } try{ saveDraft(); }catch(e){} };
-const newEntry=()=>({winner:null,self:true,disc:null,hkWin:null,all:[],wildGroups:[],jsel:{},adjust:0,pickRep:null,marks:Array(34).fill(0),kongOpen:{},melds:[],hand:[],win:null,partBad:false,mode:'pick',flowers:Array(8).fill(false),flags:{},excl:{},extra:[],bao:null});
+const newEntry=()=>({shapeDone:false,winner:null,self:true,disc:null,hkWin:null,all:[],wildGroups:[],jsel:{},adjust:0,pickRep:null,marks:Array(34).fill(0),kongOpen:{},melds:[],hand:[],win:null,partBad:false,mode:'pick',flowers:Array(8).fill(false),flags:{},excl:{},extra:[],bao:null});
 let _savedTab=null; try{ _savedTab=localStorage.getItem('mj_tab'); }catch(e){}
 let E=newEntry(), pending=[], tab=(_savedTab && ['chooser','players','calc','table','history','settings'].includes(_savedTab) ? _savedTab : (S.game? 'table' : 'chooser')), wildPick=false;
 let inst={id:null,mode:'one',payee:null,payer:null,mult:1};
@@ -304,30 +304,60 @@ button, .t, .mt, [data-act], select{ min-height:44px; min-width:44px; }
 .oled-contrast .t{ border:1px solid #444 !important; }
 .progress{ height:6px; background:var(--bd); border-radius:3px; overflow:hidden; }
 .progress i{ display:block; height:100%; background:var(--acc); transition: width 200ms; }
-/* 1.5 mobile consistency: one tile size per grid, no layout scaling */
-.pal{display:flex;flex-direction:column;gap:6px;margin:8px 0}
-.pal .row{display:grid!important;grid-template-columns:repeat(9,minmax(0,1fr));gap:4px;align-items:stretch}
-.pal .row .t{width:auto!important;min-width:0!important;min-height:48px;margin:0!important;padding:6px 0!important;flex:none!important;font-size:15px;line-height:1.1}
-.pile .tiles{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:6px}
-.pile .mt{position:relative;width:100%;min-width:0;height:auto;min-height:58px;aspect-ratio:3/4;margin:0;transform:none}
-.pile .mt b{font-size:22px}.pile .mt.hon b{font-size:26px}
-.pile .mt.mk2{transform:none;background:#cfe9d6!important}
-.pile .mt.mark{outline-offset:-3px}
-.bdg{position:absolute;top:-6px;right:-4px;z-index:2;font-style:normal;font-size:11px;line-height:1;font-weight:700;background:var(--acc);color:var(--onacc);border-radius:8px;padding:3px 5px;box-shadow:0 1px 3px #0008}
-.mg .mt,.prev .mt,.stl .mt{min-width:0;min-height:0}
-.btnrow{flex-wrap:wrap}
-.adjrow{display:flex;gap:6px}
-.adjrow input{flex:1 1 100%;order:-1;min-width:0;text-align:center}
+/* Responsive tile geometry and flower rows; does not change scoring. */
+.flower-host{container-type:inline-size;container-name:flowerbuttons;max-width:100%}
+.flower-host .flower-grid{display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;width:100%}
+.flower-host .flower-grid .fl{box-sizing:border-box;min-width:0!important;width:100%!important;min-height:44px;margin:0!important;flex:none!important;padding:8px 2px}
+@container flowerbuttons (min-width:440px){.flower-host .flower-grid{grid-template-columns:repeat(8,minmax(0,1fr))}}
+.pal{display:flex;flex-direction:column;gap:6px;margin:8px 0;max-width:100%}
+.pal>.row{display:grid!important;grid-template-columns:repeat(9,minmax(0,1fr));gap:4px;width:100%}
+.pal>.row>.t{box-sizing:border-box;width:100%!important;min-width:0!important;min-height:44px;margin:0!important;padding:6px 0!important;flex:none!important;font-size:15px;line-height:1.1}
+.stable-pile{max-width:650px;margin-left:auto;margin-right:auto}
+.stable-pile .stable-grid{display:grid!important;grid-template-columns:repeat(6,minmax(0,1fr));grid-auto-rows:64px;gap:6px;max-width:100%}
+.stable-grid>.mt,.stable-grid>.tile-slot{box-sizing:border-box;position:relative;width:100%!important;min-width:0!important;height:64px!important;min-height:0!important;margin:0!important;flex:none!important;transform:none!important;animation:none!important}
+.tile-slot{border:1px dashed var(--bd);border-radius:5px;opacity:.24;background:transparent}
+.tile-badge{position:absolute;top:-4px;right:-4px;z-index:2;font-style:normal;font-size:10px;line-height:1;background:var(--acc);color:var(--onacc);border-radius:9px;padding:3px 5px;pointer-events:none}
+@media(min-width:700px){.stable-pile .stable-grid{grid-template-columns:repeat(9,minmax(0,1fr))}}
+.body .grid2{grid-template-columns:repeat(2,minmax(0,1fr))}
+.body .grid2>*{min-width:0}
+.body .grid2 input:not([type=checkbox]),.body .grid2 select{box-sizing:border-box;max-width:100%;min-width:0;width:100%}
+.body .btnrow{flex-wrap:wrap}
+.adjrow input{box-sizing:border-box;flex:1 1 100%!important;order:-1;min-width:0!important;text-align:center}
 .adjrow button{flex:1 1 44px;min-width:44px}
-.sticky-footer{bottom:var(--navh,0px)}
-html{scroll-padding-bottom:calc(var(--navh,0px) + 190px)}
-.sticky-footer .segmode{display:flex;gap:6px;margin:0 0 6px}
-.sticky-footer .segmode button{flex:1;min-height:46px;padding:8px 2px;font-size:15px}
-.modehint{height:34px;line-height:17px;font-size:13px;margin:0 0 6px;overflow:hidden;opacity:.9}
-@keyframes tilePop{0%{transform:scale(1)}45%{transform:scale(1.08)}100%{transform:scale(1)}}
-.t.selected,.mt.selected{transform:none;animation:tilePop 160ms cubic-bezier(.2,0,0,1)}
-.no-anim .t.selected,.no-anim .mt.selected{animation:none!important}
-@media (prefers-reduced-motion: reduce){.t.selected,.mt.selected{animation:none!important}}
+.shape-editing{overflow:hidden!important;overscroll-behavior:none}
+.shape-screen,.shape-screen *{box-sizing:border-box}
+.shape-screen{position:fixed;left:0;right:0;top:0;width:100%;height:var(--shape-height,100vh);z-index:30;display:flex;flex-direction:column;overflow:hidden;background:var(--bg);color:inherit;padding-bottom:env(safe-area-inset-bottom,0px)}
+.shape-head{display:flex;align-items:center;justify-content:space-between;gap:8px;flex:none;min-height:44px;padding:4px 10px;border-bottom:1px solid var(--bd);font-size:15px}
+.shape-head>div{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.shape-head button{min-height:36px;min-width:70px;flex:none;padding:6px 8px;font-size:14px}
+.shape-main{display:flex;flex-direction:column;gap:6px;flex:1;min-height:0;padding:6px 12px;overflow:auto;overscroll-behavior:contain}
+.shape-stats{flex:none;height:24px;line-height:24px;font-size:13px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;color:var(--acc)}
+.shape-pile{flex:none;height:calc(var(--shape-rows,3)*var(--shape-tile-h,58px) + (var(--shape-rows,3) - 1)*6px);overflow:auto;overscroll-behavior:contain;padding:0 4px}
+.shape-grid{display:grid;grid-template-columns:repeat(var(--shape-cols,6),var(--shape-tile-w,44px));grid-auto-rows:var(--shape-tile-h,58px);justify-content:center;gap:6px;width:100%;padding:0}
+.shape-grid>.mt,.shape-grid>.tile-slot{position:relative;width:var(--shape-tile-w,44px)!important;min-width:0!important;max-width:none!important;height:var(--shape-tile-h,58px)!important;min-height:0!important;max-height:none!important;margin:0!important;padding:0!important;flex:none!important;transform:none!important;transition:none!important;animation:none!important;touch-action:manipulation}
+.shape-grid>.mt b{font-size:21px}.shape-grid>.mt i{font-size:11px}.shape-grid>.mt.hon b{font-size:24px}
+.shape-grid>.mt.mk2{transform:none!important;background:#cfe9d6!important}
+.shape-grid>.mt.mark{outline-offset:-3px}.shape-grid>.mt:disabled{opacity:.42}
+.shape-tools{flex:none;display:flex;gap:6px;height:34px}
+.shape-tools button{flex:1;min-height:34px;padding:5px 8px;font-size:14px}
+.shape-stage{flex:1;min-height:192px;overflow:auto;overscroll-behavior:contain;display:flex;align-items:center;justify-content:center}
+.shape-stage>.pal{width:100%;max-width:620px;margin:0 auto}
+.shape-stage .pal>.row>.t{height:42px;min-height:42px!important;max-height:42px;font-size:14px;border-radius:6px}
+.shape-stage .pal .s0{color:#a0201a}.shape-stage .pal .s1{color:#1c4fa0}.shape-stage .pal .s2{color:#1a7a3a}.shape-stage .pal .s3{color:#222}
+.shape-stage .pal .t{background:#f7f3e3!important}
+.shape-group-tools{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:6px;width:100%;font-size:14px}
+.shape-group-tools button{min-height:36px;padding:6px;font-size:14px}
+.shape-choices{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.shape-win-status{font-size:14px;line-height:1.5;text-align:center;padding:6px}
+.shape-footer{flex:none;background:var(--card);border-top:1px solid var(--bd);padding:6px 10px 8px}
+.shape-segments{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+.shape-segments button{min-width:0!important;min-height:44px;padding:7px 1px;font-size:14px;line-height:1.15;white-space:nowrap}
+.shape-segments button.on:after{content:''}
+.shape-hint{height:32px;line-height:16px;padding:2px 0;font-size:12px;overflow:hidden}
+.shape-finish{display:grid;grid-template-columns:1fr 2fr;gap:6px}
+.shape-finish button{min-width:0!important;min-height:44px;padding:7px 3px;font-size:14px}
+.shape-reviewed{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.shape-reviewed button{flex:none}
 `+
 `
 body{background:var(--bg)!important}
@@ -371,7 +401,7 @@ function mt(t,o){
   if(t===34){o=o||{};const tag=o.tag||'span';return '<'+tag+' '+(o.attrs||'')+' class="mt '+(o.cls||'')+'" style="color:#8b2670"><b>百</b><i>搭</i></'+tag+'>';}
   o=o||{}; const tag=o.tag||'span';
   const at=(o.attrs||'')+' class="mt '+(t<27?'s'+M.suitOf(t):'hon h'+(t-27))+(o.back?' back':'')+(o.cls?' '+o.cls:'')+'"';
-  const inner=(t<27?'<b>'+NUMCH[M.numOf(t)]+'</b><i>'+M.SUITS[M.suitOf(t)]+'</i>':'<b>'+M.tName(t)+'</b>')+(o.badge?'<em class="bdg">'+esc(o.badge)+'</em>':'');
+  const inner=(t<27?'<b>'+NUMCH[M.numOf(t)]+'</b><i>'+M.SUITS[M.suitOf(t)]+'</i>':'<b>'+M.tName(t)+'</b>')+(o.badge?'<em class="tile-badge">'+esc(o.badge)+'</em>':'');
   return '<'+tag+' '+at+'>'+inner+'</'+tag+'>';
 }
 function meldGroup(m,i){
@@ -747,48 +777,75 @@ function nextStepText(){
   }
   return '點選食糊玩家';
 }
-function marksTotal(){return E.marks.reduce((a,b)=>a+(b||0),0);}
-function poolHtml(){
-  const used=Array(35).fill(0);let markedWin=false;
-  const tiles=E.all.slice().sort((a,b)=>a-b).map(t=>{
-    const idx=used[t]++,mk=E.marks[t]||0,js=E.jsel[t]||0,isMk=idx<mk;
-    let cls=isMk?'mk2':'',badge='',winCopy=false;
-    if(isMk)badge='明';
-    else if(idx<mk+js)cls='mark';
-    else if(E.win===t&&!markedWin){markedWin=true;winCopy=true;cls='mark';badge='食';}
-    return mt(t,{tag:'button',cls:cls+(winCopy?' selected':''),badge,attrs:'data-act="poolTap" data-t="'+t+'"'});
+let shapeError='',postShapeScroll=false;
+function shapeEditorActive(){return tab==='calc'&&entryStep==='hand'&&!!S.cfg.useSegment&&!isHK()&&!E.shapeDone;}
+function flowerButtonsHtml(){
+  return '<div class="flower-host"><div class="flowers flower-grid">'+M.FLOWERS.map((f,i)=>'<button class="fl '+(E.flowers[i]?'on':'')+'" data-act="flower" data-i="'+i+'">'+esc(f)+'</button>').join('')+'</div></div>';
+}
+function shapePoolHtml(editor){
+  const used=Array(35).fill(0);let winTaken=false;
+  const lock=pending.length&&pending[0].ron?pending[0].ron.winTile:null;
+  const html=E.all.slice().sort((a,b)=>a-b).map(t=>{
+    const index=used[t]++,mk=E.marks[t]||0,js=E.jsel[t]||0,isMeld=index<mk;
+    let badge=isMeld?'明':'',cls=isMeld?'mk2':'';
+    if(!isMeld&&index<mk+js)cls='mark';
+    else if(!isMeld&&t===E.win&&!winTaken){winTaken=true;badge='食';cls='mark';}
+    const disabled=editor&&E.mode==='win'&&lock!=null&&t!==lock;
+    return mt(t,{tag:'button',cls,badge,attrs:'data-act="poolTap" data-t="'+t+'" aria-label="'+esc(M.tName(t)+(badge?' '+badge:''))+'"'+(disabled?' disabled':'')});
   }).join('');
-  return '<div class="zone poolbox pile"><div class="tiles">'+(tiles||'<span class="hint">點牌盤選牌</span>')+'</div></div>';
+  const blank=Array(Math.max(0,18-E.all.length)).fill('<span class="tile-slot" aria-hidden="true"></span>').join('');
+  return '<div class="'+(editor?'shape-pile':'zone poolbox stable-pile')+'"><div class="'+(editor?'shape-grid':'tiles stable-grid')+'">'+html+blank+'</div></div>';
 }
-function wildMeldHtml(md,w){
+function shapeSummaryHtml(){
+  const n=E.all.length+E.wildGroups.reduce((v,g)=>v+g.physical.length,0);
+  const win=E.win==null?'未選':M.tName(E.win);
+  return '<div class="card shape-reviewed"><div class="zl">牌型已確認 · '+n+' 張 · 食糊 '+esc(win)+'</div><button data-act="shapeEdit">修改牌型</button></div>';
+}
+function shapeGroupTools(){
   let h='';
-  if(w&&E.partAmbig)h+='<div class="hint">明牌標記有多種分法,目前按其中一種計算;如不符,請調整標記。</div>';
-  if(w&&S.cfg.wildMeld){
-    h+='<div class="btnrow"><button class="'+(md==='jmeld'?'on':'')+'" data-act="mode" data-v="jmeld">選含百搭的明牌</button></div>';
-    if(md==='jmeld')h+='<div class="btnrow"><button data-act="wildGroup" data-v="chow">加入上牌</button><button data-act="wildGroup" data-v="pung">加入碰牌</button><button data-act="wildGroup" data-v="kong" data-open="1">加入明槓</button><button data-act="wildGroup" data-v="kong" data-open="0">加入暗槓</button><button data-act="wildCancelJ">取消選取</button></div>';
-    if(E.pickRep){
-      const pr=E.pickRep,chowName=t=>(t%9+1)+''+(t%9+2)+(t%9+3)+M.SUITS[Math.floor(t/9)];
-      h+='<div class="note"><b>這組代表哪張牌?</b>(點選)</div><div class="tiles" style="margin:6px 0">'+pr.cands.map(t=>pr.grp.t==='chow'?'<button data-act="repPick" data-t="'+t+'" style="padding:10px 12px">'+chowName(t)+'</button>':mt(t,{tag:'button',attrs:'data-act="repPick" data-t="'+t+'"'})).join('')+'</div><div class="btnrow"><button data-act="repCancel">取消</button></div>';
-    }
+  E.melds.forEach((m,i)=>{
+    const label=(m.t==='chow'?'上':m.t==='pung'?'碰':m.open===false?'暗槓':'明槓')+' '+M.tName(m.tile);
+    h+='<button data-act="rmMeld" data-i="'+i+'">'+esc(label)+' ×</button>';
+    if(m.t==='kong')h+='<button data-act="kongToggle" data-t="'+m.tile+'">切換明／暗槓</button>';
+  });
+  E.wildGroups.forEach((g,i)=>{h+='<button data-act="wildRemoveGroup" data-i="'+i+'">百搭'+(g.t==='chow'?'上':g.t==='pung'?'碰':'槓')+' '+esc(M.tName(g.tile))+' ×</button>';});
+  if(isWild()&&S.cfg.wildMeld){
+    h+='<button data-act="mode" data-v="jmeld" class="'+(E.mode==='jmeld'?'on':'')+'">選含百搭的明牌</button>';
+    if(E.mode==='jmeld')h+='<button data-act="wildGroup" data-v="chow">加入上牌</button><button data-act="wildGroup" data-v="pung">加入碰牌</button><button data-act="wildGroup" data-v="kong" data-open="1">加入明槓</button><button data-act="wildGroup" data-v="kong" data-open="0">加入暗槓</button><button data-act="wildCancelJ">取消選取</button>';
   }
+  if(E.pickRep){
+    const pr=E.pickRep;
+    h+='<div class="shape-choices"><span>這組代表：</span>'+pr.cands.map(t=>'<button data-act="repPick" data-t="'+t+'">'+esc(pr.grp.t==='chow'?(t%9+1)+''+(t%9+2)+(t%9+3)+M.SUITS[Math.floor(t/9)]:M.tName(t))+'</button>').join('')+'<button data-act="repCancel">取消</button></div>';
+  }
+  return '<div class="shape-group-tools">'+(h||'<span class="hint">點牌堆標記明牌；沒有明牌可以略過。</span>')+'</div>';
+}
+function shapeEditorHtml(){
+  const md=E.mode,marking=md==='meld'||md==='jmeld';
+  const hint=md==='pick'?'點牌盤新增手牌；點牌堆刪牌':md==='meld'?'點牌堆標明牌；再點取消':md==='jmeld'?'點牌堆選3或4張，再選上／碰／槓':'點牌堆指定食糊牌；再點取消';
+  const count=E.all.length+E.wildGroups.reduce((n,g)=>n+g.physical.length,0);
+  const marked=E.marks.reduce((n,x)=>n+(x||0),0);
+  const common=pending.length&&pending[0].ron?pending[0].ron.winTile:null;
+  let h='<div class="shape-screen" role="region" aria-label="牌型編輯"><header class="shape-head"><div>'+playerLabel(E.winner)+' <small>'+(E.self?'自摸':'食 '+nm(E.disc))+'</small></div><button data-act="shapeBack">返回牌桌</button></header>';
+  h+='<main class="shape-main"><div class="shape-stats">共'+count+'張 · 明牌'+marked+'張 · '+(E.win==null?'未選食糊牌':'食糊 '+esc(M.tName(E.win)))+(common!=null?' · 共同 '+esc(M.tName(common)):'')+'</div>';
+  h+=shapePoolHtml(true);
+  h+='<div class="shape-tools"><button data-act="undoTile">退一張</button><button data-act="clearHand">全部清空</button></div>';
+  h+='<div class="shape-stage">'+(md==='pick'?palette():marking?shapeGroupTools():'<div class="shape-win-status">'+(E.win==null?'請在牌堆選食糊牌。':'已選 '+esc(M.tName(E.win))+'；確定後繼續花牌及特殊情況。')+'</div>')+'</div></main>';
+  h+='<footer class="shape-footer"><div class="shape-segments" role="group" aria-label="輸入模式">'+[['pick','① 選牌'],['meld','② 標明牌'],['win','③ 選食糊牌']].map(([mode,label])=>'<button data-act="mode" data-v="'+mode+'" class="'+((mode==='meld'?marking:md===mode)?'on':'')+'" aria-pressed="'+((mode==='meld'?marking:md===mode)?'true':'false')+'">'+label+'</button>').join('')+'</div>';
+  h+='<div class="shape-hint" aria-live="polite">'+esc(shapeError||hint)+'</div><div class="shape-finish"><button data-act="shapeBack">稍後繼續</button><button class="primary" data-act="shapeContinue">確定牌型，繼續</button></div></footer></div>';
   return h;
 }
-function segSummaryHtml(md,w){
-  let h='';
-  const meldCount=E.melds.length+(w?E.wildGroups.length:0);
-  if(meldCount||md==='meld'||md==='jmeld'){
-    h+='<div class="card entered"><div class="zl" style="margin-top:0">明牌 <small>'+meldCount+' 組</small></div>';
-    h+=meldCount?E.melds.map((m,i)=>meldGroup(m,i)).join('')+(w?E.wildGroups.map((g,i)=>'<div class="mg" data-act="wildRemoveGroup" data-i="'+i+'"><div class="row">'+g.physical.map(t=>mt(t)).join('')+'</div><small>'+(g.t==='chow'?'上':g.t==='pung'?'碰':g.open?'明槓':'暗槓')+'(含百搭,代表'+M.tName(g.tile)+') ✕</small></div>').join(''):''):'<span class="hint">尚未標明牌（沒有明牌可略過）</span>';
-    h+=wildMeldHtml(md,w)+'</div>';
-  }
-  if(E.win!=null||md==='win'){
-    h+='<div class="card entered"><div class="zl" style="margin-top:0">食糊牌 <small>'+(E.win!=null?'點牌取消':'請在牌堆點選')+(w&&E.win===34?'(百搭只限自摸)':'')+'</small></div>'+(E.win!=null?mt(E.win,{tag:'button',cls:'big',attrs:'data-act="clearWin"'}):'<span class="hint">尚未選食糊牌</span>')+'</div>';
-  }
-  return h;
-}
-function segControlHtml(md){
-  const hint=md==='pick'?'① 點牌盤加入牌堆　② 點牌堆刪牌':md==='meld'?'① 點牌堆標明牌　② 再點取消':md==='jmeld'?'選3或4張含百搭明牌，再按上／碰／槓':'① 點牌堆指定食糊牌　② 再點取消';
-  return '<div class="seg segmode" role="group" aria-label="輸入模式"><button class="'+(md==='pick'?'on':'')+'" data-act="mode" data-v="pick">① 選牌</button><button class="'+(md==='meld'||md==='jmeld'?'on':'')+'" data-act="mode" data-v="meld">② 標明牌</button><button class="'+(md==='win'?'on':'')+'" data-act="mode" data-v="win">③ 選食糊牌</button></div><div class="modehint">'+esc(hint)+'</div>';
+function fitShapeEditor(){
+  const box=document.querySelector('.shape-screen');if(!box)return;
+  const vv=window.visualViewport,height=Math.floor(vv?vv.height:window.innerHeight),width=Math.floor(vv?vv.width:window.innerWidth);
+  box.style.setProperty('--shape-height',height+'px');box.style.top=(vv?vv.offsetTop:0)+'px';
+  const wide=width>=700&&height>=420,cols=wide?9:6,rows=wide?2:3;
+  const head=box.querySelector('.shape-head'),foot=box.querySelector('.shape-footer');
+  const headH=head?head.getBoundingClientRect().height:46,footH=foot?foot.getBoundingClientRect().height:136;
+  const budget=height-headH-footH-34-38-28-192;
+  const tileH=Math.max(44,Math.min(74,Math.floor((budget-6*(rows-1))/rows)));
+  const tileW=Math.max(34,Math.min(62,Math.floor((width-32-6*(cols-1))/cols),Math.floor(tileH*.78)));
+  box.style.setProperty('--shape-cols',cols);box.style.setProperty('--shape-rows',rows);
+  box.style.setProperty('--shape-tile-h',tileH+'px');box.style.setProperty('--shape-tile-w',tileW+'px');
 }
 function inputSection(){
   if(isHK()) return inputSectionHK();
@@ -832,10 +889,13 @@ function inputSection(){
   }
   // item 5 fixed height mode hint
   h+='<h3>① 輸入牌型</h3>';
-  if(!useSeg)h+='<div class="modebar-fixed">'+esc(tipText)+' - '+esc(tip)+'</div>';
-  if(!useSeg)h+=palette();
-  const winName=E.win!=null?M.tName(E.win):'';
-  h+='<div class="zl">牌堆 <small>'+(useSeg?'共'+E.all.length+'張 · '+marksTotal()+'明 · '+(E.win!=null?'食糊 '+esc(winName):'未選食糊牌'):'已輸入 '+E.all.length+' 張'+((w&&E.wildGroups.length)?'':' / 需 '+(need()+E.melds.reduce((n,m)=>n+(m.t==='kong'?4:3),0))+' 張'))+'</small></div>';
+  h+='<div class="modebar-fixed">'+esc(tipText)+' - '+esc(tip)+'</div>';
+  // item 6 optional segmented
+  if(useSeg){
+    h+='<div class="seg three sticky-footer" style="position:sticky;top:40px;z-index:4;"><button class="'+(md==='pick'?'on':'')+'" data-act="mode" data-v="pick">選牌</button><button class="'+(md==='meld'||md==='jmeld'?'on':'')+'" data-act="mode" data-v="meld">標明牌</button><button class="'+(md==='win'?'on':'')+'" data-act="mode" data-v="win">選食糊牌</button></div>';
+  }
+  h+=palette();
+  h+='<div class="zl">牌堆 <small>已輸入 '+E.all.length+' 張'+((w&&E.wildGroups.length)?'':' / 需 '+(need()+E.melds.reduce((n,m)=>n+(m.t==='kong'?4:3),0))+' 張')+'</small></div>';
   // progress bar for remaining (item 4-like)
   const meldTileCount=E.melds.reduce((n,m)=>n+(m.t==='kong'?4:3),0);
   const needN=need()+meldTileCount;
@@ -843,10 +903,9 @@ function inputSection(){
     const pct=Math.max(0, Math.min(100, Math.round(Math.min(E.all.length,needN)/needN*100)));
     h+='<div class="progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="'+pct+'"><i style="width:'+pct+'%"></i></div>';
   }
-  h+=poolHtml();
+  h+=shapePoolHtml(false);
   h+='<div class="btnrow"><button data-act="undoTile">退一張</button><button data-act="clearHand">全部清空</button></div>';
-  if(useSeg){ if(md==='pick')h+=palette(); h+=segSummaryHtml(md,w); }
-  if(!useSeg && (!S.cfg.wizard || wizardStep>=1)){ h+='<h3>② 確認明牌</h3><div class="card entered">';
+  if(!S.cfg.wizard || wizardStep>=1){ h+='<h3>② 確認明牌</h3><div class="card entered">';
   h+='<div class="zl" style="margin-top:0">明牌 <small>'+(E.melds.length+(w?E.wildGroups.length:0))+' 組(點空白處選明牌,點牌可取消)</small></div>';
   h+='<div class="zone tap'+(md==='meld'?' active':'')+'" data-act="mode" data-v="meld">'+((E.melds.length||(w&&E.wildGroups.length))?E.melds.map((m,i)=>meldGroup(m,i)).join('')+(w?E.wildGroups.map((g,i)=>'<div class="mg" data-act="wildRemoveGroup" data-i="'+i+'"><div class="row">'+g.physical.map(t=>mt(t)).join('')+'</div><small>'+(g.t==='chow'?'上':g.t==='pung'?'碰':g.open?'明槓':'暗槓')+'(含百搭,代表'+M.tName(g.tile)+') ✕</small></div>').join(''):''):'<span class="hint">點此選明牌(沒有明牌可略過)</span>')+'</div>';
   if(w&&E.partAmbig) h+='<div class="hint">明牌標記有多種分法,目前按其中一種計算;如不符,請調整標記。</div>';
@@ -858,21 +917,10 @@ function inputSection(){
       h+='<div class="note"><b>這組代表哪張牌?</b>(點選)</div><div class="tiles" style="margin:6px 0">'+pr.cands.map(t=>pr.grp.t==='chow'?'<button data-act="repPick" data-t="'+t+'" style="padding:10px 12px">'+chowName(t)+'</button>':mt(t,{tag:'button',attrs:'data-act="repPick" data-t="'+t+'"'})).join('')+'</div><div class="btnrow"><button data-act="repCancel">取消</button></div>';
     }
   }
-  h+='</div>'; } if(!useSeg && (!S.cfg.wizard || wizardStep>=2)){ h+='<h3>③ 確認食糊牌</h3><div class="card entered"><div class="zl" style="margin-top:0">食糊牌(胡牌) <small>'+(E.win!=null?'點牌可取消':'點空白處指名')+(w?(E.win===34?'(百搭只限自摸)':''):'')+'</small></div>';
+  h+='</div>'; } if(!S.cfg.wizard || wizardStep>=2){ h+='<h3>③ 確認食糊牌</h3><div class="card entered"><div class="zl" style="margin-top:0">食糊牌(胡牌) <small>'+(E.win!=null?'點牌可取消':'點空白處指名')+(w?(E.win===34?'(百搭只限自摸)':''):'')+'</small></div>';
   h+='<div class="zone winzone tap'+(md==='win'?' active':'')+'" data-act="mode" data-v="win">'+(E.win!=null?mt(E.win,{tag:'button',cls:'big selected',attrs:'data-act="clearWin"'}):'<span class="hint">點此選食糊牌</span>')+'</div>';
   h+='</div>'; } 
-  // item 9 fixed bottom confirm - separate continue and confirm
-  let footerBtns='';
-  if(S.cfg.wizard && wizardStep<2){
-    footerBtns='<button data-act="wizNext" class="primary" style="flex:1">下一步：'+(wizardStep===0?'輸入手牌':'選食糊牌')+'</button>';
-  } else if(hasCurrentData() && E.win!=null){
-    footerBtns='<button data-act="wizPrev" style="flex:1">上一步</button><button class="primary" data-act="confirm" style="flex:2">確認記錄</button>';
-  } else if(pending.length>0){
-    footerBtns='<button class="primary" data-act="confirm" style="flex:1">確認本局（'+pending.length+'位）</button>';
-  } else {
-    footerBtns='<button data-act="tab" data-v="table" style="flex:1">返回牌桌</button><button class="primary" data-act="confirm" disabled style="flex:1">請先選食糊牌</button>';
-  }
-  h+='<div class="sticky-footer">'+(useSeg?segControlHtml(md):'')+'<div class="btnrow">'+footerBtns+'</div></div>';
+  h+='<div class="btnrow"><button data-act="goFlowers">繼續：花牌及特殊情況</button></div>';
   return h;
 }
 
@@ -883,7 +931,7 @@ function inputSectionHK(){
   h+=palette();
   h+=hkFlowerInput();
   h+='<div class="zl">牌堆 <small>已輸入 '+E.all.length+' 張 / 需 '+(isHK()? '14+槓數' : need()+'張')+'</small></div>';
-  h+='<div class="zone poolbox pile"><div class="tiles">'+(E.all.length?E.all.slice().sort((a,b)=>a-b).map(t=>mt(t,{tag:'button',attrs:'data-act="poolTap" data-t="'+t+'"'})).join(''):'<span class="hint">點上方牌盤選牌</span>')+'</div></div>';
+  h+=shapePoolHtml(false);
   h+='<div class="btnrow"><button data-act="undoTile">退一張</button><button data-act="clearHand">全部清空</button></div>';
   h+=hkWinPicker();
   h+='<div class="card askcard"><div class="zl" style="margin-top:0">是不是門前清?(胡牌前沒有上、碰、槓過牌)</div>'
@@ -908,6 +956,7 @@ function resultHint(res){
 }
 function viewCalc(){
   if(entryStep!=='hand')return viewEntryFlow();
+  if(shapeEditorActive())return shapeEditorHtml();
   const res=analyze(); const items=curItems(res);
   const rawTotal=Math.max(0,items.reduce((a,x)=>a+x.total,0));
   const total=isHK()?Math.min(rawTotal,hkCap()):rawTotal;
@@ -919,7 +968,7 @@ function viewCalc(){
   h+='<h3>食糊者：'+playerLabel(E.winner)+'</h3><div class="btnrow"><button data-act="entryPick">改選贏家</button><button data-act="tab" data-v="table">返回牌桌（保留輸入）</button></div>';
   h+='<div class="seg two"><button class="'+(E.self?'on':'')+'" data-act="self" data-v="1">自摸</button><button class="'+(!E.self?'on':'')+'" data-act="self" data-v="0">別家出銃</button></div>';
   if(!E.self){ h+='<div class="lbl">出銃者(放槍)</div>'+winnerBtns('disc',E.disc); }
-  if(!isHK()) h+=inputSection()+'<h3>④ 加入花牌</h3><div class="flowers">'+M.FLOWERS.map((f,i)=>'<button class="fl '+(E.flowers[i]?'on':'')+'" data-act="flower" data-i="'+i+'">'+f+'</button>').join('')+'</div>';
+  if(!isHK())h+=(S.cfg.useSegment?shapeSummaryHtml():inputSection())+'<section id="post-shape"><h3>④ 加入花牌</h3>'+flowerButtonsHtml()+'</section>';
   const flagList=(M.FLAGS||DEFAULT_FLAGS).filter(a=>!(isHK()&&a[0]==='menqing')).concat((isHK()||curPreset()===4)?[]:HUAHU.map(h2=>[h2[0],h2[1]]));
   h+='<h3>'+(isHK()?'特殊情況':'⑤ 確定特殊情況')+'</h3><div class="flags">'+flagList.map(a=>'<label><input type="checkbox" data-chg="flag" data-k="'+a[0]+'"'+(E.flags[a[0]]?' checked':'')+'>'+a[1]+'</label>').join('')+'</div>';
   if(!isHK()&&curPreset()!==4) h+='<p class="hint">勾選「花糊」:其番數直接加在本局食糊者的番數上,一併按本局結算,不另外拉落下一鋪。</p>';
@@ -1180,13 +1229,16 @@ function render(){
   derive();
   applyTheme();
   const el=document.getElementById('app');
+  const editing=shapeEditorActive();
+  document.body.classList.toggle('shape-editing',editing);
+  if(editing){el.innerHTML=shapeEditorHtml();window.scrollTo(0,0);fitShapeEditor();return;}
   if(!S.game||tab==='chooser'){ el.innerHTML='<div class="body">'+updBanner()+viewChooser()+'</div>'; window.scrollTo(0,0); return; }
   if(!S.playersReady&&tab!=='players')openPlayerSetup();
   const views={players:viewPlayers,table:viewTable,calc:viewCalc,history:viewHistory,settle:viewSettle,settings:viewSettings};
   const tabs=[['table','牌桌'],['calc','算番'],['history','歷史'],['settle','結算'],['settings','設定']];
   el.innerHTML='<div class="body">'+updBanner()+a2hsBanner()+(views[tab]||viewTable)()+'</div><nav>'+(tab==='players'?'':tabs.map(t=>'<button class="'+(tab===t[0]?'on':'')+'" data-act="tab" data-v="'+t[0]+'">'+t[1]+'</button>').join(''))+'</nav>';
-  try{const nav=el.querySelector('nav');document.documentElement.style.setProperty('--navh',(nav?Math.ceil(nav.getBoundingClientRect().height):0)+'px');}catch(e){}
   window.scrollTo(0,y);
+  if(postShapeScroll){postShapeScroll=false;const target=document.getElementById('post-shape');if(target)target.scrollIntoView({block:'start'});}
 }
 function advance(keep,fromDraw){
   if(keep){ if(!fromDraw) S.streak++; }
@@ -1224,10 +1276,21 @@ function resetGameData(){
   S.history=[]; S.ledger=[]; S.streak=0; S.wind=0; S.dealerSeat=0; E=newEntry();pending=[];entryStep='pick';lastEntryMessage='';playerDraft=null;nameEdits.clear();
 }
 function act(a,d){
+  if(['mode','tile','poolTap','clearHand','clearWin','undoTile','shapeEdit'].includes(a))shapeError='';
   derive();
   if(E.pickRep&&a!=='repPick'&&a!=='repCancel') E.pickRep=null;
   if(isWild()&&wildAction(a,d)){save();render();return;}
   switch(a){
+    case 'goFlowers':postShapeScroll=true;break;
+    case 'shapeBack':setTab('table');window.scrollTo(0,0);break;
+    case 'shapeEdit':E.shapeDone=false;setTab('calc');window.scrollTo(0,0);break;
+    case 'shapeContinue':{
+      if(E.pickRep||Object.keys(E.jsel).length){shapeError='請先完成或取消正在選取的含百搭明牌';render();return;}
+      if(!E.all.length&&!E.wildGroups.length){shapeError='請先輸入手牌';render();return;}
+      if(E.win==null){shapeError='請先選食糊牌';render();return;}
+      if(!E.self&&E.win===34){shapeError='百搭不能作為放炮牌';render();return;}
+      shapeError='';E.shapeDone=true;postShapeScroll=true;setTab('calc');break;
+    }
     case 'startWinner':beginWinner(+d.p);break;
     case 'editPlayers':
       if(hasEntryDraft()){toast('請先完成或放棄本局，才修改玩家及座位');return;}
@@ -1407,6 +1470,7 @@ function act(a,d){
       const disc=E.disc; E=newEntry(); E.self=false; E.disc=disc;
       E.winner=null;entryStep='pick';window.scrollTo(0,0);toast(pending.length>=3?'已加入三位，請確認本局':'已加入，請選擇另一位食糊者或確認本局'); break; }
     case 'confirm': {
+      if(shapeEditorActive()){shapeError='先確定牌型，再填寫花牌及特殊情況';render();return;}
       // 1. 先檢查已加入者完整性
       {
         const pendRon = pending.map(w=>w.ron).filter(Boolean);
@@ -1754,12 +1818,12 @@ function diRow(){ return (isHK()||M.FANS.some(f=>f.id==='di'))?[]:[{id:'di',name
 function diTotal(items){ const d=(items||[]).find(x=>x.id==='di'); return (!isHK()&&d&&typeof d.total==='number')?d.total:0; }
 function adjustUI(){
   const v=E.adjust||0;
-  return '<div class="card"><div class="zl" style="margin-top:0">手動調整番數(beta:在計算結果上增減,令番數符合你的理解)</div><div class="btnrow adjrow" style="margin:6px 0">'+[-10,-5,-1].map(n=>'<button data-act="adj" data-d="'+n+'">'+n+'</button>').join('')+'<input type="number" step="1" data-chg="adjv" value="'+v+'" aria-label="手動調整番數">'+[1,5,10].map(n=>'<button data-act="adj" data-d="'+n+'">+'+n+'</button>').join('')+'<button data-act="adj" data-d="0">歸零</button></div><div class="hint">調整值直接加進番數(可以是負數),也會乘上「冇用百搭」倍數,並一併記入歷史。總番數不會低於 0。</div></div>';
+  return '<div class="card"><div class="zl" style="margin-top:0">手動調整番數(beta:在計算結果上增減,令番數符合你的理解)</div><div class="btnrow adjrow" style="margin:6px 0">'+[-10,-5,-1].map(n=>'<button data-act="adj" data-d="'+n+'">'+n+'</button>').join('')+'<input type="number" step="1" data-chg="adjv" value="'+v+'" style="flex:1;min-width:70px;text-align:center">'+[1,5,10].map(n=>'<button data-act="adj" data-d="'+n+'">+'+n+'</button>').join('')+'<button data-act="adj" data-d="0">歸零</button></div><div class="hint">調整值直接加進番數(可以是負數),也會乘上「冇用百搭」倍數,並一併記入歷史。總番數不會低於 0。</div></div>';
 }
 function hkFlowerMode(){ return !!S.cfg.hk.flowers||E.flowers.some(Boolean); }
 function hkFlowerInput(){
   const fl=E.flowers,n=fl.filter(Boolean).length;
-  let h='<div class="zl">花牌 <small>(點選輸入,自動判斷;已輸入 '+n+' 張)</small></div><div class="flowers">'+M.FLOWERS.map((f,i)=>'<button class="fl '+(fl[i]?'on':'')+'" data-act="flower" data-i="'+i+'">'+f+'</button>').join('')+'</div>';
+  let h='<div class="zl">花牌 <small>(點選輸入,自動判斷;已輸入 '+n+' 張)</small></div>'+flowerButtonsHtml();
   h+='<div class="hint">'+hkFlowerSummary()+'</div>';
   return h;
 }
@@ -2113,6 +2177,8 @@ document.addEventListener('click',e=>{
   if(Date.now()-lastTouchAct<700) return;
   const el=e.target.closest('[data-act]'); if(el) act(el.dataset.act,el.dataset);
 });
+window.addEventListener('resize',fitShapeEditor);
+if(window.visualViewport){window.visualViewport.addEventListener('resize',fitShapeEditor);window.visualViewport.addEventListener('scroll',fitShapeEditor);}
 document.addEventListener('focusin',e=>{if(isNameField(e.target))nameFieldFocus(e.target);});
 document.addEventListener('focusout',e=>{if(isNameField(e.target))settleNameField(e.target);});
 document.addEventListener('keydown',e=>{
