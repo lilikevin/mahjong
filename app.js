@@ -238,7 +238,7 @@ function rgb2hex(a){ return '#'+a.map(v=>Math.max(0,Math.min(255,Math.round(v)))
 function mix(c,t,f){ const a=hex2rgb(c), b=hex2rgb(t); return rgb2hex(a.map((v,i)=>v+(b[i]-v)*f)); }
 function lum(c){ const a=hex2rgb(c).map(v=>{ v/=255; return v<=0.03928?v/12.92:Math.pow((v+0.055)/1.055,2.4); }); return 0.2126*a[0]+0.7152*a[1]+0.0722*a[2]; }
 const STATIC_CSS=`
-.seat,.seat *{text-decoration:none!important;border-bottom:0!important}.seat .pn{text-decoration:none!important}.seat:focus,.seat:focus-visible{outline:none}.seat{-webkit-tap-highlight-color:transparent;-webkit-touch-callout:none}
+.seat,.seat *{text-decoration:none!important;-webkit-text-decoration:none!important;text-decoration-line:none!important;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}.seat{-webkit-tap-highlight-color:transparent}
 .payrow{display:grid;gap:6px;margin:6px 0}.payrow>button{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;padding:8px 4px;min-width:0;text-align:center}.payrow .pl{display:flex;align-items:center;justify-content:center;gap:6px;min-width:0;max-width:100%}.payrow .em{font-size:1.5em;line-height:1;flex:0 0 auto}.payrow .nm{min-width:0;overflow-wrap:anywhere;word-break:break-word;line-height:1.2;text-align:left}.payrow small{opacity:.8}
 .editbox{background:var(--bg);color:#eef5ef;border:1px solid var(--bd);border-radius:14px;padding:14px;text-align:left;max-height:88vh;overflow:auto}.editbox h3{margin:0 0 8px;color:#eef5ef}.editbox .card{margin:8px 0}.editbox .hint{color:#b9cbbd}.edl{display:block;margin:8px 0;font-size:14px;color:#eef5ef}.edl select,.edl input{margin-top:4px;color:#eef5ef;background:var(--card2)!important;border:1px solid var(--bd);border-radius:8px;padding:8px;font-size:16px}details summary{cursor:pointer;color:var(--acc);font-size:13px;min-height:0}
 .zl{font-size:13px;color:#9db;margin:10px 0 4px}
@@ -760,7 +760,7 @@ function tableDisplayBalances(){return isHK()?balances():totals();}
 
 function viewTable(){
   const b=tableDisplayBalances();
-  const card=s=>{ const p=S.seat[s]; const name=nm(p); return '<div class="card seat '+(s===S.dealerSeat?'dealer':'')+'" role="button" tabindex="0" data-act="startWinner" data-p="'+p+'" aria-label="選擇 '+esc(name)+' 食糊" style="cursor:pointer"><div class="sw">'+WIND[s]+'</div><div class="pn" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"><span style="font-size:1.6em" aria-hidden="true">'+avatar(p)+'</span><br>'+esc(name)+'</div><div class="mini">門風 '+windOf(p)+(s===S.dealerSeat?' · 莊':'')+'</div><div class="bal '+(b[p]>=0?'pos':'neg')+'">'+money(b[p])+'</div></div>'; };
+  const card=s=>{ const p=S.seat[s]; const name=nm(p); return '<div class="card seat '+(s===S.dealerSeat?'dealer':'')+'" data-act="startWinner" data-p="'+p+'" style="cursor:pointer;text-decoration:none!important;-webkit-text-decoration:none!important"><div class="sw">'+WIND[s]+'</div><div class="pn" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"><span style="font-size:1.6em" aria-hidden="true">'+avatar(p)+'</span><br>'+esc(name)+'</div><div class="mini">門風 '+windOf(p)+(s===S.dealerSeat?' · 莊':'')+'</div><div class="bal '+(b[p]>=0?'pos':'neg')+'">'+money(b[p])+'</div></div>'; };
   let h='<div class="status '+(S.cfg.largeFont?'large-font':'')+'"><span class="badge">莊 '+nm(dealerPid())+'</span> '+WIND[S.wind]+'風圈 · 連莊 <span class="badge">'+S.streak+' 次</span>'+(isHK()?'':'(莊家加 '+(1+2*S.streak)+' 番)')+'<br><small>'+esc(gameName())+'</small></div>';
   let notices='';
   if(lastEntryMessage){
