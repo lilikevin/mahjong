@@ -1,6 +1,6 @@
 (function(){
 'use strict';
-const APP_VERSION='v1.4.2-ui';
+const APP_VERSION='v1.4.3-ui';
 const DEV_IG='kevinli999';
 let M=window.MJ;
 const KEY='mj_hk_tw_v1';
@@ -478,55 +478,58 @@ function viewChooser(){
   h+='<div class="dev" style="text-align:center">'+APP_VERSION+' · 開發者:Instagram <a href="https://www.instagram.com/'+DEV_IG+'/" target="_blank" rel="noopener">@'+DEV_IG+'</a></div></div>';
   return h;
 }
-let playerDraft=null, entryStep='pick', lastEntryMessage='';
+let playerDraft=null,entryStep='pick',lastEntryMessage='';
+const nameEdits=new Map();
 function avatar(p){return esc((S.avatars||DEFAULT_AVATARS)[p]||DEFAULT_AVATARS[p]);}
 function playerLabel(p){return avatar(p)+' '+nm(p);}
-function hasEntryDraft(){
-  return hasCurrentData()||pending.length>0||E.flowers.some(Boolean)||E.extra.length>0||E.adjust!==0||Object.keys(E.flags).length>0;
-}
+function hasEntryDraft(){return hasCurrentData()||pending.length>0||E.flowers.some(Boolean)||E.extra.length>0||E.adjust!==0||Object.keys(E.flags).some(k=>E.flags[k]);}
 function openPlayerSetup(){
-  playerDraft={names:S.names.slice(),avatars:(S.avatars||DEFAULT_AVATARS).slice(),seat:S.seat.slice(),dealerSeat:S.dealerSeat};
-  tab='players';
+  nameEdits.clear();
+  playerDraft={names:S.names.slice(),avatars:(S.avatars||DEFAULT_AVATARS).slice(),seat:S.seat.slice(),dealerSeat:S.dealerSeat};tab='players';
+}
+function isNameField(el){return !!(el&&el.dataset&&el.dataset.playerName!=null&&playerDraft);}
+function nameFieldFocus(el){
+  if(!isNameField(el))return;
+  const p=+el.dataset.playerName;if(!Number.isInteger(p)||p<0||p>3||nameEdits.has(p))return;
+  const prior=String(el.value||playerDraft.names[p]||S.names[p]||('玩家'+(p+1))).trim();
+  nameEdits.set(p,{prior});
+  el.value='';el.placeholder='輸入玩家名稱…';
+}
+function settleNameField(el){
+  if(!isNameField(el))return;
+  const p=+el.dataset.playerName;if(!Number.isInteger(p)||p<0||p>3)return;
+  const edit=nameEdits.get(p),typed=String(el.value||'').trim().slice(0,10);
+  const value=typed||(edit?edit.prior:String(playerDraft.names[p]||S.names[p]||('玩家'+(p+1))).trim());
+  playerDraft.names[p]=value;el.value=value;nameEdits.delete(p);
+}
+function readPlayerNames(){
+  if(!playerDraft)return;
+  document.querySelectorAll('[data-player-name]').forEach(settleNameField);
 }
 function viewPlayers(){
   if(!playerDraft)openPlayerSetup();
   const d=playerDraft;
-  let h='<h3>四位玩家</h3><p class="hint">輸入名稱及選擇 emoji；不需要上傳頭像。'+(S.playersReady?'修改不會清除分數或紀錄。':'沿用上次資料亦可直接確認。')+'</p>';
+  let h='<h3>四位玩家</h3><p class="hint">點入名稱會自動清空供修改；沒有輸入便還原原名。選擇 emoji 即可，不需要上傳頭像。</p>';
   for(let p=0;p<4;p++){
-    h+='<div class="card"><div class="zl">玩家 '+(p+1)+'</div><label>名稱<input type="text" maxlength="10" autocomplete="off" data-player-name="'+p+'" data-chg="playerName" data-p="'+p+'" value="'+esc(d.names[p])+'"></label>';
+    h+='<div class="card"><div class="zl">玩家 '+(p+1)+'</div><label>名稱<input type="text" maxlength="10" autocomplete="off" autocorrect="off" spellcheck="false" placeholder="輸入玩家名稱…" data-player-name="'+p+'" data-chg="playerName" data-p="'+p+'" value="'+esc(d.names[p])+'"></label>';
     h+='<label>Emoji<select data-chg="playerAvatar" data-p="'+p+'">'+PLAYER_EMOJIS.map(e=>'<option value="'+e+'"'+(d.avatars[p]===e?' selected':'')+'>'+e+'</option>').join('')+'</select></label></div>';
   }
   h+='<h3>座位安排</h3><div class="grid2">';
   for(let q=0;q<4;q++)h+='<label>'+WIND[q]+'位<select data-chg="playerSeat" data-s="'+q+'">'+[0,1,2,3].map(p=>'<option value="'+p+'"'+(d.seat[q]===p?' selected':'')+'>'+esc(d.avatars[p])+' '+esc(d.names[p])+'</option>').join('')+'</select></label>';
   h+='</div><label>莊家座位<select data-chg="playerDealer">'+Array.from(WIND).map((w,i)=>'<option value="'+i+'"'+(d.dealerSeat===i?' selected':'')+'>'+w+'</option>').join('')+'</select></label>';
-  h+='<div class="btnrow"><button class="primary" data-act="savePlayers">確認並返回牌桌</button>'+(S.playersReady?'<button data-act="cancelPlayers">取消修改</button>':'<button data-act="toChooser">返回玩法選擇</button>')+'</div>';
-  return h;
-}
-function readPlayerNames(){
-  if(!playerDraft)return;
-  document.querySelectorAll('[data-player-name]').forEach(el=>{
-    const p=+el.dataset.playerName;
-    if(Number.isInteger(p)&&p>=0&&p<4)playerDraft.names[p]=el.value;
-  });
+  h+='<div class="btnrow"><button class="primary" data-act="savePlayers">確認並返回牌桌</button>'+(S.playersReady?'<button data-act="cancelPlayers">取消修改</button>':'<button data-act="toChooser">返回玩法選擇</button>')+'</div>';return h;
 }
 function savePlayerSetup(){
-  readPlayerNames();
-  const d=playerDraft;
-  if(!d)return false;
-  const names=d.names.map(n=>String(n).trim().slice(0,10));
-  if(names.some(n=>!n)){toast('請填寫四位玩家名稱');return false;}
+  readPlayerNames();const d=playerDraft;if(!d)return false;
+  const names=d.names.map((n,p)=>String(n).trim().slice(0,10)||S.names[p]||('玩家'+(p+1)));
   if(new Set(names).size!==4){toast('請使用不同玩家名稱，以免記錯');return false;}
-  if(new Set(d.seat).size!==4||d.seat.some(p=>!Number.isInteger(p)||p<0||p>3)){
-    toast('四個座位必須分配不同玩家');return false;
-  }
-  S.names=names;S.avatars=d.avatars.map((e,p)=>PLAYER_EMOJIS.includes(e)?e:DEFAULT_AVATARS[p]);
-  S.seat=d.seat.slice();S.dealerSeat=d.dealerSeat;S.playersReady=true;
-  playerDraft=null;tab='table';toast('玩家設定已儲存');return true;
+  if(new Set(d.seat).size!==4||d.seat.some(p=>!Number.isInteger(p)||p<0||p>3)){toast('四個座位必須分配不同玩家');return false;}
+  S.names=names;S.avatars=d.avatars.map((e,p)=>PLAYER_EMOJIS.includes(e)?e:DEFAULT_AVATARS[p]);S.seat=d.seat.slice();S.dealerSeat=d.dealerSeat;S.playersReady=true;
+  playerDraft=null;nameEdits.clear();tab='table';toast('玩家設定已儲存');return true;
 }
 function finishEntry(message){
-  E=newEntry();pending=[];entryStep='pick';tab='table';
-  lastEntryMessage=message;wildStop();wildDone=null;wildKey='';
-  window.scrollTo(0,0);toast(message);
+  E=newEntry();pending=[];entryStep='pick';tab='table';lastEntryMessage=message;
+  wildStop();wildDone=null;wildKey='';window.scrollTo(0,0);toast(message);
 }
 function beginWinner(p){
   if(!Number.isInteger(p)||!S.seat.includes(p)){toast('請選擇食糊者');return false;}
@@ -536,10 +539,8 @@ function beginWinner(p){
   const current=hasCurrentData()||E.flowers.some(Boolean)||E.extra.length>0||E.adjust!==0;
   if(current&&E.winner===p){tab='calc';entryStep='hand';window.scrollTo(0,0);return true;}
   if(current&&!confirm('改選食糊者會清除目前這手輸入；已加入的食糊者會保留。繼續嗎？'))return false;
-  wildStop();wildDone=null;wildKey='';
-  E=newEntry();E.winner=p;tab='calc';lastEntryMessage='';
-  if(pending.length){E.self=false;E.disc=pending[0].disc;entryStep='hand';}
-  else entryStep='method';
+  wildStop();wildDone=null;wildKey='';E=newEntry();E.winner=p;tab='calc';lastEntryMessage='';
+  if(pending.length){E.self=false;E.disc=pending[0].disc;entryStep='hand';}else entryStep='method';
   window.scrollTo(0,0);return true;
 }
 function viewEntryFlow(){
@@ -547,30 +548,34 @@ function viewEntryFlow(){
   if(pending.length)h+='<div class="note">本局已加入：'+pending.map(w=>playerLabel(w.p)+' '+w.total+' 番').join('、')+'</div>';
   if(entryStep==='pick'){
     h+='<h3>'+(pending.length?'選擇另一位食糊者':'選擇本局食糊者')+'</h3><div class="grid2">';
-    S.seat.forEach(p=>{
-      const unavailable=pending.some(w=>w.p===p)||pending.length>=3||(pending.length&&pending[0].disc===p);
-      h+='<button data-act="startWinner" data-p="'+p+'"'+(unavailable?' disabled':'')+'>'+playerLabel(p)+'<br><small>'+windOf(p)+'位</small></button>';
-    });
-    h+='</div>';
+    S.seat.forEach(p=>{const disabled=pending.some(w=>w.p===p)||pending.length>=3||(pending.length&&pending[0].disc===p);h+='<button data-act="startWinner" data-p="'+p+'"'+(disabled?' disabled':'')+'>'+playerLabel(p)+'<br><small>'+windOf(p)+'位</small></button>';});h+='</div>';
     if(pending.length)h+='<div class="btnrow"><button class="primary" data-act="confirm">確認本局（'+pending.length+' 位食糊者）</button></div>';
   }else if(entryStep==='method'){
     h+='<h3>'+playerLabel(E.winner)+' 食糊</h3><p class="hint">選擇食糊方式，下一步輸入牌型。</p><div class="seg two"><button data-act="chooseMethod" data-v="self">自摸</button><button data-act="chooseMethod" data-v="ron">食炮</button></div><div class="btnrow"><button data-act="entryPick">重新選擇贏家</button></div>';
   }else if(entryStep==='payer'){
     h+='<h3>'+playerLabel(E.winner)+' 食炮</h3><p class="hint">選擇出銃者（放炮者）</p><div class="grid2">'+S.seat.filter(p=>p!==E.winner).map(p=>'<button data-act="choosePayer" data-p="'+p+'">'+playerLabel(p)+'</button>').join('')+'</div><div class="btnrow"><button data-act="entryMethod">返回食糊方式</button></div>';
   }
-  h+='<div class="btnrow"><button data-act="tab" data-v="table">返回牌桌（保留本局）</button>'+(hasEntryDraft()?'<button data-act="clearEntry">放棄本局輸入</button>':'')+'</div>';
-  return h;
+  return h+'<div class="btnrow"><button data-act="tab" data-v="table">返回牌桌（保留本局）</button>'+(hasEntryDraft()?'<button data-act="clearEntry">放棄本局輸入</button>':'')+'</div>';
+}
+function tableLedgerTotals(){
+  const received=Array(4).fill(0),owed=Array(4).fill(0);
+  if(!isHK())S.ledger.forEach(r=>{received[r.to]+=r.amt;owed[r.from]+=r.amt;});
+  return {received,owed};
+}
+function playerLedgerHtml(p,totals){
+  if(isHK()||(!totals.received[p]&&!totals.owed[p]))return '';
+  return '<div class="mini" aria-label="未結算的拉"><div>未收拉 <span class="pos">'+totals.received[p]+'</span></div><div>未付拉 <span class="neg">'+totals.owed[p]+'</span></div></div>';
 }
 
 function viewTable(){
-  const b=balances();
-  const card=s=>{ const p=S.seat[s]; return '<div class="card seat '+(s===S.dealerSeat?'dealer':'')+'" role="button" tabindex="0" data-act="startWinner" data-p="'+p+'" aria-label="選擇 '+esc(S.names[p])+' 食糊" style="cursor:pointer"><div class="sw">'+WIND[s]+'</div><div class="pn"><span style="font-size:1.6em" aria-hidden="true">'+avatar(p)+'</span><br>'+nm(p)+'</div><div class="mini">門風 '+windOf(p)+(s===S.dealerSeat?' · 莊':'')+'</div><div class="bal '+(b[p]>=0?'pos':'neg')+'">'+money(b[p])+'</div></div>'; };
+  const b=balances(),lt=tableLedgerTotals();
+  const card=s=>{ const p=S.seat[s]; return '<div class="card seat '+(s===S.dealerSeat?'dealer':'')+'" role="button" tabindex="0" data-act="startWinner" data-p="'+p+'" aria-label="選擇 '+esc(S.names[p])+' 食糊" style="cursor:pointer"><div class="sw">'+WIND[s]+'</div><div class="pn"><span style="font-size:1.6em" aria-hidden="true">'+avatar(p)+'</span><br>'+nm(p)+'</div><div class="mini">門風 '+windOf(p)+(s===S.dealerSeat?' · 莊':'')+'</div><div class="mini">已收付</div><div class="bal '+(b[p]>=0?'pos':'neg')+'">'+money(b[p])+'</div>'+playerLedgerHtml(p,lt)+'</div>'; };
   let h='<div class="status">'+WIND[S.wind]+'風圈 · 莊家 '+nm(dealerPid())+' · 連莊 '+S.streak+' 次'+(isHK()?'':'(莊家加 '+(1+2*S.streak)+' 番)')+'<br><small>'+esc(gameName())+'</small></div>';
   if(lastEntryMessage)h+='<div class="note">'+esc(lastEntryMessage)+' <button data-act="tab" data-v="history">查看記錄</button><button data-act="undoRec">撤銷上一筆</button></div>';
   if(hasEntryDraft())h+='<div class="note">有未完成的本局輸入 <button class="primary" data-act="tab" data-v="calc">繼續輸入</button></div>';
   h+='<div class="cross"><div></div>'+card(3)+'<div></div>'+card(2)+'<div class="center">點選玩家<br><small>記錄食糊</small></div>'+card(0)+'<div></div>'+card(1)+'<div></div></div>';
-  h+='<p class="hint">點選玩家卡，直接記錄該位食糊。格內金額為已收付淨額。</p>';
-  if(!isHK()) h+='<h3>未結算的拉</h3>'+ledgerHtml(true);
+  h+='<p class="hint">點選玩家卡記錄食糊。「已收付」不包含未結算的拉；未收、未付分開顯示。</p>';
+  if(!isHK())h+='<h3>未結算的拉</h3>'+(S.ledger.length?ledgerHtml(true):'<p class="hint">暫無未結算的拉</p>');
   h+='<h3>座位安排</h3><div class="grid2">';
   for(let s=0;s<4;s++){ h+='<label>'+WIND[s]+'位<select data-chg="seat" data-s="'+s+'">'+[0,1,2,3].map(p=>'<option value="'+p+'"'+(S.seat[s]===p?' selected':'')+'>'+nm(p)+'</option>').join('')+'</select></label>'; }
   h+='</div><p class="hint">換位自動對調。名稱及 emoji 請在「玩家設定」修改。</p>';
@@ -814,6 +819,7 @@ function viewSettings(){
   return h;
 }
 function render(){
+  if(tab==='players'&&isNameField(document.activeElement)&&nameEdits.has(+document.activeElement.dataset.playerName))return;
   if(wildJob&&(!isWild()||wildKey!==wildSignature())){wildStop();wildDone=null;wildKey='';}
   const y=window.scrollY;
   derive();
@@ -859,36 +865,31 @@ function validateCur(){
 }
 function resetGameData(){
   try{ localStorage.setItem(PREV_KEY,JSON.stringify(S)); }catch(e){}
-  S.history=[]; S.ledger=[]; S.streak=0; S.wind=0; S.dealerSeat=0; E=newEntry(); pending=[];entryStep='pick';lastEntryMessage='';playerDraft=null;
+  S.history=[]; S.ledger=[]; S.streak=0; S.wind=0; S.dealerSeat=0; E=newEntry();pending=[];entryStep='pick';lastEntryMessage='';playerDraft=null;nameEdits.clear();
 }
 function act(a,d){
   derive();
   if(E.pickRep&&a!=='repPick'&&a!=='repCancel') E.pickRep=null;
   if(isWild()&&wildAction(a,d)){save();render();return;}
   switch(a){
-    case 'startWinner': beginWinner(+d.p);break;
+    case 'startWinner':beginWinner(+d.p);break;
     case 'editPlayers':
       if(hasEntryDraft()){toast('請先完成或放棄本局，才修改玩家及座位');return;}
       openPlayerSetup();window.scrollTo(0,0);break;
-    case 'savePlayers': if(!savePlayerSetup())return;window.scrollTo(0,0);break;
-    case 'cancelPlayers': playerDraft=null;tab='table';break;
-    case 'entryPick': entryStep='pick';tab='calc';window.scrollTo(0,0);break;
-    case 'entryMethod':
-      if(pending.length){toast('多響必須沿用同一位出銃者');return;}
-      entryStep='method';break;
+    case 'savePlayers':if(!savePlayerSetup())return;window.scrollTo(0,0);break;
+    case 'cancelPlayers':playerDraft=null;nameEdits.clear();tab='table';break;
+    case 'entryPick':entryStep='pick';tab='calc';window.scrollTo(0,0);break;
+    case 'entryMethod':if(pending.length){toast('多響必須沿用同一位出銃者');return;}entryStep='method';break;
     case 'chooseMethod':
       if(E.winner==null){entryStep='pick';break;}
       if(pending.length&&d.v==='self'){toast('多響不能混入自摸');return;}
-      E.self=d.v==='self';E.disc=null;E.bao=null;
-      entryStep=E.self?'hand':'payer';window.scrollTo(0,0);break;
+      E.self=d.v==='self';E.disc=null;E.bao=null;entryStep=E.self?'hand':'payer';window.scrollTo(0,0);break;
     case 'choosePayer':{
       const p=+d.p;
       if(!S.seat.includes(p)||p===E.winner||pending.some(w=>w.p===p)){toast('出銃者不能是食糊者');return;}
       E.self=false;E.disc=p;entryStep='hand';window.scrollTo(0,0);break;
     }
-    case 'tab':
-      if(tab==='players'&&playerDraft){toast('請先確認或取消玩家設定');return;}
-      tab=d.v;window.scrollTo(0,0);break;
+    case 'tab':if(tab==='players'&&playerDraft){toast('請先確認或取消玩家設定');return;}tab=d.v;window.scrollTo(0,0);break;
     case 'toChooser': tab='chooser'; wildPick=false; break;
     case 'ruleHelp': ruleHelp=!ruleHelp; break;
     case 'menqing': E.flags.menqing=(d.v==='1'); E.excl={}; break;
@@ -947,18 +948,18 @@ function act(a,d){
       if(!p||!p.names){ toast('沒有可還原的牌局'); return; }
       if(!confirm('還原上一場牌局?目前的紀錄會被取代。')) return;
       try{ localStorage.setItem(PREV_KEY,JSON.stringify(S)); }catch(e){}
-      S=norm(p);pickM();wildStop();wildDone=null;wildKey='';E=newEntry();pending=[];entryStep='pick';playerDraft=null;lastEntryMessage='';tab='table';toast('已還原'); break; }
+      S=norm(p);pickM();wildStop();wildDone=null;wildKey='';E=newEntry();pending=[];entryStep='pick';playerDraft=null;nameEdits.clear();lastEntryMessage='';tab='table';toast('已還原'); break; }
     case 'rename': { const p=+d.p; const n=prompt('玩家名稱',S.names[p]); if(n&&n.trim()) S.names[p]=n.trim().slice(0,10); break; }
-    case 'streak': if(hasEntryDraft()){toast('請先完成或放棄本局，再修改連莊次數');return;} S.streak=Math.max(0,S.streak+(+d.d)); break;
+    case 'streak':if(hasEntryDraft()){toast('請先完成或放棄本局，再修改連莊次數');return;}S.streak=Math.max(0,S.streak+(+d.d)); break;
     case 'draw': {
       if(hasEntryDraft()){toast('請先完成或放棄本局輸入，再記錄流局');return;}
-      if(!confirm('記錄本局為流局?')) return;
+      if(!confirm('記錄本局為流局?'))return;
       pushRec({kind:'draw',deltas:[0,0,0,0],events:[]});
       if(isHK()) advance(false); else advance(S.cfg.drawKeeps,true);
       finishEntry('已記錄流局');break; }
-    case 'winner': beginWinner(+d.p); break;
-    case 'disc': if(pending.length&&+d.p!==pending[0].disc){toast('多響必須沿用同一位出銃者');return;} if(+d.p===E.winner||pending.some(w=>w.p===+d.p)){toast('出銃者不能是食糊者');return;} E.disc=+d.p;break;
-    case 'self': if(pending.length&&d.v==='1'){toast('多響不能混入自摸');return;} E.self=d.v==='1';E.bao=null;if(E.self)E.disc=null;else if(E.disc==null)entryStep='payer';break;
+    case 'winner':beginWinner(+d.p);break;
+    case 'disc':if(pending.length&&+d.p!==pending[0].disc){toast('多響必須沿用同一位出銃者');return;}if(+d.p===E.winner||pending.some(w=>w.p===+d.p)){toast('出銃者不能是食糊者');return;}E.disc=+d.p;break;
+    case 'self':if(pending.length&&d.v==='1'){toast('多響不能混入自摸');return;}E.self=d.v==='1';E.bao=null;if(E.self)E.disc=null;else if(E.disc==null)entryStep='payer';break;
     case 'flower': E.flowers[+d.i]=!E.flowers[+d.i]; break;
     case 'mode': E.mode=d.v; break;
     case 'tile': {
@@ -1000,7 +1001,7 @@ function act(a,d){
     case 'extraN': { const x=E.extra[+d.i]; x.n+=+d.d; if(x.id==='weiwei'&&x.n<2) x.n=2; if(x.n<1) E.extra.splice(+d.i,1); break; }
     case 'rmExtra': E.extra.splice(+d.i,1); break;
     case 'hkWin': { if(!(pending.length&&pending[0].ron)) E.hkWin=(E.hkWin===+d.t)?null:+d.t; E.excl={}; break; }
-    case 'clearEntry': if(hasEntryDraft()&&!confirm('放棄本局所有未記錄輸入（包括已加入的食糊者）？'))return;wildStop();wildDone=null;wildKey='';E=newEntry();pending=[];entryStep='pick';break;
+    case 'clearEntry':if(hasEntryDraft()&&!confirm('放棄本局所有未記錄輸入（包括已加入的食糊者）？'))return;wildStop();wildDone=null;wildKey='';E=newEntry();pending=[];entryStep='pick';break;
     case 'addWinner': {
       // 1. 先檢查已加入者
       {
@@ -1061,8 +1062,7 @@ function act(a,d){
         if(err.length){ toast(err[0]); return; }
       }
 
-      const minF=isHK()?S.cfg.hk.minFan:S.cfg.minFan;
-      const dealer=dealerPid();
+      const minF=isHK()?S.cfg.hk.minFan:S.cfg.minFan,dealer=dealerPid();
       if(isHK()){
         const low=ws.filter(w=>minF>0&&w.total<minF);
         if(low.length){
@@ -1073,16 +1073,12 @@ function act(a,d){
           finishEntry('已記錄詐糊，本局重來');break;
         }
       }else{
-        for(const w of ws){
-          const f=w.total-diTotal(w.fans);
-          if(minF>0&&f<minF&&!confirm(S.names[w.p]+' 只有 '+f+' 番(不含底),低於起糊 '+minF+' 番,仍要記錄?'))return;
-        }
+        for(const w of ws){const f=w.total-diTotal(w.fans);if(minF>0&&f<minF&&!confirm(S.names[w.p]+' 只有 '+f+' 番(不含底),低於起糊 '+minF+' 番,仍要記錄?'))return;}
       }
       for(const w of ws)if(w.total===0&&!confirm(S.names[w.p]+' 合計 0 番,仍要記錄?'))return;
       if(isHK()){
         pushRec({kind:'win',winners:ws.map(w=>({p:w.p,self:w.self,disc:w.disc,total:w.total,raw:w.raw,fans:w.fans,bao:w.bao,qiang:w.qiang,ron:w.ron})),deltas:settleHK(ws),events:[]});
-        advance(ws.some(w=>w.p===dealer)&&S.cfg.hk.renzhuang,false);
-        finishEntry('已記錄');break;
+        advance(ws.some(w=>w.p===dealer)&&S.cfg.hk.renzhuang,false);finishEntry('已記錄');break;
       }
       const out=applyHand(S.ledger,mkTxns(ws,dealer,S.streak),true);
       let ledger=out.ledger, cash=out.cash, ev=out.ev.slice();
@@ -1118,7 +1114,7 @@ function act(a,d){
       toast('已記錄 '+I.name); break; }
     case 'undoRec': {
       if(!S.history.length) return; if(!confirm('撤銷最後一局?')) return;
-      const r=S.history.pop(); lastEntryMessage='已撤銷上一筆';if(r.before){ S.dealerSeat=r.before.dealerSeat; S.streak=r.before.streak; S.wind=r.before.wind; }
+      const r=S.history.pop();lastEntryMessage='已撤銷上一筆';if(r.before){ S.dealerSeat=r.before.dealerSeat; S.streak=r.before.streak; S.wind=r.before.wind; }
       S.ledger=copyL(r.ledgerBefore||[]); break; }
     case 'copySum': copy(summaryText()); break;
     case 'exportFile': { downloadJSON({app:'mahjong-jisaan',kind:'backup',version:APP_VERSION,exported:new Date().toISOString(),data:S},'mahjong-backup-'+new Date().toISOString().slice(0,10)+'.json'); toast('已下載設定檔'); return; }
@@ -1136,7 +1132,7 @@ function act(a,d){
     case 'tblExport': { const t=S.cfg.customTables.find(x=>x.id===d.id); if(!t) return;
       downloadJSON({app:'mahjong-jisaan',kind:'fan-table',version:APP_VERSION,table:{name:t.name,p:t.p,over:t.over}},'fan-table-'+t.name.replace(/[\\\/:*?"<>|\s]+/g,'_').slice(0,20)+'.json'); toast('已下載番數表'); return; }
     case 'tblImport': pickFile(txt=>{ importTableText(txt); }); return;
-    case 'resetAll': if(confirm('確定清除全部玩家、紀錄與設定?此操作無法還原(自訂番數表會保留)')){ const keep=S.cfg.customTables; S=defState(); S.cfg.customTables=keep;pickM();wildStop();wildDone=null;wildKey='';E=newEntry();pending=[];entryStep='pick';playerDraft=null;lastEntryMessage='';tab='table'; } else return; break;
+    case 'resetAll': if(confirm('確定清除全部玩家、紀錄與設定?此操作無法還原(自訂番數表會保留)')){ const keep=S.cfg.customTables; S=defState(); S.cfg.customTables=keep;pickM();wildStop();wildDone=null;wildKey='';E=newEntry();pending=[];entryStep='pick';playerDraft=null;nameEdits.clear();lastEntryMessage='';tab='table'; } else return; break;
     case 'resetRules': S.cfg.overs[pkey()]={}; delete S.cfg.activeCustom[pkey()]; break;
   }
   save(); render();
@@ -1149,9 +1145,9 @@ function chg(k,el){
   const d=el.dataset, v=el.type==='checkbox'?el.checked:el.value;
   if(k.startsWith('player')){
     if(!playerDraft)return;
+    if(k==='playerName'){settleNameField(el);return;}
     readPlayerNames();
     switch(k){
-      case 'playerName':playerDraft.names[+d.p]=String(v).slice(0,10);return;
       case 'playerAvatar':if(PLAYER_EMOJIS.includes(v))playerDraft.avatars[+d.p]=v;break;
       case 'playerSeat':{
         const q=+d.s,p=+v,old=playerDraft.seat[q],other=playerDraft.seat.indexOf(p);
@@ -1565,7 +1561,7 @@ function importBackupText(text){
   S=norm(d);
   const have=new Set(S.cfg.customTables.map(t=>t.id));
   keep.forEach(t=>{ if(!have.has(t.id)&&S.cfg.customTables.length<40) S.cfg.customTables.push(t); });
-  pickM();wildStop();wildDone=null;wildKey=''; E=newEntry(); pending=[];entryStep='pick';playerDraft=null;lastEntryMessage='';tab='table';wildPick=false;storyImg=null; save(); render();
+  pickM();wildStop();wildDone=null;wildKey='';E=newEntry();pending=[];entryStep='pick';playerDraft=null;nameEdits.clear();lastEntryMessage='';tab='table';wildPick=false;storyImg=null; save(); render();
   toast('已匯入設定檔(原有資料已存為上一場,可在座位頁還原)');
 }
 function importTableText(text){
@@ -1613,45 +1609,38 @@ function checkWinnerSet(ws){
   return [...new Set(out)];
 }
 function checkRonSet(ws,{allowPartial=false}={}){
-  if(!ws.length) return [];
-  const out=[], def=[...new Set(ws.map(w=>w.winTile).filter(t=>t!=null))];
-  const unknown=ws.filter(w=>w.winTile==null), common=getLockedCommon(ws);
-  const tot=Array(35).fill(0);
+  if(!ws.length)return [];
+  const out=[],def=[...new Set(ws.map(w=>w.winTile).filter(t=>t!=null))];
+  const unknown=ws.filter(w=>w.winTile==null),common=getLockedCommon(ws),tot=Array(35).fill(0);
   ws.forEach(w=>w.phys.forEach((n,t)=>{tot[t]+=n;}));
-  if(def.length>1) out.push('放炮牌必須相同,但目前有 '+def.map(t=>M.tName(t)).join('、'));
-  if(def.includes(34)) out.push('百搭不能作為放炮牌');
-  if(!allowPartial&&unknown.length) out.push('雙響／三響:每位食糊者都要指定同一張放炮牌');
+  if(def.length>1)out.push('放炮牌必須相同,但目前有 '+def.map(t=>M.tName(t)).join('、'));
+  if(def.includes(34))out.push('百搭不能作為放炮牌');
+  if(!allowPartial&&unknown.length)out.push('雙響／三響:每位食糊者都要指定同一張放炮牌');
   if(common!=null&&common<34){
-    const c=tot.slice(); let missing=false;
-    unknown.forEach(w=>{if((w.phys[common]||0)>0)c[common]--;else missing=true;});
-    c[common]++;
-    for(let t=0;t<34;t++) if(c[t]>4) out.push(M.tName(t)+' 合計'+(t===common?'至少 ':' ')+c[t]+' 張'+(t===common?'（已計共同放炮牌）':''));
-    if(missing) out.push('尚未輸入共同放炮牌「'+M.tName(common)+'」／牌數待確認');
-    else if(allowPartial&&unknown.length) out.push('牌數待確認：請指定共同放炮牌「'+M.tName(common)+'」');
+    const c=tot.slice();let missing=false;
+    unknown.forEach(w=>{if((w.phys[common]||0)>0)c[common]--;else missing=true;});c[common]++;
+    for(let t=0;t<34;t++)if(c[t]>4)out.push(M.tName(t)+' 合計'+(t===common?'至少 ':' ')+c[t]+' 張'+(t===common?'（已計共同放炮牌）':''));
+    if(missing)out.push('尚未輸入共同放炮牌「'+M.tName(common)+'」／牌數待確認');
+    else if(allowPartial&&unknown.length)out.push('牌數待確認：請指定共同放炮牌「'+M.tName(common)+'」');
   }else if(def.length===0){
     let possible=false;
     for(let t=0;t<34;t++){
-      const c=tot.slice();
-      unknown.forEach(w=>{if((w.phys[t]||0)>0)c[t]--;}); c[t]++;
-      if(c.slice(0,34).every(n=>n<=4)) possible=true;
+      const c=tot.slice();unknown.forEach(w=>{if((w.phys[t]||0)>0)c[t]--;});c[t]++;
+      if(c.slice(0,34).every(n=>n<=4))possible=true;
     }
-    if(!possible) out.push('牌數確定超額：沒有任何共同放炮牌能使各款牌均不超過 4 張');
-    if(allowPartial) out.push('牌數待確認：請先指定共同放炮牌');
+    if(!possible)out.push('牌數確定超額：沒有任何共同放炮牌能使各款牌均不超過 4 張');
+    if(allowPartial)out.push('牌數待確認：請先指定共同放炮牌');
   }
-  if(isWild()&&tot[34]>S.cfg.wildLimit) out.push('百搭合計 '+tot[34]+' 張,超過本場的 '+S.cfg.wildLimit+' 張');
-  const seen=new Set();
-  ws.forEach(w=>w.flowers.forEach(i=>{if(seen.has(i))out.push('花牌「'+M.FLOWERS[i]+'」不能由兩位同時持有');seen.add(i);}));
+  if(isWild()&&tot[34]>S.cfg.wildLimit)out.push('百搭合計 '+tot[34]+' 張,超過本場的 '+S.cfg.wildLimit+' 張');
+  const seen=new Set();ws.forEach(w=>w.flowers.forEach(i=>{if(seen.has(i))out.push('花牌「'+M.FLOWERS[i]+'」不能由兩位同時持有');seen.add(i);}));
   return [...new Set(out)];
 }
 function checkFinalTiles(ws){
   if(ws.length===1&&ws[0].self){
-    const r=ws[0].ron;
-    if(!r)return ['缺少牌型資料，請重新輸入'];
-    const c=r.phys.slice(),out=[];
-    if(r.winTile!=null&&r.winTile<34)c[r.winTile]++;
+    const r=ws[0].ron;if(!r)return ['缺少牌型資料，請重新輸入'];
+    const c=r.phys.slice(),out=[];if(r.winTile!=null&&r.winTile<34)c[r.winTile]++;
     for(let t=0;t<34;t++)if(c[t]>4)out.push(M.tName(t)+' 合計 '+c[t]+' 張');
-    if(isWild()&&c[34]>S.cfg.wildLimit)out.push('百搭超過本場上限');
-    return out;
+    if(isWild()&&c[34]>S.cfg.wildLimit)out.push('百搭超過本場上限');return out;
   }
   return checkRonSet(ws.map(w=>w.ron),{allowPartial:false});
 }
@@ -1721,7 +1710,12 @@ document.addEventListener('click',e=>{
   if(Date.now()-lastTouchAct<700) return;
   const el=e.target.closest('[data-act]'); if(el) act(el.dataset.act,el.dataset);
 });
-document.addEventListener('keydown',e=>{const el=e.target.closest&&e.target.closest('[role="button"][data-act="startWinner"]');if(el&&(e.key==='Enter'||e.key===' ')){e.preventDefault();act('startWinner',el.dataset);}});
+document.addEventListener('focusin',e=>{if(isNameField(e.target))nameFieldFocus(e.target);});
+document.addEventListener('focusout',e=>{if(isNameField(e.target))settleNameField(e.target);});
+document.addEventListener('keydown',e=>{
+  const el=e.target.closest&&e.target.closest('[role="button"][data-act="startWinner"]');
+  if(el&&(e.key==='Enter'||e.key===' ')){e.preventDefault();act('startWinner',el.dataset);}
+});
 document.addEventListener('change',e=>{ const el=e.target.closest('[data-chg]'); if(el) chg(el.dataset.chg,el); });
 ['dblclick'].forEach(ev=>document.addEventListener(ev,e=>e.preventDefault()));
 document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='visible') checkUpdate(false); });
