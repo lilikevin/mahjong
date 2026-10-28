@@ -1276,19 +1276,14 @@ function viewHistory(){
       return '<div><small>'+historyPlayerLabel(p)+'</small><b'+(v==null?'':' class="'+(v>=0?'pos':'neg')+'"')+'>'+(v==null?'—':money(v))+'</b></div>';
     }).join('')+'</div>';
     if(!f.complete)h+='<div class="hint">舊紀錄資料不足</div>';
-if((r.financeMode||S.game)!=='hk'){
-  h+='<div class="zl">截至本局剩餘尚未結算金額</div>';
-  const after=historyAfterLedger(idx);
-  if(after===null)h+='<div class="hint">資料不足</div>';
-  else{
-    const rows=after.filter(x=>x.amt!==0);
-    h+=rows.length?rows.map(x=>'<div class="hint">'+historyPlayerName(x.from)+' 欠 '+historyPlayerName(x.to)+' $'+esc(x.amt)+' (拉'+esc(x.k==null?1:x.k)+'口)</div>').join(''):'<div class="hint">無</div>';
-  }
-}    const after=historyAfterLedger(idx);
-    if(after===null)h+='<div class="hint">資料不足</div>';
-    else{
-      const rows=after.filter(x=>x.amt!==0);
-      h+=rows.length?rows.map(x=>'<div class="hint">'+historyPlayerName(x.from)+' 欠 '+historyPlayerName(x.to)+' $'+esc(x.amt)+' (拉'+esc(x.k==null?1:x.k)+'口)'+ledgerDetailHtml(idx,x)+'</div>').join(''):'<div class="hint">無</div>';
+    if((r.financeMode||S.game)!=='hk'){
+      h+='<div class="zl">截至本局剩餘尚未結算金額</div>';
+      const after=historyAfterLedger(idx);
+      if(after===null)h+='<div class="hint">資料不足</div>';
+      else{
+        const rows=after.filter(x=>x.amt!==0);
+        h+=rows.length?rows.map(x=>'<div class="hint">'+historyPlayerName(x.from)+' 欠 '+historyPlayerName(x.to)+' $'+esc(x.amt)+' (拉'+esc(x.k==null?1:x.k)+'口)'+ledgerDetailHtml(idx,x)+'</div>').join(''):'<div class="hint">無</div>';
+      }
     }
     if(canEditRec(idx))h+='<div class="btnrow"><button data-act="editOpen" data-i="'+idx+'">修改重算</button></div>';
     h+='</div>';
@@ -1999,8 +1994,7 @@ function shareCard(res,total,raw){
   let gs; try{ gs=cardGroups(res); }catch(e){ return ''; }
   if(!gs||!gs.length) return '';
   const m=wildMult(), fl=E.flowers.map((f,i)=>f?M.FLOWERS[i]:'').filter(Boolean);
-  const groupsHtml=gs.map(g=>'<div style="display:inline-flex;flex-direction:column;align-items:center;margin:3px 4px"><div style="display:inline-flex;gap:1px;padding:6px 6px 9px;border-radius:8px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.22)">'+shareTiles(g)+'</div><small
- style="opacity:.8;margin-top:2px;font-size:11px">'+g.k+'</small></div>').join('');
+  const groupsHtml=gs.map(g=>'<div style="display:inline-flex;flex-direction:column;align-items:center;margin:3px 4px"><div style="display:inline-flex;gap:1px;padding:6px 6px 9px;border-radius:8px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.22)">'+shareTiles(g)+'</div><small style="opacity:.8;margin-top:2px;font-size:11px">'+g.k+'</small></div>').join('');
   let totalHtml;
   if(isHK()){ const cap=hkCap(); totalHtml='<div style="font-size:36px;font-weight:700;color:var(--acc);line-height:1.1">'+total+' 番</div>'+(raw>cap?'<div style="font-size:12px;opacity:.8">(疊加 '+raw+' 番,封頂 '+cap+' 番)</div>':''); }
   else { totalHtml='<div style="font-size:36px;font-weight:700;color:var(--acc);line-height:1.1">'+(total*m)+' 番</div>'+(m>1?'<div style="font-size:12px;opacity:.8">'+total+' 番 × '+m+'(冇用百搭)</div>':'')+'<div style="font-size:11px;opacity:.7">牌型番數(已含底),未計莊家及連莊加番</div>'; }
