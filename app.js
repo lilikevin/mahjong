@@ -668,7 +668,7 @@ function viewEntryFlow(){
   }else if(entryStep==='method'){
     h+='<h3>'+playerLabel(E.winner)+' 食糊</h3><p class="hint">選擇食糊方式，下一步輸入牌型。</p><div class="seg two"><button data-act="chooseMethod" data-v="self">自摸</button><button data-act="chooseMethod" data-v="ron">食炮</button></div><div class="btnrow"><button data-act="entryPick">重新選擇贏家</button></div>';
   }else if(entryStep==='payer'){
-    h+='<h3>'+playerLabel(E.winner)+' 食炮</h3><p class="hint">選擇出銃者（放炮者）</p><div class="grid2">'+S.seat.filter(p=>p!==E.winner).map(p=>'<button data-act="choosePayer" data-p="'+p+'">'+playerLabel(p)+'</button>').join('')+'</div><div class="btnrow"><button data-act="entryMethod">返回食糊方式</button></div>';
+    h+='<h3>'+playerLabel(E.winner)+' 別家出銃</h3><p class="hint">選擇出銃者（放炮者）</p><div class="grid2">'+S.seat.filter(p=>p!==E.winner).map(p=>'<button data-act="choosePayer" data-p="'+p+'">'+playerLabel(p)+'</button>').join('')+'</div><div class="btnrow"><button data-act="entryMethod">返回食糊方式</button></div>';
   }
   return h+'<div class="btnrow"><button data-act="tab" data-v="table">返回牌桌（保留本局）</button>'+(hasEntryDraft()?'<button data-act="clearEntry">放棄本局輸入</button>':'')+'</div>';
 }
@@ -860,7 +860,7 @@ function viewCalc(){
   if(pending.length){ h+='<div class="note">已加入 '+pending.length+' 位食糊者:'+pending.map(w=>nm(w.p)+' '+w.total+'番').join('、')+'</div>';
     const pr=ronProblems(false); h+=pr.length?'<div class="warn">'+pr.map(esc).join('<br>')+'</div>':'<div class="hint">雙響／三響:放炮牌必須相同('+esc(M.tName(pending[0].ron.winTile))+'),四家合共每款牌最多 4 張。</div>'; }
   h+='<h3>食糊者：'+playerLabel(E.winner)+'</h3><div class="btnrow"><button data-act="entryPick">改選贏家</button><button data-act="tab" data-v="table">返回牌桌（保留輸入）</button></div>';
-  h+='<div class="seg two"><button class="'+(E.self?'on':'')+'" data-act="self" data-v="1">自摸</button><button class="'+(!E.self?'on':'')+'" data-act="self" data-v="0">食炮（別家出銃）</button></div>';
+  h+='<div class="seg two"><button class="'+(E.self?'on':'')+'" data-act="self" data-v="1">自摸</button><button class="'+(!E.self?'on':'')+'" data-act="self" data-v="0">別家出銃</button></div>';
   if(!E.self){ h+='<div class="lbl">出銃者(放槍)</div>'+winnerBtns('disc',E.disc); }
   if(!isHK()) h+=inputSection()+'<h3>④ 加入花牌</h3><div class="flowers">'+M.FLOWERS.map((f,i)=>'<button class="fl '+(E.flowers[i]?'on':'')+'" data-act="flower" data-i="'+i+'">'+f+'</button>').join('')+'</div>';
   const flagList=(M.FLAGS||DEFAULT_FLAGS).filter(a=>!(isHK()&&a[0]==='menqing')).concat((isHK()||curPreset()===4)?[]:HUAHU.map(h2=>[h2[0],h2[1]]));
