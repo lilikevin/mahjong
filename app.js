@@ -599,11 +599,11 @@ function viewCalc(){
   if(isHK()){
     if(E.self||E.disc!=null){
       const w0={p:E.winner,self:E.self,disc:E.disc,total:total,qiang:!!E.flags.qiangkong&&!E.self,bao:E.bao};
-      const d=settleHK(pending.concat([w0]));
+      const d=settleHK(hasCurrentData()?pending.concat([w0]):pending);
       h+='<h3>本局計分預覽</h3><div class="prev">'+S.seat.map(p=>'<div><small>'+nm(p)+'</small><b class="'+(d[p]>=0?'pos':'neg')+'">'+money(d[p])+'</b></div>').join('')+'</div><p class="hint">'+HK_PRESETS[S.cfg.hk.preset].name+':'+total+' 番出銃 '+hkRon(total)+' 分,自摸每家 '+hkShare(total)+' 分。</p>';
     }
   } else if(E.self||E.disc!=null){
-    const ws=pending.map(w=>({p:w.p,self:false,disc:w.disc,total:w.total,mult:w.mult})).concat([{p:E.winner,self:E.self,disc:E.disc,total,mult:wildMult()}]);
+    const ws=pending.map(w=>({p:w.p,self:false,disc:w.disc,total:w.total,mult:w.mult})).concat(hasCurrentData()?[{p:E.winner,self:E.self,disc:E.disc,total,mult:wildMult()}]:[]);
     const out=applyHand(S.ledger,mkTxns(ws,dealerPid(),S.streak),true);
     h+='<h3>本局記帳預覽</h3><div class="prev">'+S.seat.map(p=>'<div><small>'+nm(p)+'</small><b class="'+(out.cash[p]>=0?'pos':'neg')+'">'+money(out.cash[p])+'</b></div>').join('')+'</div><p class="hint">上方為本局實際收付的現金;新的食糊金額先記入「拉」,不立即收付。</p>';
     h+=out.ev.map(e=>'<div class="hint">• '+evText(e)+'</div>').join('');
@@ -740,9 +740,22 @@ function collectCurrent(){
   return {ron:ronEntry(),wild:isWild()?{limit:S.cfg.wildLimit,preset:S.cfg.wildPreset,physical:E.all.slice(),groups:E.wildGroups,replacements:res.replacements,assigned:res.assigned,win:res.win}:null,mult:wildMult(),p:E.winner,self:E.self,disc:E.disc,total,raw,fans:wildMult()>1?items.concat([{id:'nojoker',name:'冇用百搭 全部番數',n:1,total:'×'+wildMult()}]):items,qiang:!!E.flags.qiangkong&&!E.self,bao:baoVisible()?E.bao:null};
 }
 function validateCur(){
-  if(isWild()){const r=wildResult();if(!r||r.error||!r.complete){toast('請先完成百搭最高番搜尋');return false;}if(Object.keys(E.jsel).length){toast('請先完成或取消正在選取的含百搭明牌');return false;}}
-  if(!E.self){ if(E.disc==null){ toast('請選擇出銃者(放槍)'); return false; } if(E.disc===E.winner){ toast('出銃者不能是食糊者'); return false; } }
-  if(pending.length){ const pr=ronProblems(true); if(pr.length){ toast(pr[0]); return false; } }
+  // 舊函數保留作兼容，實際驗證由新流程處理
+  // 先檢查已加入者完整性
+  const pendRon = pending.map(w=>w.ron).filter(Boolean);
+  if(pending.length>0){
+    if(pending.some(w=>!w.ron)){ toast('部分食糊者缺少牌型資料，請重新輸入'); return false; }
+    let err = checkWinnerSet(pending);
+    if(err.length){ toast(err[0]); return false; }
+    err = checkRonSet(pendRon, {allowPartial:false});
+    if(err.length){ toast(err[0]); return false; }
+  }
+  if(!hasCurrentData()){
+    return pending.length===0 ? false : true;
+  }
+  if(!validateCurrentEntry()) return false;
+  const pr = ronProblems(true);
+  if(pr.length){ toast(pr[0]); return false; }
   return true;
 }
 function resetGameData(){
@@ -867,30 +880,89 @@ function act(a,d){
     case 'hkWin': { if(!(pending.length&&pending[0].ron)) E.hkWin=(E.hkWin===+d.t)?null:+d.t; E.excl={}; break; }
     case 'clearEntry': E=newEntry(); pending=[]; break;
     case 'addWinner': {
+      // 1. 先檢查已加入者
+      {
+        const pendRon = pending.map(w=>w.ron).filter(Boolean);
+        if(pending.length>0 && pending.some(w=>!w.ron)){ toast('部分食糊者缺少牌型資料，請重新輸入'); return; }
+        let err = checkWinnerSet(pending);
+        if(err.length){ toast(err[0]); return; }
+        err = checkRonSet(pendRon, {allowPartial:false});
+        if(err.length){ toast(err[0]); return; }
+      }
       if(E.self){ toast('雙響/三響須為出銃'); return; }
-      if(!validateCur()) return;
-      if(curWinTile()==null){ toast(isHK()?'請先在「放炮牌」指定打出的那張牌':'請先指定食糊牌(即放炮牌)'); return; }
-      const c=collectCurrent(); pending.push(c); const disc=E.disc; E=newEntry(); E.self=false; E.disc=disc;
+      if(!hasCurrentData()){ toast('請先輸入牌'); return; }
+      if(!validateCurrentEntry()) return;
+      if(pending.some(w=>w.p===E.winner)){ toast('同一玩家不能重複加入'); return; }
+      if(pending.length>=3){ toast('最多三位食糊者'); return; }
+      if(pending.length>0 && pending[0].disc!==E.disc){ toast('所有食糊者必須來自同一位出銃者'); return; }
+
+      const cur = collectCurrent();
+      const ws = pending.concat([cur]);
+      let err = checkWinnerSet(ws);
+      if(err.length){ toast(err[0]); return; }
+      err = checkFinalTiles(ws);
+      if(err.length){ toast(err[0]); return; }
+
+      pending.push(cur);
+      const disc=E.disc; E=newEntry(); E.self=false; E.disc=disc;
       E.winner=S.seat.find(p=>p!==disc&&!pending.some(w=>w.p===p)); toast('已加入,請輸入下一位食糊者'); break; }
     case 'confirm': {
-      if(!validateCur()) return;
-      const cur=collectCurrent();
+      // 1. 先檢查已加入者完整性
+      {
+        const pendRon = pending.map(w=>w.ron).filter(Boolean);
+        if(pending.length>0 && pending.some(w=>!w.ron)){ toast('部分食糊者缺少牌型資料，請重新輸入'); return; }
+        let err = checkWinnerSet(pending);
+        if(err.length){ toast(err[0]); return; }
+        err = checkRonSet(pendRon, {allowPartial:false});
+        if(err.length){ toast(err[0]); return; }
+      }
+
+      const hasCur = hasCurrentData();
+      let ws;
+      let cur=null;
+
+      if(hasCur){
+        if(!validateCurrentEntry()) return;
+        cur=collectCurrent();
+        ws = pending.concat([cur]);
+      } else {
+        if(pending.length===0){ toast('請先輸入牌'); return; }
+        ws = pending.slice(); // 只結算已加入的
+      }
+
+      // 2. 用同一份名單驗證玩家/出銃者/人數/自摸
+      {
+        let err = checkWinnerSet(ws);
+        if(err.length){ toast(err[0]); return; }
+        if(ws.some(w=>!w.ron)){ toast('部分食糊者缺少牌型資料，請重新輸入'); return; }
+        err = checkFinalTiles(ws);
+        if(err.length){ toast(err[0]); return; }
+      }
+
       const minF=isHK()?S.cfg.hk.minFan:S.cfg.minFan;
       const dealer=dealerPid();
-      if(isHK()&&minF>0&&cur.total<minF){
-        const pen=hkRon(99);
-        if(!confirm('只有 '+cur.total+' 番,不足 '+minF+' 番起糊,當詐糊。\n\n'+S.names[cur.p]+' 扣 '+pen+' 分(例牌分數),其他三家不加分,本局重來(莊家不變)。\n確定記錄嗎?')) return;
-        const del=[0,0,0,0]; del[cur.p]-=pen;
-        pushRec({kind:'settle',name:'詐糊(不足'+minF+'番):'+S.names[cur.p],deltas:del,events:[]});
-        E=newEntry(); pending=[]; tab='history'; toast('已記錄詐糊'); break;
-      }
-      if(!isHK()&&minF>0&&(cur.total-diTotal(cur.fans))<minF&&!confirm('只有 '+(cur.total-diTotal(cur.fans))+' 番(不含底),低於起糊 '+minF+' 番,仍要記錄?')) return;
-      if(cur.total===0&&!confirm('合計 0 番,仍要記錄?')) return;
-      const ws=pending.concat([cur]);
+      // Validate the final list, including pending-only confirmation.
       if(isHK()){
-        const deltas=settleHK(ws);
-        S.history.push({id:Date.now(),time:Date.now(),kind:'win',dealer,streak:S.streak,wind:S.wind,winners:ws.map(w=>({p:w.p,self:w.self,disc:w.disc,total:w.total,raw:w.raw,fans:w.fans,bao:w.bao})),deltas,events:[],before:before(),ledgerBefore:copyL(S.ledger)});
-        advance(ws.some(w=>w.p===dealer)&&S.cfg.hk.renzhuang,false);
+        const low=ws.filter(w=>minF>0 && w.total<minF);
+        if(low.length){
+          const pen=hkRon(99), del=[0,0,0,0];
+          if(!confirm(low.map(w=>S.names[w.p]+' 只有 '+w.total+' 番,不足 '+minF+' 番起糊').join('\n')+
+            '\n每位當詐糊扣 '+pen+' 分，其他三家不加分，本局重來。確定記錄嗎？')) return;
+          low.forEach(w=>{del[w.p]-=pen;});
+          pushRec({kind:'settle',name:'詐糊(不足'+minF+'番):'+low.map(w=>S.names[w.p]).join('、'),deltas:del,events:[]});
+          E=newEntry(); pending=[]; tab='history'; toast('已記錄詐糊'); break;
+        }
+      } else {
+        for(const w of ws){
+          const f=w.total-diTotal(w.fans);
+          if(minF>0 && f<minF && !confirm(S.names[w.p]+' 只有 '+f+' 番(不含底),低於起糊 '+minF+' 番,仍要記錄?')) return;
+        }
+      }
+      for(const w of ws) if(w.total===0 && !confirm(S.names[w.p]+' 合計 0 番,仍要記錄?')) return;
+      if(isHK()){
+        pushRec({kind:'win',winners:ws.map(w=>({p:w.p,self:w.self,disc:w.disc,total:w.total,raw:w.raw,fans:w.fans,bao:w.bao,qiang:w.qiang,ron:w.ron})),deltas:settleHK(ws),events:[]});
+        const dealerWon=ws.some(w=>w.p===dealer);
+        advance(dealerWon && S.cfg.hk.renzhuang,false);
         E=newEntry(); pending=[]; tab='history'; toast('已記錄'); break;
       }
       const out=applyHand(S.ledger,mkTxns(ws,dealer,S.streak),true);
@@ -902,7 +974,7 @@ function act(a,d){
         }
       });
       const lb=copyL(S.ledger);
-      S.history.push({id:Date.now(),time:Date.now(),kind:'win',dealer,streak:S.streak,wind:S.wind,winners:ws.map(w=>({p:w.p,self:w.self,disc:w.disc,total:w.total,mult:w.mult,fans:w.fans,wild:w.wild})),deltas:cash,events:ev,before:before(),ledgerBefore:lb});
+      S.history.push({id:Date.now(),time:Date.now(),kind:'win',dealer,streak:S.streak,wind:S.wind,winners:ws.map(w=>({p:w.p,self:w.self,disc:w.disc,total:w.total,mult:w.mult,fans:w.fans,wild:w.wild,raw:w.raw,bao:w.bao,qiang:w.qiang,ron:w.ron})),deltas:cash,events:ev,before:before(),ledgerBefore:lb});
       S.ledger=copyL(ledger);
       advance(ws.some(w=>w.p===dealer),false);
       E=newEntry(); pending=[]; tab='history'; toast('已記錄'); break; }
@@ -1370,7 +1442,8 @@ function importTableText(text){
   toast('已匯入「'+t.name+'」'+(t.p!==tblP()?'。它屬於「'+tblPName(t.p)+'」,切換到該番表後才可套用':''));
 }
 
-/* ===== 雙響／三響:跨手牌檢查 ===== */
+
+/* ===== 雙響／三響:跨手牌檢查 — 2026-10-28 重構版 ===== */
 const curWinTile=()=>isHK()?(E.self?null:E.hkWin):E.win;
 function physCounts(win){
   const c=Array(35).fill(0);
@@ -1381,24 +1454,135 @@ function physCounts(win){
 }
 function ronEntry(){
   const w=curWinTile();
-  return {winTile:w==null?null:w,phys:physCounts(w),flowers:E.flowers.map((f,i)=>f?i:-1).filter(i=>i>=0),has:E.all.length>0||E.wildGroups.length>0};
+  return {winTile:w==null?null:w,phys:physCounts(w),flowers:E.flowers.map((f,i)=>f?i:-1).filter(i=>i>=0),has:E.all.length>0||E.wildGroups.length>0||w!=null,all:E.all.slice()};
+}
+function hasCurrentData(){
+  return E.all.length>0 || E.wildGroups.length>0 || curWinTile()!=null;
+}
+function getLockedCommon(ws){
+  const def = ws.map(v=>v.winTile).filter(x=>x!=null);
+  if(def.length===0) return null;
+  if(new Set(def).size===1) return def[0];
+  return null;
+}
+function checkWinnerSet(ws){
+  const out=[];
+  if(ws.length>3) out.push('最多三位食糊者');
+  if(new Set(ws.map(w=>w.p)).size!==ws.length) out.push('同一玩家不能重複加入');
+  if(ws.length>1 && ws.some(w=>w.self)) out.push('已有出銃記錄時不能混入自摸');
+  if(ws.some(w=>!w.self && w.disc==null)) out.push('請指定出銃者');
+  if(ws.some(w=>!w.self && w.disc===w.p)) out.push('出銃者不能是食糊者');
+  if(ws.length>1 && new Set(ws.map(w=>w.disc)).size!==1) out.push('所有食糊者必須來自同一位出銃者');
+  if(ws.length>1 && ws.some(w=>!w.ron)) out.push('部分食糊者缺少牌型資料，請重新輸入');
+  return [...new Set(out)];
+}
+function checkRonSet(ws, {allowPartial=false}={}){
+  const out=[];
+  if(!ws.length) return out;
+  const def=[...new Set(ws.map(w=>w.winTile).filter(t=>t!=null))];
+  const unknown=ws.filter(w=>w.winTile==null);
+  const common=getLockedCommon(ws);
+  const tot=Array(35).fill(0);
+  ws.forEach(w=>w.phys.forEach((n,t)=>{tot[t]+=n;}));
+  if(def.length>1) out.push('放炮牌必須相同,但目前有 '+def.map(t=>M.tName(t)).join('、'));
+  if(def.includes(34)) out.push('百搭不能作為放炮牌');
+  if(!allowPartial && unknown.length) out.push('雙響／三響:每位食糊者都要指定同一張放炮牌');
+  if(common!=null && common<34){
+    const count=tot.slice();
+    let missing=false;
+    unknown.forEach(w=>{
+      if((w.phys[common]||0)>0) count[common]--;
+      else missing=true;
+    });
+    count[common]++;
+    for(let t=0;t<34;t++) if(count[t]>4){
+      out.push(M.tName(t)+' 合計'+(t===common?'至少 ':' ')+count[t]+' 張'+(t===common?'（已計共同放炮牌）':''));
+    }
+    if(missing) out.push('尚未輸入共同放炮牌「'+M.tName(common)+'」／牌數待確認');
+    else if(allowPartial && unknown.length) out.push('牌數待確認：請指定共同放炮牌「'+M.tName(common)+'」');
+  } else if(def.length===0){
+    // No lock: one candidate must resolve ALL tile excesses simultaneously.
+    const candidates=[];
+    for(let c=0;c<34;c++){
+      const count=tot.slice();
+      unknown.forEach(w=>{if((w.phys[c]||0)>0) count[c]--;});
+      count[c]++;
+      if(count.slice(0,34).every(n=>n<=4)) candidates.push(c);
+    }
+    if(!candidates.length) out.push('牌數確定超額：沒有任何一款共同放炮牌能使各款牌均不超過 4 張');
+    if(allowPartial) out.push('牌數待確認：請先指定共同放炮牌');
+  }
+  if(isWild() && tot[34]>S.cfg.wildLimit) out.push('百搭合計 '+tot[34]+' 張,超過本場的 '+S.cfg.wildLimit+' 張');
+  const seen=new Set();
+  ws.forEach(w=>w.flowers.forEach(i=>{
+    if(seen.has(i)) out.push('花牌「'+M.FLOWERS[i]+'」不能由兩位同時持有');
+    seen.add(i);
+  }));
+  return [...new Set(out)];
+}
+
+function checkFinalTiles(ws){
+  if(ws.length===1 && ws[0].self){
+    const r=ws[0].ron;
+    if(!r) return ['缺少牌型資料，請重新輸入'];
+    const full=r.phys.slice();
+    // physCounts only subtracts an ordinary tile, never a joker.
+    if(r.winTile!=null && r.winTile<34) full[r.winTile]++;
+    const out=[];
+    for(let t=0;t<34;t++) if(full[t]>4) out.push(M.tName(t)+' 合計 '+full[t]+' 張');
+    if(isWild() && full[34]>S.cfg.wildLimit) out.push('百搭超過本場上限');
+    return out;
+  }
+  return checkRonSet(ws.map(w=>w.ron), {allowPartial:false});
+}
+
+function allRonEntries(includeCur){
+  const list = pending.map(w=>w.ron).filter(Boolean);
+  if(includeCur && hasCurrentData()){
+    const cur = ronEntry();
+    if(cur.has || cur.winTile!=null) list.push(cur);
+  }
+  return list;
 }
 function ronProblems(strict){
-  const cur=ronEntry();
-  const ws=pending.map(w=>w.ron).filter(Boolean).concat([cur]);
-  if(ws.length<2) return [];
-  if(!strict&&!cur.has) return [];
-  const out=[], wins=ws.map(w=>w.winTile);
-  if(wins.some(x=>x==null)) out.push('雙響／三響:每位食糊者都要指定同一張放炮牌');
-  else if(new Set(wins).size>1) out.push('放炮牌必須相同,但目前有 '+Array.from(new Set(wins)).map(t=>M.tName(t)).join('、')+'(一張牌只能打出一次)');
-  const common=(wins.every(x=>x!=null)&&new Set(wins).size===1)?wins[0]:null;
-  const tot=Array(35).fill(0); ws.forEach(w=>w.phys.forEach((v,t)=>{ tot[t]+=v; }));
-  if(common!=null) tot[common]+=1;
-  for(let t=0;t<34;t++) if(tot[t]>4) out.push(M.tName(t)+' 合計 '+tot[t]+' 張(整副牌每款只有 4 張'+(common===t?',已計放炮牌':'')+')');
-  if(isWild()&&tot[34]>S.cfg.wildLimit) out.push('百搭合計 '+tot[34]+' 張,超過本場的 '+S.cfg.wildLimit+' 張');
-  const seen={}; ws.forEach(w=>w.flowers.forEach(i=>{ if(seen[i]) out.push('花牌「'+M.FLOWERS[i]+'」不能由兩位同時持有'); seen[i]=1; }));
-  return Array.from(new Set(out));
+  // strict=false 預覽：永遠檢查 pending，正在輸入嘅第三手有牌就一齊檢查，未指名時隱藏「未指定放炮牌」但保留超額
+  if(!strict){
+    const base = pending.map(w=>w.ron).filter(Boolean);
+    if(base.length===0) return [];
+    const withCur = allRonEntries(true);
+    const ws = withCur.length>=2 ? withCur : base;
+    // 預覽容許未完整
+    return checkRonSet(ws, {allowPartial:true}).filter(e=>{
+      // 預覽時，缺放炮牌提示轉為待確認，不擋其他確定錯
+      if(e.includes('每位食糊者都要指定同一張')) return false;
+      return true;
+    });
+  } else {
+    const ws = allRonEntries(true);
+    if(ws.length<2) return [];
+    return checkRonSet(ws, {allowPartial:false});
+  }
 }
+function validateCurrentEntry(){
+  if(!Number.isInteger(E.winner) || !S.seat.includes(E.winner)){
+    toast('請選擇食糊者'); return false;
+  }
+  if(isWild() && Object.keys(E.jsel).length){
+    toast('請先完成或取消正在選取的含百搭明牌'); return false;
+  }
+  const r=analyze();
+  if(!r || r.error || !r.items || (isWild() && !r.complete)){
+    toast(r&&r.error?r.error:(isWild()?'請先完成百搭最高番搜尋':'請先完成有效的食糊牌型')); return false;
+  }
+  if(!E.self){
+    if(E.disc==null){ toast('請選擇出銃者(放槍)'); return false; }
+    if(E.disc===E.winner){ toast('出銃者不能是食糊者'); return false; }
+    if(curWinTile()==null){ toast(isHK()?'請先在「放炮牌」指定打出的那張牌':'請先指定食糊牌(即放炮牌)'); return false; }
+    if(curWinTile()===34){ toast('百搭不能作為放炮牌'); return false; }
+  }
+  return true;
+}
+
 function hkWinPicker(){
   if(!isHK()||E.self) return '';
   const lock=(pending.length&&pending[0].ron)?pending[0].ron.winTile:null;
