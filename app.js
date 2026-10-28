@@ -1,6 +1,6 @@
 (function(){
 'use strict';
-const APP_VERSION='v1.4.4-ui';
+const APP_VERSION='1.4.2';
 const DEV_IG='kevinli999';
 let M=window.MJ;
 const KEY='mj_hk_tw_v1';
@@ -83,7 +83,7 @@ function pickM(){
 pickM();
 if(!window.MJ4){ try{ const sc=document.createElement('script'); sc.src='engine4.js'; sc.onload=()=>{ pickM(); render(); }; document.head.appendChild(sc); }catch(e){} }
 let lastSaveWarn=0;
-const save=()=>{ try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){ const t=Date.now(); if(t-lastSaveWarn>8000){ lastSaveWarn=t; toast('儲存失敗(記憶體可能已滿)。請到「設定」匯出備份'); } } };
+const save=()=>{ finalizeFinancialSnapshots(); try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){ const t=Date.now(); if(t-lastSaveWarn>8000){ lastSaveWarn=t; toast('儲存失敗(記憶體可能已滿)。請到「設定」匯出備份'); } } };
 const newEntry=()=>({winner:null,self:true,disc:null,hkWin:null,all:[],wildGroups:[],jsel:{},adjust:0,pickRep:null,marks:Array(34).fill(0),kongOpen:{},melds:[],hand:[],win:null,partBad:false,mode:'pick',flowers:Array(8).fill(false),flags:{},excl:{},extra:[],bao:null});
 let E=newEntry(), pending=[], tab='table', wildPick=false;
 let inst={id:null,mode:'one',payee:null,payer:null,mult:1};
@@ -484,8 +484,7 @@ function avatar(p){return esc((S.avatars||DEFAULT_AVATARS)[p]||DEFAULT_AVATARS[p
 function playerLabel(p){return avatar(p)+' '+nm(p);}
 function hasEntryDraft(){return hasCurrentData()||pending.length>0||E.flowers.some(Boolean)||E.extra.length>0||E.adjust!==0||Object.keys(E.flags).some(k=>E.flags[k]);}
 function openPlayerSetup(){
-  nameEdits.clear();
-  playerDraft={names:S.names.slice(),avatars:(S.avatars||DEFAULT_AVATARS).slice(),seat:S.seat.slice(),dealerSeat:S.dealerSeat};tab='players';
+  nameEdits.clear();playerDraft={names:S.names.slice(),avatars:(S.avatars||DEFAULT_AVATARS).slice(),seat:S.seat.slice(),dealerSeat:S.dealerSeat};tab='players';
 }
 function isNameField(el){return !!(el&&el.dataset&&el.dataset.playerName!=null&&playerDraft);}
 function nameFieldFocus(el){
@@ -714,6 +713,60 @@ function viewInstantControls(){
   return h;
 }
 
+function validLedgerSnapshot(rows){
+  return Array.isArray(rows)&&rows.every(r=>r&&Number.isInteger(r.from)&&r.from>=0&&r.from<4&&Number.isInteger(r.to)&&r.to>=0&&r.to<4&&Number.isFinite(r.amt));
+}
+function ledgerFigures(rows){
+  const incoming=[0,0,0,0],outgoing=[0,0,0,0];
+  rows.forEach(r=>{incoming[r.to]+=r.amt;outgoing[r.from]+=r.amt;});
+  return {incoming,outgoing,net:incoming.map((n,p)=>n-outgoing[p])};
+}
+function finalizeFinancialSnapshots(){
+  // Seal only records created by this build, after the action has finished updating the ledger.
+  S.history.forEach((r,i)=>{
+    if(r.financePending!==true)return;
+    const next=S.history[i+1];
+    const after=next&&validLedgerSnapshot(next.ledgerBefore)?next.ledgerBefore:(i===S.history.length-1?S.ledger:null);
+    if(!validLedgerSnapshot(after))return;
+    r.ledgerAfter=copyL(after);r.financeSchema=1;delete r.financePending;
+  });
+}
+function historyFinancials(index){
+  const r=S.history[index];
+  const cash=[0,1,2,3].map(p=>Number.isFinite((r.deltas||[])[p])?r.deltas[p]:0);
+  const mode=r.financeMode||S.game;
+  if(mode==='hk')return {complete:true,cash,total:cash.slice(),pending:[0,0,0,0],receivableChange:[0,0,0,0],payableChange:[0,0,0,0],mode};
+  const before=r.ledgerBefore,next=S.history[index+1];
+  let after=r.ledgerAfter;
+  if(!validLedgerSnapshot(after)){
+    if(next&&validLedgerSnapshot(next.ledgerBefore))after=next.ledgerBefore;
+    else if(index===S.history.length-1&&validLedgerSnapshot(S.ledger))after=S.ledger;
+  }
+  if(!validLedgerSnapshot(before)||!validLedgerSnapshot(after))return {complete:false,cash,total:null,pending:null,mode};
+  const a=ledgerFigures(before),b=ledgerFigures(after);
+  const pending=b.net.map((n,p)=>n-a.net[p]);
+  return {complete:true,cash,total:cash.map((n,p)=>n+pending[p]),pending,
+    receivableChange:b.incoming.map((n,p)=>n-a.incoming[p]),payableChange:b.outgoing.map((n,p)=>n-a.outgoing[p]),mode};
+}
+function historyMoneyHtml(index){
+  const f=historyFinancials(index);
+  let h='<div class="hint">本局淨變動（完成後總額 − 開始前總額）</div><div class="prev">';
+  h+=S.seat.map(p=>{
+    const value=f.complete?f.total[p]:null;
+    let cell='<div><small>'+playerLabel(p)+'</small><b'+(value==null?'':' class="'+(value>=0?'pos':'neg')+'"')+'>'+(value==null?'—':money(value))+'</b>';
+    cell+='<small style="display:block">已收付 '+money(f.cash[p])+'</small>';
+    if(f.complete&&f.mode!=='hk')cell+='<small style="display:block">未結算變動 '+money(f.pending[p])+'</small>';
+    return cell+'</div>';
+  }).join('');h+='</div>';
+  if(!f.complete)h+='<div class="warn">舊紀錄缺少拉數快照，無法確認本局總淨變動；小字只顯示已收付，未假設未結算金額為 0。</div>';
+  else if(f.mode!=='hk'){
+    h+='<div class="hint">未結算變動為本筆記錄造成的拉數淨額變化，包含新增、結清、踢半等；不是目前累計拉數。</div>';
+    const both=[0,1,2,3].filter(p=>f.receivableChange[p]!==0&&f.payableChange[p]!==0);
+    if(both.length)h+='<div class="hint">'+both.map(p=>playerLabel(p)+'：未收拉變動 '+money(f.receivableChange[p])+'／未付拉變動 '+money(f.payableChange[p])).join('；')+'</div>';
+  }
+  return h;
+}
+
 function viewHistory(){
   if(!S.history.length) return '<p class="hint">目前沒有紀錄</p>';
   let h='<div class="btnrow"><button data-act="undoRec">撤銷最後一局</button></div>';
@@ -722,7 +775,7 @@ function viewHistory(){
     h+='<div class="card rec"><div class="rh"><b>#'+no+'</b> '+(r.kind==='win'?'食糊':r.kind==='draw'?'流局':r.kind==='settle'?esc(r.name||'結清'):'籌碼:'+esc(r.name))+' <small>'+WIND[r.wind]+'風圈 · 莊 '+nm(r.dealer)+' 連莊'+r.streak+' · '+t.getHours()+':'+String(t.getMinutes()).padStart(2,'0')+'</small></div>';
     if(r.kind==='win') r.winners.forEach(w=>{ h+='<div class="rw">'+nm(w.p)+(w.self?' 自摸':' 食 '+nm(w.disc)+' 出銃')+(w.bao!=null&&w.bao!==w.p?'(由 '+nm(w.bao)+' 包)':'')+' — <b>'+w.total+'番</b>'+(w.raw&&w.raw>w.total?'<small>(疊加 '+w.raw+' 番,封頂)</small>':'')+'<div class="hint">'+w.fans.map(f=>esc(f.name)+(f.n>1?'×'+f.n:'')+' '+f.total).join(' · ')+'</div></div>'; });
     (r.events||[]).forEach(e=>{ h+='<div class="hint">• '+evText(e)+'</div>'; });
-    h+='<div class="prev">'+S.seat.map(p=>'<div><small>'+nm(p)+'</small><b class="'+(r.deltas[p]>=0?'pos':'neg')+'">'+money(r.deltas[p])+'</b></div>').join('')+'</div></div>';
+    h+=historyMoneyHtml(no-1)+'</div>';
   });
   return h;
 }
@@ -824,7 +877,7 @@ function advance(keep,fromDraw){
   else { S.streak=0; S.dealerSeat=(S.dealerSeat+1)%4; if(S.dealerSeat===0) S.wind=(S.wind+1)%4; }
 }
 function before(){ return {dealerSeat:S.dealerSeat,streak:S.streak,wind:S.wind}; }
-function pushRec(o){ S.history.push(Object.assign({id:Date.now(),time:Date.now(),dealer:dealerPid(),streak:S.streak,wind:S.wind,before:before(),ledgerBefore:copyL(S.ledger)},o)); }
+function pushRec(o){ S.history.push(Object.assign({id:Date.now(),time:Date.now(),dealer:dealerPid(),streak:S.streak,wind:S.wind,before:before(),ledgerBefore:copyL(S.ledger),financePending:true,financeMode:S.game},o)); }
 function collectCurrent(){
   derive();
   const res=analyze(); const items=curItems(res); const raw=Math.max(0,items.reduce((a,x)=>a+x.total,0));
@@ -1076,7 +1129,7 @@ function act(a,d){
         }
       });
       const lb=copyL(S.ledger);
-      S.history.push({id:Date.now(),time:Date.now(),kind:'win',dealer,streak:S.streak,wind:S.wind,winners:ws.map(w=>({p:w.p,self:w.self,disc:w.disc,total:w.total,mult:w.mult,fans:w.fans,wild:w.wild,raw:w.raw,bao:w.bao,qiang:w.qiang,ron:w.ron})),deltas:cash,events:ev,before:before(),ledgerBefore:lb});
+      S.history.push({id:Date.now(),time:Date.now(),kind:'win',dealer,streak:S.streak,wind:S.wind,winners:ws.map(w=>({p:w.p,self:w.self,disc:w.disc,total:w.total,mult:w.mult,fans:w.fans,wild:w.wild,raw:w.raw,bao:w.bao,qiang:w.qiang,ron:w.ron})),deltas:cash,events:ev,before:before(),ledgerBefore:lb,financePending:true,financeMode:S.game});
       S.ledger=copyL(ledger);
       advance(ws.some(w=>w.p===dealer),false);
       finishEntry('已記錄'); break; }
