@@ -304,6 +304,30 @@ button, .t, .mt, [data-act], select{ min-height:44px; min-width:44px; }
 .oled-contrast .t{ border:1px solid #444 !important; }
 .progress{ height:6px; background:var(--bd); border-radius:3px; overflow:hidden; }
 .progress i{ display:block; height:100%; background:var(--acc); transition: width 200ms; }
+/* 1.5 mobile consistency: one tile size per grid, no layout scaling */
+.pal{display:flex;flex-direction:column;gap:6px;margin:8px 0}
+.pal .row{display:grid!important;grid-template-columns:repeat(9,minmax(0,1fr));gap:4px;align-items:stretch}
+.pal .row .t{width:auto!important;min-width:0!important;min-height:48px;margin:0!important;padding:6px 0!important;flex:none!important;font-size:15px;line-height:1.1}
+.pile .tiles{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:6px}
+.pile .mt{position:relative;width:100%;min-width:0;height:auto;min-height:58px;aspect-ratio:3/4;margin:0;transform:none}
+.pile .mt b{font-size:22px}.pile .mt.hon b{font-size:26px}
+.pile .mt.mk2{transform:none;background:#cfe9d6!important}
+.pile .mt.mark{outline-offset:-3px}
+.bdg{position:absolute;top:-6px;right:-4px;z-index:2;font-style:normal;font-size:11px;line-height:1;font-weight:700;background:var(--acc);color:var(--onacc);border-radius:8px;padding:3px 5px;box-shadow:0 1px 3px #0008}
+.mg .mt,.prev .mt,.stl .mt{min-width:0;min-height:0}
+.btnrow{flex-wrap:wrap}
+.adjrow{display:flex;gap:6px}
+.adjrow input{flex:1 1 100%;order:-1;min-width:0;text-align:center}
+.adjrow button{flex:1 1 44px;min-width:44px}
+.sticky-footer{bottom:var(--navh,0px)}
+html{scroll-padding-bottom:calc(var(--navh,0px) + 190px)}
+.sticky-footer .segmode{display:flex;gap:6px;margin:0 0 6px}
+.sticky-footer .segmode button{flex:1;min-height:46px;padding:8px 2px;font-size:15px}
+.modehint{height:34px;line-height:17px;font-size:13px;margin:0 0 6px;overflow:hidden;opacity:.9}
+@keyframes tilePop{0%{transform:scale(1)}45%{transform:scale(1.08)}100%{transform:scale(1)}}
+.t.selected,.mt.selected{transform:none;animation:tilePop 160ms cubic-bezier(.2,0,0,1)}
+.no-anim .t.selected,.no-anim .mt.selected{animation:none!important}
+@media (prefers-reduced-motion: reduce){.t.selected,.mt.selected{animation:none!important}}
 `+
 `
 body{background:var(--bg)!important}
@@ -347,7 +371,7 @@ function mt(t,o){
   if(t===34){o=o||{};const tag=o.tag||'span';return '<'+tag+' '+(o.attrs||'')+' class="mt '+(o.cls||'')+'" style="color:#8b2670"><b>百</b><i>搭</i></'+tag+'>';}
   o=o||{}; const tag=o.tag||'span';
   const at=(o.attrs||'')+' class="mt '+(t<27?'s'+M.suitOf(t):'hon h'+(t-27))+(o.back?' back':'')+(o.cls?' '+o.cls:'')+'"';
-  const inner=t<27?'<b>'+NUMCH[M.numOf(t)]+'</b><i>'+M.SUITS[M.suitOf(t)]+'</i>':'<b>'+M.tName(t)+'</b>';
+  const inner=(t<27?'<b>'+NUMCH[M.numOf(t)]+'</b><i>'+M.SUITS[M.suitOf(t)]+'</i>':'<b>'+M.tName(t)+'</b>')+(o.badge?'<em class="bdg">'+esc(o.badge)+'</em>':'');
   return '<'+tag+' '+at+'>'+inner+'</'+tag+'>';
 }
 function meldGroup(m,i){
@@ -723,6 +747,49 @@ function nextStepText(){
   }
   return '點選食糊玩家';
 }
+function marksTotal(){return E.marks.reduce((a,b)=>a+(b||0),0);}
+function poolHtml(){
+  const used=Array(35).fill(0);let markedWin=false;
+  const tiles=E.all.slice().sort((a,b)=>a-b).map(t=>{
+    const idx=used[t]++,mk=E.marks[t]||0,js=E.jsel[t]||0,isMk=idx<mk;
+    let cls=isMk?'mk2':'',badge='',winCopy=false;
+    if(isMk)badge='明';
+    else if(idx<mk+js)cls='mark';
+    else if(E.win===t&&!markedWin){markedWin=true;winCopy=true;cls='mark';badge='食';}
+    return mt(t,{tag:'button',cls:cls+(winCopy?' selected':''),badge,attrs:'data-act="poolTap" data-t="'+t+'"'});
+  }).join('');
+  return '<div class="zone poolbox pile"><div class="tiles">'+(tiles||'<span class="hint">點牌盤選牌</span>')+'</div></div>';
+}
+function wildMeldHtml(md,w){
+  let h='';
+  if(w&&E.partAmbig)h+='<div class="hint">明牌標記有多種分法,目前按其中一種計算;如不符,請調整標記。</div>';
+  if(w&&S.cfg.wildMeld){
+    h+='<div class="btnrow"><button class="'+(md==='jmeld'?'on':'')+'" data-act="mode" data-v="jmeld">選含百搭的明牌</button></div>';
+    if(md==='jmeld')h+='<div class="btnrow"><button data-act="wildGroup" data-v="chow">加入上牌</button><button data-act="wildGroup" data-v="pung">加入碰牌</button><button data-act="wildGroup" data-v="kong" data-open="1">加入明槓</button><button data-act="wildGroup" data-v="kong" data-open="0">加入暗槓</button><button data-act="wildCancelJ">取消選取</button></div>';
+    if(E.pickRep){
+      const pr=E.pickRep,chowName=t=>(t%9+1)+''+(t%9+2)+(t%9+3)+M.SUITS[Math.floor(t/9)];
+      h+='<div class="note"><b>這組代表哪張牌?</b>(點選)</div><div class="tiles" style="margin:6px 0">'+pr.cands.map(t=>pr.grp.t==='chow'?'<button data-act="repPick" data-t="'+t+'" style="padding:10px 12px">'+chowName(t)+'</button>':mt(t,{tag:'button',attrs:'data-act="repPick" data-t="'+t+'"'})).join('')+'</div><div class="btnrow"><button data-act="repCancel">取消</button></div>';
+    }
+  }
+  return h;
+}
+function segSummaryHtml(md,w){
+  let h='';
+  const meldCount=E.melds.length+(w?E.wildGroups.length:0);
+  if(meldCount||md==='meld'||md==='jmeld'){
+    h+='<div class="card entered"><div class="zl" style="margin-top:0">明牌 <small>'+meldCount+' 組</small></div>';
+    h+=meldCount?E.melds.map((m,i)=>meldGroup(m,i)).join('')+(w?E.wildGroups.map((g,i)=>'<div class="mg" data-act="wildRemoveGroup" data-i="'+i+'"><div class="row">'+g.physical.map(t=>mt(t)).join('')+'</div><small>'+(g.t==='chow'?'上':g.t==='pung'?'碰':g.open?'明槓':'暗槓')+'(含百搭,代表'+M.tName(g.tile)+') ✕</small></div>').join(''):''):'<span class="hint">尚未標明牌（沒有明牌可略過）</span>';
+    h+=wildMeldHtml(md,w)+'</div>';
+  }
+  if(E.win!=null||md==='win'){
+    h+='<div class="card entered"><div class="zl" style="margin-top:0">食糊牌 <small>'+(E.win!=null?'點牌取消':'請在牌堆點選')+(w&&E.win===34?'(百搭只限自摸)':'')+'</small></div>'+(E.win!=null?mt(E.win,{tag:'button',cls:'big',attrs:'data-act="clearWin"'}):'<span class="hint">尚未選食糊牌</span>')+'</div>';
+  }
+  return h;
+}
+function segControlHtml(md){
+  const hint=md==='pick'?'① 點牌盤加入牌堆　② 點牌堆刪牌':md==='meld'?'① 點牌堆標明牌　② 再點取消':md==='jmeld'?'選3或4張含百搭明牌，再按上／碰／槓':'① 點牌堆指定食糊牌　② 再點取消';
+  return '<div class="seg segmode" role="group" aria-label="輸入模式"><button class="'+(md==='pick'?'on':'')+'" data-act="mode" data-v="pick">① 選牌</button><button class="'+(md==='meld'||md==='jmeld'?'on':'')+'" data-act="mode" data-v="meld">② 標明牌</button><button class="'+(md==='win'?'on':'')+'" data-act="mode" data-v="win">③ 選食糊牌</button></div><div class="modehint">'+esc(hint)+'</div>';
+}
 function inputSection(){
   if(isHK()) return inputSectionHK();
   const md=E.mode, w=isWild();
@@ -765,13 +832,10 @@ function inputSection(){
   }
   // item 5 fixed height mode hint
   h+='<h3>① 輸入牌型</h3>';
-  h+='<div class="modebar-fixed">'+esc(tipText)+' - '+esc(tip)+'</div>';
-  // item 6 optional segmented
-  if(useSeg){
-    h+='<div class="seg three sticky-footer" style="position:sticky;top:40px;z-index:4;"><button class="'+(md==='pick'?'on':'')+'" data-act="mode" data-v="pick">選牌</button><button class="'+(md==='meld'||md==='jmeld'?'on':'')+'" data-act="mode" data-v="meld">標明牌</button><button class="'+(md==='win'?'on':'')+'" data-act="mode" data-v="win">選食糊牌</button></div>';
-  }
-  h+=palette();
-  h+='<div class="zl">牌堆 <small>已輸入 '+E.all.length+' 張'+((w&&E.wildGroups.length)?'':' / 需 '+(need()+E.melds.reduce((n,m)=>n+(m.t==='kong'?4:3),0))+' 張')+'</small></div>';
+  if(!useSeg)h+='<div class="modebar-fixed">'+esc(tipText)+' - '+esc(tip)+'</div>';
+  if(!useSeg)h+=palette();
+  const winName=E.win!=null?M.tName(E.win):'';
+  h+='<div class="zl">牌堆 <small>'+(useSeg?'共'+E.all.length+'張 · '+marksTotal()+'明 · '+(E.win!=null?'食糊 '+esc(winName):'未選食糊牌'):'已輸入 '+E.all.length+' 張'+((w&&E.wildGroups.length)?'':' / 需 '+(need()+E.melds.reduce((n,m)=>n+(m.t==='kong'?4:3),0))+' 張'))+'</small></div>';
   // progress bar for remaining (item 4-like)
   const meldTileCount=E.melds.reduce((n,m)=>n+(m.t==='kong'?4:3),0);
   const needN=need()+meldTileCount;
@@ -779,17 +843,10 @@ function inputSection(){
     const pct=Math.max(0, Math.min(100, Math.round(Math.min(E.all.length,needN)/needN*100)));
     h+='<div class="progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="'+pct+'"><i style="width:'+pct+'%"></i></div>';
   }
-  let markedWin=false;
-  const used=Array(35).fill(0);
-  h+='<div class="zone poolbox"><div class="tiles">'+(E.all.length?E.all.slice().sort((a,b)=>a-b).map(t=>{
-    const idx=used[t]++, mk=E.marks[t]||0, js=E.jsel[t]||0; const isMk=idx<mk;
-    let cls=isMk?'mk2':'';
-    if(!isMk&&idx<mk+js) cls='mark';
-    else if(!isMk&&E.win===t&&!markedWin){ markedWin=true; cls='mark'; }
-    return mt(t,{tag:'button',cls:cls+(E.win===t?' selected':''),attrs:'data-act="poolTap" data-t="'+t+'"'});
-  }).join(''):'<span class="hint">點上方牌盤選牌</span>')+'</div></div>';
+  h+=poolHtml();
   h+='<div class="btnrow"><button data-act="undoTile">退一張</button><button data-act="clearHand">全部清空</button></div>';
-  if(!S.cfg.wizard || wizardStep>=1){ h+='<h3>② 確認明牌</h3><div class="card entered">';
+  if(useSeg){ if(md==='pick')h+=palette(); h+=segSummaryHtml(md,w); }
+  if(!useSeg && (!S.cfg.wizard || wizardStep>=1)){ h+='<h3>② 確認明牌</h3><div class="card entered">';
   h+='<div class="zl" style="margin-top:0">明牌 <small>'+(E.melds.length+(w?E.wildGroups.length:0))+' 組(點空白處選明牌,點牌可取消)</small></div>';
   h+='<div class="zone tap'+(md==='meld'?' active':'')+'" data-act="mode" data-v="meld">'+((E.melds.length||(w&&E.wildGroups.length))?E.melds.map((m,i)=>meldGroup(m,i)).join('')+(w?E.wildGroups.map((g,i)=>'<div class="mg" data-act="wildRemoveGroup" data-i="'+i+'"><div class="row">'+g.physical.map(t=>mt(t)).join('')+'</div><small>'+(g.t==='chow'?'上':g.t==='pung'?'碰':g.open?'明槓':'暗槓')+'(含百搭,代表'+M.tName(g.tile)+') ✕</small></div>').join(''):''):'<span class="hint">點此選明牌(沒有明牌可略過)</span>')+'</div>';
   if(w&&E.partAmbig) h+='<div class="hint">明牌標記有多種分法,目前按其中一種計算;如不符,請調整標記。</div>';
@@ -801,7 +858,7 @@ function inputSection(){
       h+='<div class="note"><b>這組代表哪張牌?</b>(點選)</div><div class="tiles" style="margin:6px 0">'+pr.cands.map(t=>pr.grp.t==='chow'?'<button data-act="repPick" data-t="'+t+'" style="padding:10px 12px">'+chowName(t)+'</button>':mt(t,{tag:'button',attrs:'data-act="repPick" data-t="'+t+'"'})).join('')+'</div><div class="btnrow"><button data-act="repCancel">取消</button></div>';
     }
   }
-  h+='</div>'; } if(!S.cfg.wizard || wizardStep>=2){ h+='<h3>③ 確認食糊牌</h3><div class="card entered"><div class="zl" style="margin-top:0">食糊牌(胡牌) <small>'+(E.win!=null?'點牌可取消':'點空白處指名')+(w?(E.win===34?'(百搭只限自摸)':''):'')+'</small></div>';
+  h+='</div>'; } if(!useSeg && (!S.cfg.wizard || wizardStep>=2)){ h+='<h3>③ 確認食糊牌</h3><div class="card entered"><div class="zl" style="margin-top:0">食糊牌(胡牌) <small>'+(E.win!=null?'點牌可取消':'點空白處指名')+(w?(E.win===34?'(百搭只限自摸)':''):'')+'</small></div>';
   h+='<div class="zone winzone tap'+(md==='win'?' active':'')+'" data-act="mode" data-v="win">'+(E.win!=null?mt(E.win,{tag:'button',cls:'big selected',attrs:'data-act="clearWin"'}):'<span class="hint">點此選食糊牌</span>')+'</div>';
   h+='</div>'; } 
   // item 9 fixed bottom confirm - separate continue and confirm
@@ -815,7 +872,7 @@ function inputSection(){
   } else {
     footerBtns='<button data-act="tab" data-v="table" style="flex:1">返回牌桌</button><button class="primary" data-act="confirm" disabled style="flex:1">請先選食糊牌</button>';
   }
-  h+='<div class="sticky-footer"><div class="btnrow">'+footerBtns+'</div></div>';
+  h+='<div class="sticky-footer">'+(useSeg?segControlHtml(md):'')+'<div class="btnrow">'+footerBtns+'</div></div>';
   return h;
 }
 
@@ -826,7 +883,7 @@ function inputSectionHK(){
   h+=palette();
   h+=hkFlowerInput();
   h+='<div class="zl">牌堆 <small>已輸入 '+E.all.length+' 張 / 需 '+(isHK()? '14+槓數' : need()+'張')+'</small></div>';
-  h+='<div class="zone poolbox"><div class="tiles">'+(E.all.length?E.all.slice().sort((a,b)=>a-b).map(t=>mt(t,{tag:'button',attrs:'data-act="poolTap" data-t="'+t+'"'})).join(''):'<span class="hint">點上方牌盤選牌</span>')+'</div></div>';
+  h+='<div class="zone poolbox pile"><div class="tiles">'+(E.all.length?E.all.slice().sort((a,b)=>a-b).map(t=>mt(t,{tag:'button',attrs:'data-act="poolTap" data-t="'+t+'"'})).join(''):'<span class="hint">點上方牌盤選牌</span>')+'</div></div>';
   h+='<div class="btnrow"><button data-act="undoTile">退一張</button><button data-act="clearHand">全部清空</button></div>';
   h+=hkWinPicker();
   h+='<div class="card askcard"><div class="zl" style="margin-top:0">是不是門前清?(胡牌前沒有上、碰、槓過牌)</div>'
@@ -1128,6 +1185,7 @@ function render(){
   const views={players:viewPlayers,table:viewTable,calc:viewCalc,history:viewHistory,settle:viewSettle,settings:viewSettings};
   const tabs=[['table','牌桌'],['calc','算番'],['history','歷史'],['settle','結算'],['settings','設定']];
   el.innerHTML='<div class="body">'+updBanner()+a2hsBanner()+(views[tab]||viewTable)()+'</div><nav>'+(tab==='players'?'':tabs.map(t=>'<button class="'+(tab===t[0]?'on':'')+'" data-act="tab" data-v="'+t[0]+'">'+t[1]+'</button>').join(''))+'</nav>';
+  try{const nav=el.querySelector('nav');document.documentElement.style.setProperty('--navh',(nav?Math.ceil(nav.getBoundingClientRect().height):0)+'px');}catch(e){}
   window.scrollTo(0,y);
 }
 function advance(keep,fromDraw){
@@ -1696,7 +1754,7 @@ function diRow(){ return (isHK()||M.FANS.some(f=>f.id==='di'))?[]:[{id:'di',name
 function diTotal(items){ const d=(items||[]).find(x=>x.id==='di'); return (!isHK()&&d&&typeof d.total==='number')?d.total:0; }
 function adjustUI(){
   const v=E.adjust||0;
-  return '<div class="card"><div class="zl" style="margin-top:0">手動調整番數(beta:在計算結果上增減,令番數符合你的理解)</div><div class="btnrow" style="margin:6px 0">'+[-10,-5,-1].map(n=>'<button data-act="adj" data-d="'+n+'">'+n+'</button>').join('')+'<input type="number" step="1" data-chg="adjv" value="'+v+'" style="flex:1;min-width:70px;text-align:center">'+[1,5,10].map(n=>'<button data-act="adj" data-d="'+n+'">+'+n+'</button>').join('')+'<button data-act="adj" data-d="0">歸零</button></div><div class="hint">調整值直接加進番數(可以是負數),也會乘上「冇用百搭」倍數,並一併記入歷史。總番數不會低於 0。</div></div>';
+  return '<div class="card"><div class="zl" style="margin-top:0">手動調整番數(beta:在計算結果上增減,令番數符合你的理解)</div><div class="btnrow adjrow" style="margin:6px 0">'+[-10,-5,-1].map(n=>'<button data-act="adj" data-d="'+n+'">'+n+'</button>').join('')+'<input type="number" step="1" data-chg="adjv" value="'+v+'" aria-label="手動調整番數">'+[1,5,10].map(n=>'<button data-act="adj" data-d="'+n+'">+'+n+'</button>').join('')+'<button data-act="adj" data-d="0">歸零</button></div><div class="hint">調整值直接加進番數(可以是負數),也會乘上「冇用百搭」倍數,並一併記入歷史。總番數不會低於 0。</div></div>';
 }
 function hkFlowerMode(){ return !!S.cfg.hk.flowers||E.flowers.some(Boolean); }
 function hkFlowerInput(){
