@@ -1,6 +1,6 @@
 (function(){
 'use strict';
-const APP_VERSION='v1.4.0';
+const APP_VERSION='v1.4.1';
 const DEV_IG='kevinli999';
 let M=window.MJ;
 const KEY='mj_hk_tw_v1';
@@ -79,7 +79,7 @@ pickM();
 if(!window.MJ4){ try{ const sc=document.createElement('script'); sc.src='engine4.js'; sc.onload=()=>{ pickM(); render(); }; document.head.appendChild(sc); }catch(e){} }
 let lastSaveWarn=0;
 const save=()=>{ try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){ const t=Date.now(); if(t-lastSaveWarn>8000){ lastSaveWarn=t; toast('儲存失敗(記憶體可能已滿)。請到「設定」匯出備份'); } } };
-const newEntry=()=>({winner:null,self:true,disc:null,all:[],wildGroups:[],jsel:{},adjust:0,pickRep:null,marks:Array(34).fill(0),kongOpen:{},melds:[],hand:[],win:null,partBad:false,mode:'pick',flowers:Array(8).fill(false),flags:{},excl:{},extra:[],bao:null});
+const newEntry=()=>({winner:null,self:true,disc:null,hkWin:null,all:[],wildGroups:[],jsel:{},adjust:0,pickRep:null,marks:Array(34).fill(0),kongOpen:{},melds:[],hand:[],win:null,partBad:false,mode:'pick',flowers:Array(8).fill(false),flags:{},excl:{},extra:[],bao:null});
 let E=newEntry(), pending=[], tab='table', wildPick=false;
 let inst={id:null,mode:'one',payee:null,payer:null,mult:1};
 let upd=null, updDismissed=false, checking=false, a2hsHidden=false, buildInfo=null, storyImg=null, ruleHelp=false, tblDraft='', fileInput=null;
@@ -369,6 +369,8 @@ function bestMelds(){
 }
 function derive(){
   const ac=allCounts();
+  if(isHK()){ const lock=(pending.length&&pending[0].ron)?pending[0].ron.winTile:null;
+    if(lock!=null) E.hkWin=E.all.includes(lock)?lock:null; else if(E.hkWin!=null&&!E.all.includes(E.hkWin)) E.hkWin=null; }
   for(let t=0;t<34;t++){ if(E.marks[t]>ac[t]) E.marks[t]=ac[t]; if(E.marks[t]<0) E.marks[t]=0; }
   if(E.win!=null){ const unm=ac[E.win]-(E.marks[E.win]||0); if(unm<1) E.win=null; }
   E.melds=bestMelds();
@@ -389,13 +391,14 @@ function analyzeHK(){
   if(k>4) return {error:'牌數過多:現有 '+N+' 張'};
   const ac=allCounts(); const quad=[]; for(let t=0;t<34;t++) if(ac[t]===4) quad.push(t);
   if(k>quad.length) return {error:'現有 '+N+' 張,即有 '+k+' 個槓,但只有 '+quad.length+' 款牌有 4 張'};
-  const R=RL(); let best=null, cnt=0;
+  const R=RL(); let best=null, cnt=0; const fixWin=(!E.self&&E.hkWin!=null)?E.hkWin:null;
   combos(quad,k).forEach(cb=>{
     const melds=cb.map(t=>({t:'kong',tile:t,open:true}));
     const c=ac.slice(); cb.forEach(t=>{ c[t]-=4; });
     const hand=[]; for(let t=0;t<34;t++) for(let i=0;i<c[t];i++) hand.push(t);
     const seen={};
     hand.forEach(w=>{
+      if(fixWin!=null&&w!==fixWin) return;
       if(seen[w]) return; seen[w]=1;
       let r=null;
       try{ r=M.analyze(Object.assign({hand:hand,melds:melds,win:w,flowers:E.flowers,selfDraw:E.self,flags:E.flags,concealed:hkConcealed(ac)},ctxExtra()),OV()); }catch(e){}
@@ -403,7 +406,7 @@ function analyzeHK(){
       if(r&&!r.error&&r.items){ let tot=0; r.items.forEach(x=>{ tot+=M.valueOf(R,x); }); if(!best||tot>best.total) best={items:r.items,total:tot,count:0,waits:r.waits,kongs:cb.slice()}; }
     });
   });
-  if(!best) return {error:'這副牌組不成食糊牌形'};
+  if(!best) return {error:fixWin!=null?'以放炮牌「'+M.tName(fixWin)+'」計不成食糊牌形(放炮牌必須在手牌內,不能是槓出的牌)':'這副牌組不成食糊牌形'};
   best.count=cnt; best.autoMq=(E.flags.menqing===undefined&&N===14&&jiuziShape(ac)); return best;
 }
 function analyze(){
@@ -541,6 +544,7 @@ function inputSectionHK(){
   h+='<div class="zl">牌堆 <small>共 '+E.all.length+' 張</small></div>';
   h+='<div class="zone poolbox"><div class="tiles">'+(E.all.length?E.all.slice().sort((a,b)=>a-b).map(t=>mt(t,{tag:'button',attrs:'data-act="poolTap" data-t="'+t+'"'})).join(''):'<span class="hint">點上方牌盤選牌</span>')+'</div></div>';
   h+='<div class="btnrow"><button data-act="undoTile">退一張</button><button data-act="clearHand">全部清空</button></div>';
+  h+=hkWinPicker();
   h+='<div class="card askcard"><div class="zl" style="margin-top:0">是不是門前清?(胡牌前沒有上、碰、槓過牌)</div>'
     +'<div class="seg two"><button class="'+(mq===true?'on':'')+'" data-act="menqing" data-v="1">是(門前清)</button><button class="'+(mq===false?'on':'')+'" data-act="menqing" data-v="0">否(有上、碰、槓過)</button></div>'
     +'<div class="hint">'+(hkFlowerMode()?'花牌規則下不另計「門前清」番;但選「是」才會計坎坎糊、九子連環。':'選「是」才會計門前清、坎坎糊、九子連環。')+'未選擇時按「否」計算(只計對對糊);牌形符合九子連環時會自動按門前清計算。</div></div>';
@@ -568,7 +572,8 @@ function viewCalc(){
   if(E.winner==null) E.winner=S.seat[0];
   let h='<div class="status">目前:<b>'+WIND[S.wind]+'風圈</b> · 莊家 '+nm(dealerPid())+' · 連莊 '+S.streak+' 次<br>食糊者(胡牌)'+nm(E.winner)+' 的門風:<b>'+windOf(E.winner)+'風</b>'+(E.winner===dealerPid()?'(莊家)':'')+'</div>';
   h+='<div class="hint">各家門風:'+S.seat.map(p=>nm(p)+' '+windOf(p)).join(' · ')+'<br>玩法:'+gameName()+'</div>';
-  if(pending.length) h+='<div class="note">已加入 '+pending.length+' 位食糊者:'+pending.map(w=>nm(w.p)+' '+w.total+'番').join('、')+'</div>';
+  if(pending.length){ h+='<div class="note">已加入 '+pending.length+' 位食糊者:'+pending.map(w=>nm(w.p)+' '+w.total+'番').join('、')+'</div>';
+    const pr=ronProblems(false); h+=pr.length?'<div class="warn">'+pr.map(esc).join('<br>')+'</div>':'<div class="hint">雙響／三響:放炮牌必須相同('+esc(M.tName(pending[0].ron.winTile))+'),四家合共每款牌最多 4 張。</div>'; }
   h+='<h3>食糊者(胡牌)</h3>'+winnerBtns('winner',E.winner);
   h+='<div class="seg two"><button class="'+(E.self?'on':'')+'" data-act="self" data-v="1">自摸</button><button class="'+(!E.self?'on':'')+'" data-act="self" data-v="0">出銃(放槍)</button></div>';
   if(!E.self){ h+='<div class="lbl">出銃者(放槍)</div>'+winnerBtns('disc',E.disc); }
@@ -732,11 +737,12 @@ function collectCurrent(){
   derive();
   const res=analyze(); const items=curItems(res); const raw=Math.max(0,items.reduce((a,x)=>a+x.total,0));
   const total=isHK()?Math.min(raw,hkCap()):raw;
-  return {wild:isWild()?{limit:S.cfg.wildLimit,preset:S.cfg.wildPreset,physical:E.all.slice(),groups:E.wildGroups,replacements:res.replacements,assigned:res.assigned,win:res.win}:null,mult:wildMult(),p:E.winner,self:E.self,disc:E.disc,total,raw,fans:wildMult()>1?items.concat([{id:'nojoker',name:'冇用百搭 全部番數',n:1,total:'×'+wildMult()}]):items,qiang:!!E.flags.qiangkong&&!E.self,bao:baoVisible()?E.bao:null};
+  return {ron:ronEntry(),wild:isWild()?{limit:S.cfg.wildLimit,preset:S.cfg.wildPreset,physical:E.all.slice(),groups:E.wildGroups,replacements:res.replacements,assigned:res.assigned,win:res.win}:null,mult:wildMult(),p:E.winner,self:E.self,disc:E.disc,total,raw,fans:wildMult()>1?items.concat([{id:'nojoker',name:'冇用百搭 全部番數',n:1,total:'×'+wildMult()}]):items,qiang:!!E.flags.qiangkong&&!E.self,bao:baoVisible()?E.bao:null};
 }
 function validateCur(){
   if(isWild()){const r=wildResult();if(!r||r.error||!r.complete){toast('請先完成百搭最高番搜尋');return false;}if(Object.keys(E.jsel).length){toast('請先完成或取消正在選取的含百搭明牌');return false;}}
   if(!E.self){ if(E.disc==null){ toast('請選擇出銃者(放槍)'); return false; } if(E.disc===E.winner){ toast('出銃者不能是食糊者'); return false; } }
+  if(pending.length){ const pr=ronProblems(true); if(pr.length){ toast(pr[0]); return false; } }
   return true;
 }
 function resetGameData(){
@@ -858,10 +864,12 @@ function act(a,d){
     case 'unexcl': delete E.excl[d.id]; break;
     case 'extraN': { const x=E.extra[+d.i]; x.n+=+d.d; if(x.id==='weiwei'&&x.n<2) x.n=2; if(x.n<1) E.extra.splice(+d.i,1); break; }
     case 'rmExtra': E.extra.splice(+d.i,1); break;
+    case 'hkWin': { if(!(pending.length&&pending[0].ron)) E.hkWin=(E.hkWin===+d.t)?null:+d.t; E.excl={}; break; }
     case 'clearEntry': E=newEntry(); pending=[]; break;
     case 'addWinner': {
       if(E.self){ toast('雙響/三響須為出銃'); return; }
       if(!validateCur()) return;
+      if(curWinTile()==null){ toast(isHK()?'請先在「放炮牌」指定打出的那張牌':'請先指定食糊牌(即放炮牌)'); return; }
       const c=collectCurrent(); pending.push(c); const disc=E.disc; E=newEntry(); E.self=false; E.disc=disc;
       E.winner=S.seat.find(p=>p!==disc&&!pending.some(w=>w.p===p)); toast('已加入,請輸入下一位食糊者'); break; }
     case 'confirm': {
@@ -1360,6 +1368,45 @@ function importTableText(text){
   if(S.cfg.customTables.length>=40){ toast('自訂番數表已達上限(40 個)'); return; }
   t.id=newTableId(); t.saved=Date.now(); S.cfg.customTables.push(t); save(); render();
   toast('已匯入「'+t.name+'」'+(t.p!==tblP()?'。它屬於「'+tblPName(t.p)+'」,切換到該番表後才可套用':''));
+}
+
+/* ===== 雙響／三響:跨手牌檢查 ===== */
+const curWinTile=()=>isHK()?(E.self?null:E.hkWin):E.win;
+function physCounts(win){
+  const c=Array(35).fill(0);
+  E.all.forEach(t=>{ c[t]++; });
+  E.wildGroups.forEach(g=>g.physical.forEach(t=>{ c[t]++; }));
+  if(win!=null&&win<34&&c[win]>0) c[win]--;
+  return c;
+}
+function ronEntry(){
+  const w=curWinTile();
+  return {winTile:w==null?null:w,phys:physCounts(w),flowers:E.flowers.map((f,i)=>f?i:-1).filter(i=>i>=0),has:E.all.length>0||E.wildGroups.length>0};
+}
+function ronProblems(strict){
+  const cur=ronEntry();
+  const ws=pending.map(w=>w.ron).filter(Boolean).concat([cur]);
+  if(ws.length<2) return [];
+  if(!strict&&!cur.has) return [];
+  const out=[], wins=ws.map(w=>w.winTile);
+  if(wins.some(x=>x==null)) out.push('雙響／三響:每位食糊者都要指定同一張放炮牌');
+  else if(new Set(wins).size>1) out.push('放炮牌必須相同,但目前有 '+Array.from(new Set(wins)).map(t=>M.tName(t)).join('、')+'(一張牌只能打出一次)');
+  const common=(wins.every(x=>x!=null)&&new Set(wins).size===1)?wins[0]:null;
+  const tot=Array(35).fill(0); ws.forEach(w=>w.phys.forEach((v,t)=>{ tot[t]+=v; }));
+  if(common!=null) tot[common]+=1;
+  for(let t=0;t<34;t++) if(tot[t]>4) out.push(M.tName(t)+' 合計 '+tot[t]+' 張(整副牌每款只有 4 張'+(common===t?',已計放炮牌':'')+')');
+  if(isWild()&&tot[34]>S.cfg.wildLimit) out.push('百搭合計 '+tot[34]+' 張,超過本場的 '+S.cfg.wildLimit+' 張');
+  const seen={}; ws.forEach(w=>w.flowers.forEach(i=>{ if(seen[i]) out.push('花牌「'+M.FLOWERS[i]+'」不能由兩位同時持有'); seen[i]=1; }));
+  return Array.from(new Set(out));
+}
+function hkWinPicker(){
+  if(!isHK()||E.self) return '';
+  const lock=(pending.length&&pending[0].ron)?pending[0].ron.winTile:null;
+  const uniq=Array.from(new Set(E.all)).sort((a,b)=>a-b);
+  let h='<div class="card askcard"><div class="zl" style="margin-top:0">放炮牌 <small>'+(lock!=null?'(雙響／三響:須與上一位相同)':'(選填;雙響／三響必須指定)')+'</small></div>';
+  if(lock!=null) h+=E.all.includes(lock)?'<div class="tiles">'+mt(lock)+'</div>':'<div class="warn">你的牌裡沒有 '+esc(M.tName(lock))+',不能同時食這張放炮牌</div>';
+  else h+='<div class="tiles">'+(uniq.length?uniq.map(t=>mt(t,{tag:'button',cls:E.hkWin===t?'mark':'',attrs:'data-act="hkWin" data-t="'+t+'"'})).join(''):'<span class="hint">先輸入牌</span>')+'</div>';
+  return h+'</div>';
 }
 
 let tStart=null, lastTouchAct=0;
