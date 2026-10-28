@@ -1074,13 +1074,12 @@ function viewSettings(){
   h+='<h3>玩法</h3><div class="card"><div>目前玩法:<b>'+gameLabel(S.game)+'</b></div><div class="btnrow"><button data-act="toChooser">更換玩法</button></div></div>';
   if(isWild()) h+='<h3>百搭設定</h3><div class="card"><div class="note">本場加 '+S.cfg.wildLimit+' 張通用百搭;要改數量,請到「更換玩法」重新選擇。百搭可代34種非花牌,真白板仍是白板;代入後同款牌連明牌最多4張;不額外加百搭番。</div><div class="zl">百搭可用於明牌</div><div class="seg"><button class="'+(!S.cfg.wildMeld?'on':'')+'" data-act="wildOpt" data-k="wildMeld" data-v="0">關</button><button class="'+(S.cfg.wildMeld?'on':'')+'" data-act="wildOpt" data-k="wildMeld" data-v="1">開</button></div><div class="zl">冇用百搭,全部番數加倍</div><div class="seg"><button class="'+(!S.cfg.wildNoMult?'on':'')+'" data-act="wildOpt" data-k="wildNoMult" data-v="0">關</button><button class="'+(S.cfg.wildNoMult?'on':'')+'" data-act="wildOpt" data-k="wildNoMult" data-v="1">開</button></div><label>倍數<input type="number" min="1" max="100" step="1" data-chg="wildMultN" value="'+S.cfg.wildMultN+'"></label></div>';
   // P2 settings: 6,16,17,18,21
-  h+='<h3>輸入體驗設定（P1/P2）</h3><div class="card">'
-    +'<label>三段式切換（選牌｜標明牌｜選食糊牌）<select data-chg="useSegment"><option value="0"'+(!S.cfg.useSegment?' selected':'')+'>關（預設現有）</option><option value="1"'+(S.cfg.useSegment?' selected':'')+'>開</option></select></label>'
-    +'<label>精簡／嚮導模式<select data-chg="wizard"><option value="0"'+(!S.cfg.wizard?' selected':'')+'>精簡（預設，老手）</option><option value="1"'+(S.cfg.wizard?' selected':'')+'>嚮導（新手逐步）</option></select></label>'
+  h+='<h3>輸入體驗設定</h3><div class="card">'
+    +'<label>三段式切換（選牌｜標明牌｜選食糊牌）<select data-chg="useSegment"><option value="0"'+(!S.cfg.useSegment?' selected':'')+'>關（預設）</option><option value="1"'+(S.cfg.useSegment?' selected':'')+'>開</option></select></label>'
+    +'<label>精簡／嚮導模式<select data-chg="wizard"><option value="0"'+(!S.cfg.wizard?' selected':'')+'>精簡（預設）</option><option value="1"'+(S.cfg.wizard?' selected':'')+'>嚮導</option></select></label>'
     +'<label>牌桌字級放大<select data-chg="largeFont"><option value="0"'+(!S.cfg.largeFont?' selected':'')+'>關（預設）</option><option value="1"'+(S.cfg.largeFont?' selected':'')+'>開（大字）</option></select></label>'
     +'<label>短動畫（尊重減少動態）<select data-chg="useShortAnim"><option value="1"'+(S.cfg.useShortAnim?' selected':'')+'>開（預設150ms）</option><option value="0"'+(!S.cfg.useShortAnim?' selected':'')+'>關</option></select></label>'
     +'<div class="zl">儲存容量：約 <span id="storageSize">'+getStorageSizeKB()+' KB</span> <button data-act="calcStorage">重新計算</button></div>'
-    +'<div class="hint">三段式預設關沿用現有操作；嚮導只切換顯示順序，唔改邏輯；字級放大預設關；短動畫尊重系統「減少動態」設定，震動預設不做。</div>'
     +'</div>';
   if(isHK()) h+=hkSettings();
   else {
@@ -1093,7 +1092,6 @@ function viewSettings(){
     if(!window.MJ2) h+='<div class="warn">未能載入預設 #2 的番表檔(engine2.js)。請確認已上傳該檔案。</div>';
     if(!window.MJ3) h+='<div class="warn">未能載入預設 #3 的番表(engine.js 版本過舊)。請更新 engine.js。</div>';
     if(!window.MJ4) h+='<div class="warn">未能載入預設 #4 的番表檔(engine4.js)。請確認已上傳。</div>';
-    h+='<p class="hint">三套預設各自記住你修改過的番數和即時籌碼金額,切換不會互相影響。切換時,本局正在輸入的手動番種會被清除。</p>';
   }
   if(isApple()){
     h+='<h3>加入主畫面</h3><div class="card">'+(isStandalone()?'<div class="pos">目前已以主畫面 App 模式運行 ✓</div>':'<div>目前在瀏覽器中運行。加入主畫面後可全螢幕使用:</div>'+a2hsSteps()+'<div class="btnrow"><button data-act="a2hsReset">重新顯示開機提示</button></div>')+'</div>';
@@ -1107,7 +1105,6 @@ function viewSettings(){
     h+='<label>底(番)<input disabled value="在下面番數表「底」一行修改"></label>';
     h+='<label>最低食糊番數(胡牌)<input type="number" data-chg="cfg" data-k="minFan" value="'+c.minFan+'"></label>';
     h+='<label>流局後<select data-chg="drawKeeps"><option value="1"'+(c.drawKeeps?' selected':'')+'>莊家繼續做莊</option><option value="0"'+(!c.drawKeeps?' selected':'')+'>輪莊</option></select></label></div>';
-    h+='<p class="hint">底是番數表的一行(預設 '+c.baseMult+' 番,已計入番數),每家支付 = 番數 × 每番金額。同一家被同一人拉滿 3、6、9… 口時,會詢問是否斬拉(投降)。</p>';
   }
   h+='<h3>備份與還原</h3><div class="btnrow"><button class="primary" data-act="exportFile">下載設定</button><button data-act="importFile">匯入設定檔</button></div><div class="btnrow"><button class="danger" data-act="resetAll">清除全部資料</button></div><div class="hint">設定檔(JSON)包含玩家、紀錄、設定和自訂番數表。匯入前會先把現有資料存為「上一場」。</div>';
   h+=tableCard();
