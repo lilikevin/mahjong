@@ -1,9 +1,0 @@
-engine.js / engine2.js / engine_hk.js / engine4.js(已改用 mj-core.js)
-
-上傳覆蓋這四個引擎檔,並確認 mj-core.js 已上傳(v1.3.1)。
-每個檔案只改了一處:把 function decompose(...){...} 整段(654 個字元)換成一行
-  function decompose(cnt,nSets){ return MJCORE.decompose(cnt,nSets); }
-每個引擎都比原檔少 585 個字元,其餘內容完全沒動。
-mj-core.js 必須在 index.html 內排在這四個引擎之前;沒載入時計番會顯示 MJCORE is not defined。
-engine_wild.js 沒有使用 decompose,不用改。
-t_sup_check.js 與上次相同(再附一份方便對照)。
