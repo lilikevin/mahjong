@@ -1,21 +1,15 @@
-麻雀計番 v1.3.1 更新說明
+麻雀計番 v1.4.0 更新說明
 
-上傳(覆蓋或新增)到網站根目錄:
- app.js、index.html、sw.js、version.json、wild-worker.js(覆蓋)
- mj-core.js(新增)
- t_sup_check.js(新增,只供在電腦檢查用,不影響網頁)
-index.html 已加入 <script src="mj-core.js">,必須和 mj-core.js 一起上傳。
+上傳覆蓋:app.js、version.json、sw.js(三個一起上傳,其他檔案不用動)。
 
-文案精簡(6 項):入口頁百搭選項、座位頁提示、改名提示、全新局提示、算番頁三段操作提示、結算頁分享提示。
- 連莊規則移到「開局設定」旁的 ❓,點一下才顯示。
-
-P3-1  mj-core.js:共用 decompose()。engine.js / engine2.js / engine_hk.js / engine4.js 各有一份相同的拆牌函數。
-      四份各改成一行(見下),改完行為與原本逐字相同(已用兩萬組隨機牌對照驗證)。
-      在改好四個引擎之前,舊的拆牌函數仍然有效,mj-core.js 只是多載入一個檔案,不影響使用。
-      每個引擎檔:找到 function decompose(cnt,nSets){ ... },整段(到下一個 function 之前)換成:
-        function decompose(cnt,nSets){ return MJCORE.decompose(cnt,nSets); }
-      位置:engine.js 在 function isLik 之前;engine2.js 在 function isLik2 之前;
-            engine_hk.js 在 function isShisan 之前;engine4.js 在 function isLik 之前。
-
-P3-2  t_sup_check.js:在網站資料夾執行  node t_sup_check.js
-      檢查四套番表的不複合規則有沒有打錯番種 id、番表有沒有重複 id、有沒有取消自己。
+1. 自訂番數表(設定頁 → 自訂番數表)
+   - 改好下面「番數表」的番數後,輸入表名按「另存為自訂番數表」。每個番表(預設#1~#4、廣東牌)各自有自己的自訂表,最多 40 張。
+   - 「套用」把該表載入目前玩法;「更新」覆蓋使用中的表;「刪除」;「下載」把單張表存成 JSON 檔可分享給朋友。
+   - 「匯入番數表檔」可上載別人分享的 JSON。
+   - 自訂表只記錄與預設不同的番數(底也在內)。
+2. 備份
+   - 移除「複製備份」與「貼上匯入」。
+   - 「下載設定」→ 存成 JSON 檔(含玩家、紀錄、設定、自訂番數表)。
+   - 「匯入設定檔」→ 上載 JSON 檔還原;匯入前會把現有資料存為「上一場」(座位頁可還原),並先檢查格式。舊版備份檔仍可匯入。
+   - 「清除全部資料」會保留自訂番數表。
+3. 「立即升級」的重新下載清單補上 mj-core.js。版本 v1.4.0。

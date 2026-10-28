@@ -1,6 +1,6 @@
 (function(){
 'use strict';
-const APP_VERSION='v1.3.2';
+const APP_VERSION='v1.4.0';
 const DEV_IG='kevinli999';
 let M=window.MJ;
 const KEY='mj_hk_tw_v1';
@@ -35,13 +35,15 @@ const OPT_INST=[
  {id:'zhuifan',name:'追番子(付其餘三家)',mode:'payall'},{id:'zhuikai',name:'追開章(付其餘三家)',mode:'payall'}
 ];
 const defHK=()=>({preset:'10-128',minFan:3,bao12:true,baoSan:true,flowers:false,renzhuang:true,ratio:0.5,over:{}});
-const defState=()=>({game:null,names:['玩家1','玩家2','玩家3','玩家4'],seat:[0,1,2,3],dealerSeat:0,streak:0,wind:0,history:[],ledger:[],cfg:{fanValue:1,baseMult:5,minFan:0,drawKeeps:true,preset:1,wildLimit:4,wildPreset:3,wildMeld:false,wildNoMult:true,wildMultN:3,kongKeep:{1:false,2:false,3:false,4:true},overs:{1:{},2:{},3:{},4:{},hk:{}},instAmts:{1:{},2:{},3:{},4:{},hk:{}},hk:defHK(),theme:Object.assign({},DEFAULT_THEME)}});
+const defState=()=>({game:null,names:['玩家1','玩家2','玩家3','玩家4'],seat:[0,1,2,3],dealerSeat:0,streak:0,wind:0,history:[],ledger:[],cfg:{fanValue:1,baseMult:5,minFan:0,drawKeeps:true,preset:1,wildLimit:4,wildPreset:3,wildMeld:false,wildNoMult:true,wildMultN:3,kongKeep:{1:false,2:false,3:false,4:true},overs:{1:{},2:{},3:{},4:{},hk:{}},instAmts:{1:{},2:{},3:{},4:{},hk:{}},customTables:[],activeCustom:{},hk:defHK(),theme:Object.assign({},DEFAULT_THEME)}});
 function norm(j){
   const d=defState(); const s=Object.assign(d,j,{cfg:Object.assign(d.cfg,j.cfg||{}),ledger:j.ledger||[]});
   const th=Object.assign({},DEFAULT_THEME,(j.cfg&&j.cfg.theme)||{});
   if(j.cfg&&j.cfg.bg&&!(j.cfg.theme&&j.cfg.theme.bg)) th.bg=j.cfg.bg;
   s.cfg.theme=th;
   const c=s.cfg;
+  { const seen=new Set(); c.customTables=(Array.isArray(c.customTables)?c.customTables:[]).map(cleanTable).filter(Boolean).slice(0,40).map(t=>{ if(!t.id||seen.has(t.id)) t.id=newTableId(seen); seen.add(t.id); return t; });
+    const ac={}; if(c.activeCustom&&typeof c.activeCustom==='object') Object.keys(c.activeCustom).forEach(k=>{ if(c.customTables.some(t=>t.id===c.activeCustom[k])) ac[k]=c.activeCustom[k]; }); c.activeCustom=ac; }
   if(!c.overs||typeof c.overs!=='object') c.overs={1:(j.cfg&&j.cfg.over)||{},2:{},3:{}};
   ['1','2','3','4','hk','wild1','wild2','wild3','wild4'].forEach(k=>{ if(!c.overs[k]) c.overs[k]={}; });
   if(!c.instAmts||typeof c.instAmts!=='object') c.instAmts={};
@@ -80,7 +82,7 @@ const save=()=>{ try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){ cons
 const newEntry=()=>({winner:null,self:true,disc:null,all:[],wildGroups:[],jsel:{},adjust:0,pickRep:null,marks:Array(34).fill(0),kongOpen:{},melds:[],hand:[],win:null,partBad:false,mode:'pick',flowers:Array(8).fill(false),flags:{},excl:{},extra:[],bao:null});
 let E=newEntry(), pending=[], tab='table', wildPick=false;
 let inst={id:null,mode:'one',payee:null,payer:null,mult:1};
-let upd=null, updDismissed=false, checking=false, a2hsHidden=false, buildInfo=null, storyImg=null, ruleHelp=false;
+let upd=null, updDismissed=false, checking=false, a2hsHidden=false, buildInfo=null, storyImg=null, ruleHelp=false, tblDraft='', fileInput=null;
 const esc=s=>String(s).replace(/[&<>"'`]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;','`':'&#96;'}[c]));
 const seatOf=p=>S.seat.indexOf(p);
 const dealerPid=()=>S.seat[S.dealerSeat];
@@ -700,8 +702,9 @@ function viewSettings(){
     h+='<label>流局後<select data-chg="drawKeeps"><option value="1"'+(c.drawKeeps?' selected':'')+'>莊家繼續做莊</option><option value="0"'+(!c.drawKeeps?' selected':'')+'>輪莊</option></select></label></div>';
     h+='<p class="hint">底是番數表的一行(預設 '+c.baseMult+' 番,已計入番數),每家支付 = 番數 × 每番金額。同一家被同一人拉滿 3、6、9… 口時,會詢問是否斬拉(投降)。</p>';
   }
-  h+='<h3>備份</h3><div class="btnrow"><button data-act="exportCopy">複製備份</button><button data-act="exportFile">下載備份檔</button><button data-act="importPaste">貼上匯入</button><button class="danger" data-act="resetAll">清除全部資料</button></div>';
-  h+='<h3>番數表(可修改)</h3><p class="hint">目前:'+gameName()+'。灰色底表示無法自動偵測,只能手動加番。'+(isHK()?'':'右邊欄為暗(門清)時的番數。')+'</p><div class="fanTable">';
+  h+='<h3>備份與還原</h3><div class="btnrow"><button class="primary" data-act="exportFile">下載設定</button><button data-act="importFile">匯入設定檔</button></div><div class="btnrow"><button class="danger" data-act="resetAll">清除全部資料</button></div><div class="hint">設定檔(JSON)包含玩家、紀錄、設定和自訂番數表。匯入前會先把現有資料存為「上一場」。</div>';
+  h+=tableCard();
+  h+='<h3>番數表(可修改)</h3><p class="hint">目前:'+gameName()+'。修改後可在上面「另存為自訂番數表」。灰色底表示無法自動偵測,只能手動加番。'+(isHK()?'':'右邊欄為暗(門清)時的番數。')+'</p><div class="fanTable">';
   const R=RL();
   fanList().forEach(f=>{ h+='<div class="frow'+(f.manual?' man':'')+'"><span>'+f.name+'</span><input type="number" data-chg="rule" data-id="'+f.id+'" data-f="fan" value="'+R[f.id].fan+'">'+(f.fanC!=null?'<input type="number" data-chg="rule" data-id="'+f.id+'" data-f="fanC" value="'+R[f.id].fanC+'">':'<i></i>')+'</div>'; });
   h+='</div><div class="btnrow"><button data-act="resetRules">還原此玩法的番數</button></div>';
@@ -919,15 +922,23 @@ function act(a,d){
       const r=S.history.pop(); if(r.before){ S.dealerSeat=r.before.dealerSeat; S.streak=r.before.streak; S.wind=r.before.wind; }
       S.ledger=copyL(r.ledgerBefore||[]); break; }
     case 'copySum': copy(summaryText()); break;
-    case 'exportCopy': copy(JSON.stringify(S)); break;
-    case 'exportFile': {
-      const blob=new Blob([JSON.stringify(S)],{type:'application/json'}); const u=URL.createObjectURL(blob);
-      const a2=document.createElement('a'); a2.href=u; a2.download='mahjong-backup-'+new Date().toISOString().slice(0,10)+'.json'; document.body.appendChild(a2); a2.click(); a2.remove(); setTimeout(()=>URL.revokeObjectURL(u),2000); break; }
-    case 'importPaste': {
-      const t=prompt('貼上備份 JSON(會覆蓋現有資料)'); if(!t) return;
-      try{ const j=JSON.parse(t); if(!j.names||!j.history) throw 0; S=norm(j); pickM(); toast('匯入成功'); }catch(e){ toast('格式錯誤'); return; } break; }
-    case 'resetAll': if(confirm('確定清除全部玩家、紀錄與設定?此操作無法還原')){ S=defState(); pickM(); E=newEntry(); pending=[]; tab='table'; } else return; break;
-    case 'resetRules': S.cfg.overs[pkey()]={}; break;
+    case 'exportFile': { downloadJSON({app:'mahjong-jisaan',kind:'backup',version:APP_VERSION,exported:new Date().toISOString(),data:S},'mahjong-backup-'+new Date().toISOString().slice(0,10)+'.json'); toast('已下載設定檔'); return; }
+    case 'importFile': pickFile(txt=>{ importBackupText(txt); }); return;
+    case 'tblSave': { if(S.cfg.customTables.length>=40){ toast('自訂番數表已達上限(40 個),請先刪除一些'); return; }
+      const t=cleanTable({name:tblDraft||('自訂番數表 '+(S.cfg.customTables.length+1)),p:tblP(),over:curDiff()}); t.id=newTableId(); t.saved=Date.now();
+      S.cfg.customTables.push(t); S.cfg.activeCustom[pkey()]=t.id; tblDraft=''; toast('已儲存「'+t.name+'」'); break; }
+    case 'tblUpdate': { const t=S.cfg.customTables.find(x=>x.id===S.cfg.activeCustom[pkey()]); if(!t){ toast('找不到使用中的自訂番數表'); return; }
+      t.over=curDiff(); t.saved=Date.now(); toast('已更新「'+t.name+'」'); break; }
+    case 'tblApply': { const t=S.cfg.customTables.find(x=>x.id===d.id); if(!t) return;
+      if(t.p!==tblP()){ toast('這張表屬於「'+tblPName(t.p)+'」,請先切換到該番表'); return; }
+      S.cfg.overs[pkey()]=JSON.parse(JSON.stringify(t.over)); S.cfg.activeCustom[pkey()]=t.id; E.excl={}; toast('已套用「'+t.name+'」'); break; }
+    case 'tblDel': { const t=S.cfg.customTables.find(x=>x.id===d.id); if(!t) return; if(!confirm('刪除自訂番數表「'+t.name+'」?')) return;
+      S.cfg.customTables=S.cfg.customTables.filter(x=>x.id!==t.id); Object.keys(S.cfg.activeCustom).forEach(k=>{ if(S.cfg.activeCustom[k]===t.id) delete S.cfg.activeCustom[k]; }); toast('已刪除'); break; }
+    case 'tblExport': { const t=S.cfg.customTables.find(x=>x.id===d.id); if(!t) return;
+      downloadJSON({app:'mahjong-jisaan',kind:'fan-table',version:APP_VERSION,table:{name:t.name,p:t.p,over:t.over}},'fan-table-'+t.name.replace(/[\\\/:*?"<>|\s]+/g,'_').slice(0,20)+'.json'); toast('已下載番數表'); return; }
+    case 'tblImport': pickFile(txt=>{ importTableText(txt); }); return;
+    case 'resetAll': if(confirm('確定清除全部玩家、紀錄與設定?此操作無法還原(自訂番數表會保留)')){ const keep=S.cfg.customTables; S=defState(); S.cfg.customTables=keep; pickM(); E=newEntry(); pending=[]; tab='table'; } else return; break;
+    case 'resetRules': S.cfg.overs[pkey()]={}; delete S.cfg.activeCustom[pkey()]; break;
   }
   save(); render();
 }
@@ -961,6 +972,7 @@ function chg(k,el){
     case 'wildMultN': { const n=Math.floor(Number(v)); S.cfg.wildMultN=(n>=1&&n<=100)?n:S.cfg.wildMultN; break; }
     case 'kongKeep': S.cfg.kongKeep[curPreset()]=(v==='1'); break;
     case 'adjv': { const n=Math.round(Number(v)); E.adjust=isNaN(n)?0:Math.max(-999,Math.min(999,n)); break; }
+    case 'tblName': tblDraft=String(v).replace(/[\u0000-\u001f<>]/g,'').slice(0,24); break;
     case 'rule': { const o=OV(); const q=o[d.id]=o[d.id]||{}; q[d.f]=parseFloat(v); break; }
   }
   save(); render();
@@ -1244,6 +1256,110 @@ function wildHint(r){
   if(!r) return h+'<div class="hint">輸入完成後按「搜尋最高番」。</div>';
   if(r.error) return h+'<div class="warn">'+esc(r.error)+'</div>';
   return h+'<div class="ok">完整搜尋完成:'+r.count+' 種代入及食糊牌組合;牌型最高 '+r.total+' 番。<br>手牌百搭代入:'+(r.replacements.map(t=>M.tName(t)).join('、')||'無')+(E.win===34?'<br>自摸百搭當作:'+M.tName(r.win):'')+'<br>聽牌種類(含可摸百搭):'+r.waits+'</div>';
+}
+
+
+/* ===== 自訂番數表、設定檔下載與匯入 ===== */
+function newTableId(seen){
+  const used=seen||new Set(S&&S.cfg&&S.cfg.customTables?S.cfg.customTables.map(t=>t.id):[]);
+  let id; do{ id='ct'+Date.now().toString(36)+Math.floor(Math.random()*1296).toString(36); }while(used.has(id));
+  return id;
+}
+function cleanTable(t){
+  if(!t||typeof t!=='object') return null;
+  const p=String(t.p); if(['1','2','3','4','hk'].indexOf(p)<0) return null;
+  let name=String(t.name==null?'':t.name).replace(/[\u0000-\u001f<>]/g,'').trim().slice(0,24); if(!name) name='自訂番數表';
+  const over={}, src=(t.over&&typeof t.over==='object')?t.over:{}; let n=0;
+  for(const id of Object.keys(src)){
+    if(n>=400) break;
+    if(!/^[A-Za-z0-9_]{1,40}$/.test(id)||id==='__proto__'||id==='constructor'||id==='prototype') continue;
+    const o=src[id]; if(!o||typeof o!=='object') continue;
+    const q={}; ['fan','fanC'].forEach(k=>{ if(o[k]!=null&&o[k]!==''){ const v=Number(o[k]); if(isFinite(v)&&Math.abs(v)<=100000) q[k]=v; } });
+    if(Object.keys(q).length){ over[id]=q; n++; }
+  }
+  const id=(typeof t.id==='string'&&/^ct[a-z0-9]{3,24}$/.test(t.id))?t.id:null;
+  return {id,name,p,over,saved:Number(t.saved)||0};
+}
+const tblP=()=>isHK()?'hk':String(curPreset());
+const tblPName=p=>p==='hk'?'廣東牌':'預設 #'+p;
+function curDiff(){
+  const R=RL(), out={};
+  fanList().forEach(f=>{
+    const r=R[f.id]; if(!r) return; const o={};
+    if(typeof r.fan==='number'&&!isNaN(r.fan)&&r.fan!==f.fan) o.fan=r.fan;
+    if(f.fanC!=null&&typeof r.fanC==='number'&&!isNaN(r.fanC)&&r.fanC!==f.fanC) o.fanC=r.fanC;
+    if(Object.keys(o).length) out[f.id]=o;
+  });
+  return out;
+}
+const canon=o=>JSON.stringify(Object.keys(o).sort().map(k=>[k,o[k].fan==null?null:o[k].fan,o[k].fanC==null?null:o[k].fanC]));
+function tblStatus(){
+  const t=S.cfg.customTables.find(x=>x.id===S.cfg.activeCustom[pkey()])||null;
+  const diff=curDiff();
+  return {t,mod:t?canon(diff)!==canon(t.over):Object.keys(diff).length>0,n:Object.keys(diff).length};
+}
+function tableCard(){
+  const p=tblP(), st=tblStatus();
+  const list=S.cfg.customTables.filter(t=>t.p===p), others=S.cfg.customTables.filter(t=>t.p!==p);
+  let h='<h3>自訂番數表</h3><div class="card">';
+  h+='<div class="hint" style="margin-top:0">'+esc(gameName())+' · 目前使用:'+(st.t?'<b>'+esc(st.t.name)+'</b>'+(st.mod?'(已修改,未儲存)':''):(st.mod?'預設番數表(已修改 '+st.n+' 項,未儲存)':'預設番數表'))+'</div>';
+  h+='<label>表名<input type="text" maxlength="24" data-chg="tblName" value="'+esc(tblDraft)+'" placeholder="例如:朋友枱價"></label>';
+  h+='<div class="btnrow"><button class="primary" data-act="tblSave">另存為自訂番數表</button>'+(st.t&&st.mod?'<button data-act="tblUpdate">更新「'+esc(st.t.name)+'」</button>':'')+'</div>';
+  h+=list.length?list.map(t=>{
+    const on=st.t&&st.t.id===t.id;
+    return '<div class="tr"><b>'+esc(t.name)+'</b>'+(on?' <span class="pos">使用中</span>':'')+' <small>'+Object.keys(t.over).length+' 項與預設不同</small><div class="btnrow" style="margin:6px 0 0"><button data-act="tblApply" data-id="'+esc(t.id)+'">套用</button><button data-act="tblExport" data-id="'+esc(t.id)+'">下載</button><button class="danger" data-act="tblDel" data-id="'+esc(t.id)+'">刪除</button></div></div>';
+  }).join(''):'<div class="hint">'+tblPName(p)+'還沒有自訂番數表。改好下面的番數後,輸入表名再按「另存」。</div>';
+  if(others.length) h+='<div class="hint">另有 '+others.length+' 張屬於其他番表('+Array.from(new Set(others.map(t=>tblPName(t.p)))).join('、')+'),切換到該番表才會顯示。</div>';
+  h+='<div class="btnrow"><button data-act="tblImport">匯入番數表檔</button></div>';
+  h+='<div class="hint">自訂番數表只記錄與預設不同的番數,隨設定檔一併備份;「下載」可把單張表分享給朋友。</div></div>';
+  return h;
+}
+function downloadJSON(obj,name){
+  const blob=new Blob([JSON.stringify(obj)],{type:'application/json'}); const u=URL.createObjectURL(blob);
+  const a=document.createElement('a'); a.href=u; a.download=name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(u),2000);
+}
+function pickFile(cb){
+  try{
+    if(!fileInput){ fileInput=document.createElement('input'); fileInput.type='file'; fileInput.accept='.json,application/json'; fileInput.style.display='none'; document.body.appendChild(fileInput); }
+    fileInput.value='';
+    fileInput.onchange=()=>{
+      const f=fileInput.files&&fileInput.files[0]; if(!f) return;
+      if(f.size>5*1024*1024){ toast('檔案太大(上限 5 MB)'); return; }
+      const r=new FileReader(); r.onload=()=>cb(String(r.result||''),f.name); r.onerror=()=>toast('讀取檔案失敗'); r.readAsText(f);
+    };
+    fileInput.click();
+  }catch(e){ toast('這個瀏覽器無法選擇檔案'); }
+}
+function importBackupText(text){
+  let j; try{ j=JSON.parse(text); }catch(e){ toast('不是有效的 JSON 檔'); return; }
+  if(j&&j.kind==='fan-table'){ toast('這是番數表檔,請在「自訂番數表」匯入'); return; }
+  const data=(j&&j.kind==='backup'&&j.data)?j.data:j;
+  if(!data||typeof data!=='object'||!Array.isArray(data.names)||!Array.isArray(data.history)){ toast('格式不符,不是本 App 的設定檔'); return; }
+  const okRec=data.history.every(r=>r&&typeof r==='object'&&Array.isArray(r.deltas)&&r.deltas.length===4&&r.deltas.every(x=>Number.isFinite(x)));
+  const okLed=(data.ledger==null)||(Array.isArray(data.ledger)&&data.ledger.every(r=>r&&[0,1,2,3].indexOf(r.from)>=0&&[0,1,2,3].indexOf(r.to)>=0&&Number.isFinite(r.amt)));
+  if(!okRec||!okLed){ toast('檔案內的紀錄格式不符,已取消匯入'); return; }
+  if(!confirm('匯入會覆蓋目前的玩家、紀錄與設定(現有的自訂番數表會保留)。現有資料會先存為「上一場」。要繼續嗎?')) return;
+  const keep=S.cfg.customTables;
+  try{ localStorage.setItem(PREV_KEY,JSON.stringify(S)); }catch(e){}
+  const d=JSON.parse(JSON.stringify(data));
+  d.names=[0,1,2,3].map(i=>String(d.names[i]==null?('玩家'+(i+1)):d.names[i]).slice(0,10));
+  if(!Array.isArray(d.seat)||d.seat.length!==4||[0,1,2,3].some(x=>d.seat.indexOf(x)<0)) d.seat=[0,1,2,3];
+  ['dealerSeat','wind'].forEach(k=>{ if(!(d[k]>=0&&d[k]<=3)) d[k]=0; });
+  if(!(d.streak>=0)) d.streak=0;
+  S=norm(d);
+  const have=new Set(S.cfg.customTables.map(t=>t.id));
+  keep.forEach(t=>{ if(!have.has(t.id)&&S.cfg.customTables.length<40) S.cfg.customTables.push(t); });
+  pickM(); E=newEntry(); pending=[]; tab='table'; wildPick=false; storyImg=null; save(); render();
+  toast('已匯入設定檔(原有資料已存為上一場,可在座位頁還原)');
+}
+function importTableText(text){
+  let j; try{ j=JSON.parse(text); }catch(e){ toast('不是有效的 JSON 檔'); return; }
+  if(j&&j.kind==='backup'){ toast('這是設定檔,請用「匯入設定檔」'); return; }
+  const t=cleanTable(j&&j.kind==='fan-table'?j.table:j);
+  if(!t){ toast('格式不符,不是本 App 的番數表檔'); return; }
+  if(S.cfg.customTables.length>=40){ toast('自訂番數表已達上限(40 個)'); return; }
+  t.id=newTableId(); t.saved=Date.now(); S.cfg.customTables.push(t); save(); render();
+  toast('已匯入「'+t.name+'」'+(t.p!==tblP()?'。它屬於「'+tblPName(t.p)+'」,切換到該番表後才可套用':''));
 }
 
 let tStart=null, lastTouchAct=0;
