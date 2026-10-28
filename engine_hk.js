@@ -94,6 +94,14 @@ function evalBasic(ctx,sets,P,pl){
   if(kongs.length===4) push('shibaluohan');
   const ac=trips.filter(s=>!s.ronPung&&s.t!=='kong').length;
   if(trips.length===4&&kongs.length===0&&ac===4&&concealedAll) push('kankan');
+  // 1.5 SUP: 清么九/全番子 互斥 花么，十八羅漢 互斥 對對
+  const has = id=>items.some(x=>x.id===id);
+  if(has('qingyaojiu')||has('quanfanzi')){
+    for(let i=items.length-1;i>=0;i--) if(items[i].id==='huayao') items.splice(i,1);
+  }
+  if(has('shibaluohan')){
+    for(let i=items.length-1;i>=0;i--) if(items[i].id==='duidui') items.splice(i,1);
+  }
   return items;
 }
 function basic(inp){

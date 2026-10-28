@@ -1,6 +1,6 @@
 (function(){
 'use strict';
-const APP_VERSION='1.4.2';
+const APP_VERSION='1.5.0';
 const DEV_IG='kevinli999';
 let M=window.MJ;
 const KEY='mj_hk_tw_v1';
@@ -15,7 +15,8 @@ const SCHEMES=[
  ['夜藍',{bg:'#0f1f33',card:'#172b45',btn:'#1f3d63',acc:'#3dd6c6'}],
  ['酒紅金',{bg:'#2a0f14',card:'#3a1a20',btn:'#5a2530',acc:'#e6b422'}],
  ['黑金',{bg:'#0b0b0b',card:'#202020',btn:'#333b42',acc:'#e6b422'}],
- ['紫夜',{bg:'#1f1630',card:'#2c2142',btn:'#43336b',acc:'#ff7eb6'}]
+ ['紫夜',{bg:'#1f1630',card:'#2c2142',btn:'#43336b',acc:'#ff7eb6'}],
+ ['OLED純黑',{bg:'#000000',card:'#121212',btn:'#1e1e1e',acc:'#e6b422'}]
 ];
 const THEME_LABEL={bg:'頁面背景',card:'格子 / 卡片',btn:'按鈕',acc:'強調色(選中、金額、標題)'};
 const PRESET_NAME={1:'預設 #1 陶源麻雀王大賽番數表',2:'預設 #2 香港麻雀協會總例(2025-07-28 修訂)',3:'預設 #3 台牌百搭番數表',4:'預設 #4 港式台牌 app 預設(hoitoi.hk)'};
@@ -37,7 +38,7 @@ const OPT_INST=[
 const defHK=()=>({preset:'10-128',minFan:3,bao12:true,baoSan:true,flowers:false,renzhuang:true,ratio:0.5,over:{}});
 const PLAYER_EMOJIS=['🐉','🐯','🐼','🦊','🐱','🐶','🦁','🐸','🐰','🐨','🐵','🐧','🦉','🐢','🦋','🐙','🌸','🌻','🍀','⭐','🌙','🔥','🍉','🍊'];
 const DEFAULT_AVATARS=PLAYER_EMOJIS.slice(0,4);
-const defState=()=>({game:null,setupStage:null,avatars:DEFAULT_AVATARS.slice(),playersReady:false,names:['玩家1','玩家2','玩家3','玩家4'],seat:[0,1,2,3],dealerSeat:0,streak:0,wind:0,history:[],ledger:[],cfg:{fanValue:1,baseMult:5,minFan:0,drawKeeps:true,preset:1,wildLimit:4,wildPreset:3,wildMeld:false,wildNoMult:true,wildMultN:3,kongKeep:{1:false,2:false,3:false,4:true},overs:{1:{},2:{},3:{},4:{},hk:{}},instAmts:{1:{},2:{},3:{},4:{},hk:{}},customTables:[],activeCustom:{},hk:defHK(),theme:Object.assign({},DEFAULT_THEME)}});
+const defState=()=>({game:null,avatars:DEFAULT_AVATARS.slice(),playersReady:false,names:['玩家1','玩家2','玩家3','玩家4'],seat:[0,1,2,3],dealerSeat:0,streak:0,wind:0,history:[],ledger:[],cfg:{fanValue:1,baseMult:5,minFan:0,drawKeeps:true,preset:1,wildLimit:4,wildPreset:3,wildMeld:false,wildNoMult:true,wildMultN:3,kongKeep:{1:false,2:false,3:false,4:true},overs:{1:{},2:{},3:{},4:{},hk:{}},instAmts:{1:{},2:{},3:{},4:{},hk:{}},customTables:[],activeCustom:{},hk:defHK(),theme:Object.assign({},DEFAULT_THEME),useSegment:false,wizard:false,largeFont:false,useShortAnim:true}});
 function norm(j){
   const d=defState(); const s=Object.assign(d,j,{cfg:Object.assign(d.cfg,j.cfg||{}),ledger:j.ledger||[]});
   const th=Object.assign({},DEFAULT_THEME,(j.cfg&&j.cfg.theme)||{});
@@ -58,18 +59,90 @@ function norm(j){
   c.wildMeld=!!c.wildMeld; c.wildNoMult=c.wildNoMult!==false;
   c.wildMultN=(Number.isFinite(+c.wildMultN)&&+c.wildMultN>=1&&+c.wildMultN<=100)?+c.wildMultN:3;
   c.kongKeep=Object.assign({1:false,2:false,3:false,4:true},c.kongKeep||{});
+  c.useSegment=!!c.useSegment; c.wizard=!!c.wizard; c.largeFont=!!c.largeFont; c.useShortAnim=c.useShortAnim!==false;
   if(s.game!=='tw'&&s.game!=='hk'&&s.game!=='wild') s.game=(s.history&&s.history.length)?'tw':null;
   s.names=[0,1,2,3].map(i=>String((s.names||[])[i]||('玩家'+(i+1))).slice(0,10));
   s.avatars=[0,1,2,3].map(i=>PLAYER_EMOJIS.includes((j.avatars||[])[i])?j.avatars[i]:DEFAULT_AVATARS[i]);
   s.playersReady=typeof j.playersReady==='boolean'?j.playersReady:!!(s.history&&s.history.length);
-  s.setupStage=['type','rules','players'].includes(j.setupStage)?j.setupStage:null;
   return s;
 }
 function load(){
   try{ const j=JSON.parse(localStorage.getItem(KEY)); if(j&&j.names) return norm(j); }catch(e){}
   return defState();
 }
+function saveDraft(){
+  try{
+    if(!hasCurrentData() && pending.length===0 && !hasEntryDraft()){ localStorage.removeItem(DRAFT_KEY); return; }
+    const draft={
+      E:JSON.parse(JSON.stringify(E)),
+      pending:JSON.parse(JSON.stringify(pending)),
+      entryStep,
+      ctx:{game:S.game, namesHash:S.names.join('|'), seat:S.seat.join(','), dealer:S.dealerSeat, wind:S.wind, histLen:S.history.length, streak:S.streak},
+      ts:Date.now()
+    };
+    localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
+  }catch(e){}
+}
+let draftCache=null;
+function peekDraft(){
+  try{
+    const j=JSON.parse(localStorage.getItem(DRAFT_KEY));
+    if(!j||!j.E||!j.ts) return null;
+    if(Date.now()-j.ts > 24*3600*1000){ clearDraft(); return null; }
+    if(j.ctx){
+      if(j.ctx.game!==S.game) return null;
+      if(j.ctx.namesHash!==S.names.join('|')) return null;
+      if(j.ctx.seat!==S.seat.join(',')) return null;
+      if(j.ctx.histLen!==S.history.length) return null;
+      if(j.ctx.dealer!==S.dealerSeat) return null;
+      if(j.ctx.wind!==S.wind) return null;
+      if(j.ctx.streak!==S.streak) return null;
+    }
+    return j;
+  }catch(e){ return null; }
+}
+function loadDraft(){
+  const j=peekDraft();
+  if(!j) return false;
+  if(hasCurrentData() || pending.length>0) return false;
+  // validate err
+  try{
+    const pendRon = (j.pending||[]).map(w=>w.ron).filter(Boolean);
+    const err = checkRonSet(pendRon, {allowPartial:true});
+    if(err && err.length){ clearDraft(); return false; }
+  }catch(e){ clearDraft(); return false; }
+  draftCache=j;
+  return true;
+}
+function applyDraft(){
+  if(!draftCache) return false;
+  try{
+    E=Object.assign(newEntry(), draftCache.E);
+    pending=draftCache.pending||[];
+    if(draftCache.entryStep) entryStep=draftCache.entryStep;
+    draftCache=null;
+    return true;
+  }catch(e){ return false; }
+}
+function discardDraft(){
+  draftCache=null;
+  clearDraft();
+}
+
+function clearDraft(){ try{ localStorage.removeItem(DRAFT_KEY);}catch(e){} }
+function getStorageSizeKB(){
+  try{
+    let total=0;
+    for(let k in localStorage){ if(localStorage.hasOwnProperty(k)){ total+= (localStorage[k].length*2); } }
+    return Math.round(total/1024);
+  }catch(e){ return 0; }
+}
+
 let S=load();
+const DRAFT_KEY='mj_draft_v1_5';
+let lastUndo=null;
+let undoTimer=null;
+let historyShowAll=false;
 const isHK=()=>S.game==='hk';
 const isWild=()=>S.game==='wild';
 const curPreset=()=>isWild()?S.cfg.wildPreset:S.cfg.preset;
@@ -84,9 +157,10 @@ function pickM(){
 pickM();
 if(!window.MJ4){ try{ const sc=document.createElement('script'); sc.src='engine4.js'; sc.onload=()=>{ pickM(); render(); }; document.head.appendChild(sc); }catch(e){} }
 let lastSaveWarn=0;
-const save=()=>{ finalizeFinancialSnapshots(); try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){ const t=Date.now(); if(t-lastSaveWarn>8000){ lastSaveWarn=t; toast('儲存失敗(記憶體可能已滿)。請到「設定」匯出備份'); } } };
+const save=()=>{ finalizeFinancialSnapshots(); try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){ const t=Date.now(); if(t-lastSaveWarn>8000){ lastSaveWarn=t; toast('儲存失敗(記憶體可能已滿)。請到「設定」匯出備份'); } } try{ saveDraft(); }catch(e){} };
 const newEntry=()=>({winner:null,self:true,disc:null,hkWin:null,all:[],wildGroups:[],jsel:{},adjust:0,pickRep:null,marks:Array(34).fill(0),kongOpen:{},melds:[],hand:[],win:null,partBad:false,mode:'pick',flowers:Array(8).fill(false),flags:{},excl:{},extra:[],bao:null});
-let E=newEntry(), pending=[], tab='table', wildPick=false;
+let _savedTab=null; try{ _savedTab=localStorage.getItem('mj_tab'); }catch(e){}
+let E=newEntry(), pending=[], tab=(_savedTab && ['chooser','players','calc','table','history','settings'].includes(_savedTab) ? _savedTab : (S.game? 'table' : 'chooser')), wildPick=false;
 let inst={id:null,mode:'one',payee:null,payer:null,mult:1};
 let upd=null, updDismissed=false, checking=false, a2hsHidden=false, buildInfo=null, storyImg=null, ruleHelp=false, tblDraft='', fileInput=null;
 const esc=s=>String(s).replace(/[&<>"'`]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;','`':'&#96;'}[c]));
@@ -207,6 +281,31 @@ button.on::after{content:' ✓'}nav button.on::after{content:''}.mt.on::after{co
 .modal{position:fixed;left:0;top:0;right:0;bottom:0;background:rgba(0,0,0,.85);z-index:20;display:flex;align-items:center;justify-content:center;padding:16px;overflow:auto}.mbox{max-width:420px;width:100%}
 `;
 const DYN_CSS=`
+/* 1.5 UX: 44px touch targets, 8px gap, 16px input, short anim respecting reduced-motion */
+button, .t, .mt, [data-act], select{ min-height:44px; min-width:44px; }
+.t{ padding:8px 6px; margin:4px; }
+[data-player-name], input[type=text], input[type=number], select{ font-size:16px !important; }
+.modebar-fixed{ height:40px; line-height:40px; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; background:var(--card); border:1px solid var(--bd); padding:0 10px; position:sticky; top:0; z-index:2; }
+.sticky-footer{ position:sticky; bottom:0; background:var(--card); border-top:1px solid var(--bd); padding:8px; padding-bottom:calc(8px + env(safe-area-inset-bottom)); z-index:5; }
+  nav{ padding-bottom:env(safe-area-inset-bottom); }
+.chip{ display:inline-flex; align-items:center; gap:6px; background:var(--btn); border:1px solid var(--bd); border-radius:999px; padding:6px 10px; margin:4px; }
+.chip .x{ cursor:pointer; font-weight:bold; }
+.t.selected, .mt.selected{ transform:scale(1.08); transition: transform 150ms cubic-bezier(0.2,0,0,1); }
+.no-anim .t.selected, .no-anim .mt.selected{ transform:none !important; transition:none !important; }
+@media (prefers-reduced-motion: reduce){
+  .t.selected, .mt.selected, .modebar-fixed, .sticky-footer{ transition:none !important; transform:none !important; animation:none !important; }
+}
+.large-font .bal{ font-size:1.6em !important; }
+.large-font .pn{ font-size:1.3em !important; }
+.large-font .tr, .large-font .total, .large-font .fan, .large-font .status{ font-size:1.2em !important; }
+.large-font .mt{ width:36px !important; height:50px !important; }
+.badge{ display:inline-block; background:var(--acc); color:var(--onacc); border-radius:999px; padding:2px 8px; font-size:12px; max-width:120px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; vertical-align:middle; }
+.oled-contrast .mt{ border-bottom-color:#e6b422 !important; }
+.oled-contrast .t{ border:1px solid #444 !important; }
+.progress{ height:6px; background:var(--bd); border-radius:3px; overflow:hidden; }
+.progress i{ display:block; height:100%; background:var(--acc); transition: width 200ms; }
+`+
+`
 body{background:var(--bg)!important}
 .card,.status,.tr,.flags label,select,input[type=number]{background:var(--card)!important}
 .card,select,input,button,.zone,.prev{border-color:var(--bd)!important}
@@ -475,8 +574,7 @@ function viewChooser(){
   h+='<button data-act="game" data-v="hk">廣東牌（13張）<small>四組面子加一對眼，三番起糊，10番封頂，二五雞・半辣上等計分表；可輸入花牌自動判斷</small></button>';
   if(!window.MJHK) h+='<div class="warn">未能載入廣東牌檔案(engine_hk.js),請確認已上傳。</div>';
   if(!window.MJCORE) h+='<div class="warn">未能載入共用檔案(mj-core.js),計番可能失敗,請確認已上傳並已加入 index.html。</div>';
-  if(S.game&&!S.setupStage) h+='<div class="btnrow"><button data-act="tab" data-v="table" style="text-align:center;font-size:15px">返回目前牌局(現為'+gameLabel(S.game)+')</button></div>';
-  if(hasPrev())h+='<div class="btnrow"><button data-act="restoreGame">還原上一場牌局</button></div>';
+  if(S.game) h+='<div class="btnrow"><button data-act="tab" data-v="table" style="text-align:center;font-size:15px">返回目前牌局(現為'+gameLabel(S.game)+')</button></div>';
   h+='<div class="dev" style="text-align:center">'+APP_VERSION+' · 開發者:Instagram <a href="https://www.instagram.com/'+DEV_IG+'/" target="_blank" rel="noopener">@'+DEV_IG+'</a></div></div>';
   return h;
 }
@@ -485,16 +583,20 @@ const nameEdits=new Map();
 function avatar(p){return esc((S.avatars||DEFAULT_AVATARS)[p]||DEFAULT_AVATARS[p]);}
 function playerLabel(p){return avatar(p)+' '+nm(p);}
 function hasEntryDraft(){return hasCurrentData()||pending.length>0||E.flowers.some(Boolean)||E.extra.length>0||E.adjust!==0||Object.keys(E.flags).some(k=>E.flags[k]);}
-function openPlayerSetup(){nameEdits.clear();playerDraft={names:S.names.slice(),avatars:(S.avatars||DEFAULT_AVATARS).slice(),seat:S.seat.slice(),dealerSeat:S.dealerSeat};tab='players';}
+function setTab(t){ tab=t; try{ localStorage.setItem('mj_tab', t); }catch(e){} }
+function openPlayerSetup(){
+  nameEdits.clear();playerDraft={names:S.names.slice(),avatars:(S.avatars||DEFAULT_AVATARS).slice(),seat:S.seat.slice(),dealerSeat:S.dealerSeat};setTab('players');
+}
 function isNameField(el){return !!(el&&el.dataset&&el.dataset.playerName!=null&&playerDraft);}
 function nameFieldFocus(el){
-  if(!isNameField(el))return;const p=+el.dataset.playerName;
-  if(!Number.isInteger(p)||p<0||p>3||nameEdits.has(p))return;
+  if(!isNameField(el))return;
+  const p=+el.dataset.playerName;if(!Number.isInteger(p)||p<0||p>3||nameEdits.has(p))return;
   const prior=String(el.value||playerDraft.names[p]||S.names[p]||('玩家'+(p+1))).trim();
   nameEdits.set(p,{prior});el.value='';el.placeholder='輸入玩家名稱…';
 }
 function settleNameField(el){
-  if(!isNameField(el))return;const p=+el.dataset.playerName;if(!Number.isInteger(p)||p<0||p>3)return;
+  if(!isNameField(el))return;
+  const p=+el.dataset.playerName;if(!Number.isInteger(p)||p<0||p>3)return;
   const edit=nameEdits.get(p),typed=String(el.value||'').trim().slice(0,10);
   const value=typed||(edit?edit.prior:String(playerDraft.names[p]||S.names[p]||('玩家'+(p+1))).trim());
   playerDraft.names[p]=value;el.value=value;nameEdits.delete(p);
@@ -510,28 +612,49 @@ function viewPlayers(){
   h+='<h3>座位安排</h3><div class="grid2">';
   for(let q=0;q<4;q++)h+='<label>'+WIND[q]+'位<select data-chg="playerSeat" data-s="'+q+'">'+[0,1,2,3].map(p=>'<option value="'+p+'"'+(d.seat[q]===p?' selected':'')+'>'+esc(d.avatars[p])+' '+esc(d.names[p])+'</option>').join('')+'</select></label>';
   h+='</div><label>莊家座位<select data-chg="playerDealer">'+Array.from(WIND).map((w,i)=>'<option value="'+i+'"'+(d.dealerSeat===i?' selected':'')+'>'+w+'</option>').join('')+'</select></label>';
-  const back=S.setupStage==='players'?'<button data-act="setupBackRules">返回規則</button>':S.playersReady?'<button data-act="cancelPlayers">取消修改</button>':'<button data-act="toChooser">返回玩法選擇</button>';
-  return h+'<div class="btnrow"><button class="primary" data-act="savePlayers">確認並進入牌桌</button>'+back+'</div>';
+  return h+'<div class="btnrow"><button class="primary" data-act="savePlayers">確認並返回牌桌</button>'+(S.playersReady?'<button data-act="cancelPlayers">取消修改</button>':'<button data-act="toChooser">返回玩法選擇</button>')+'</div>';
 }
 function savePlayerSetup(){
   readPlayerNames();const d=playerDraft;if(!d)return false;
   const names=d.names.map((n,p)=>String(n).trim().slice(0,10)||S.names[p]||('玩家'+(p+1)));
   if(new Set(names).size!==4){toast('請使用不同玩家名稱，以免記錯');return false;}
   if(new Set(d.seat).size!==4||d.seat.some(p=>!Number.isInteger(p)||p<0||p>3)){toast('四個座位必須分配不同玩家');return false;}
-  S.names=names;S.avatars=d.avatars.map((e,p)=>PLAYER_EMOJIS.includes(e)?e:DEFAULT_AVATARS[p]);S.seat=d.seat.slice();S.dealerSeat=d.dealerSeat;S.playersReady=true;S.setupStage=null;
-  playerDraft=null;nameEdits.clear();tab='table';toast('玩家設定已儲存');return true;
+  S.names=names;S.avatars=d.avatars.map((e,p)=>PLAYER_EMOJIS.includes(e)?e:DEFAULT_AVATARS[p]);S.seat=d.seat.slice();S.dealerSeat=d.dealerSeat;S.playersReady=true;
+  playerDraft=null;nameEdits.clear();setTab('table');toast('玩家設定已儲存');return true;
 }
-function finishEntry(message){E=newEntry();pending=[];entryStep='pick';tab='table';lastEntryMessage=message;wildStop();wildDone=null;wildKey='';window.scrollTo(0,0);toast(message);}
+function recordLabel(r,idx){
+  const no='#'+(idx+1);
+  const name=p=>(S.names&&S.names[p])||('玩家'+(Number(p)+1));
+  if(!r)return no;
+  if(r.kind==='draw')return no+' 流局';
+  if(r.kind==='win'){
+    const ws=r.winners||[];
+    if(ws.length===1){const w=ws[0];return no+' '+name(w.p)+(w.self?' 自摸':' 食 '+name(w.disc));}
+    if(ws.length>1)return no+' '+ws.map(w=>name(w.p)).join('、')+' 同食 '+name(ws[0].disc);
+  }
+  return no+' '+(r.name||'紀錄');
+}
+function undoInfoForLast(){
+  const idx=S.history.length-1;
+  if(idx<0)return null;
+  const r=S.history[idx];
+  return {id:r.id,label:recordLabel(r,idx),kind:r.kind,beforeLen:idx+1};
+}
+function finishEntry(message, undoInfo){
+  E=newEntry();pending=[];entryStep='pick';setTab('table');lastEntryMessage=undoInfo&&undoInfo.label?message+' · '+undoInfo.label:message;
+  wildStop();wildDone=null;wildKey='';clearDraft();
+  if(undoInfo){ lastUndo=undoInfo; if(undoTimer) clearTimeout(undoTimer); undoTimer=setTimeout(()=>{ lastUndo=null; render(); }, 8000); }
+  window.scrollTo(0,0);toast(message);
+}
 function beginWinner(p){
-  if(S.setupStage){toast('請先完成開局設定');return false;}
   if(!Number.isInteger(p)||!S.seat.includes(p)){toast('請選擇食糊者');return false;}
-  if(pending.length>=3){toast('已加入三位，請確認本局');tab='calc';entryStep='pick';return false;}
+  if(pending.length>=3){toast('已加入三位，請確認本局');setTab('calc');entryStep='pick';return false;}
   if(pending.some(w=>w.p===p)){toast('這位玩家已加入本局');return false;}
   if(pending.length&&pending[0].disc===p){toast('出銃者不能同時食糊');return false;}
   const current=hasCurrentData()||E.flowers.some(Boolean)||E.extra.length>0||E.adjust!==0;
-  if(current&&E.winner===p){tab='calc';entryStep='hand';window.scrollTo(0,0);return true;}
+  if(current&&E.winner===p){setTab('calc');entryStep='hand';window.scrollTo(0,0);return true;}
   if(current&&!confirm('改選食糊者會清除目前這手輸入；已加入的食糊者會保留。繼續嗎？'))return false;
-  wildStop();wildDone=null;wildKey='';E=newEntry();E.winner=p;tab='calc';lastEntryMessage='';
+  wildStop();wildDone=null;wildKey='';E=newEntry();E.winner=p;setTab('calc');lastEntryMessage='';
   if(pending.length){E.self=false;E.disc=pending[0].disc;entryStep='hand';}else entryStep='method';
   window.scrollTo(0,0);return true;
 }
@@ -542,39 +665,29 @@ function viewEntryFlow(){
     h+='<h3>'+(pending.length?'選擇另一位食糊者':'選擇本局食糊者')+'</h3><div class="grid2">';
     S.seat.forEach(p=>{const disabled=pending.some(w=>w.p===p)||pending.length>=3||(pending.length&&pending[0].disc===p);h+='<button data-act="startWinner" data-p="'+p+'"'+(disabled?' disabled':'')+'>'+playerLabel(p)+'<br><small>'+windOf(p)+'位</small></button>';});h+='</div>';
     if(pending.length)h+='<div class="btnrow"><button class="primary" data-act="confirm">確認本局（'+pending.length+' 位食糊者）</button></div>';
-  }else if(entryStep==='method')h+='<h3>'+playerLabel(E.winner)+' 食糊</h3><p class="hint">選擇食糊方式，下一步輸入牌型。</p><div class="seg two"><button data-act="chooseMethod" data-v="self">自摸</button><button data-act="chooseMethod" data-v="ron">食炮</button></div><div class="btnrow"><button data-act="entryPick">重新選擇贏家</button></div>';
-  else if(entryStep==='payer')h+='<h3>'+playerLabel(E.winner)+' 食炮</h3><p class="hint">選擇出銃者（放炮者）</p><div class="grid2">'+S.seat.filter(p=>p!==E.winner).map(p=>'<button data-act="choosePayer" data-p="'+p+'">'+playerLabel(p)+'</button>').join('')+'</div><div class="btnrow"><button data-act="entryMethod">返回食糊方式</button></div>';
+  }else if(entryStep==='method'){
+    h+='<h3>'+playerLabel(E.winner)+' 食糊</h3><p class="hint">選擇食糊方式，下一步輸入牌型。</p><div class="seg two"><button data-act="chooseMethod" data-v="self">自摸</button><button data-act="chooseMethod" data-v="ron">食炮</button></div><div class="btnrow"><button data-act="entryPick">重新選擇贏家</button></div>';
+  }else if(entryStep==='payer'){
+    h+='<h3>'+playerLabel(E.winner)+' 食炮</h3><p class="hint">選擇出銃者（放炮者）</p><div class="grid2">'+S.seat.filter(p=>p!==E.winner).map(p=>'<button data-act="choosePayer" data-p="'+p+'">'+playerLabel(p)+'</button>').join('')+'</div><div class="btnrow"><button data-act="entryMethod">返回食糊方式</button></div>';
+  }
   return h+'<div class="btnrow"><button data-act="tab" data-v="table">返回牌桌（保留本局）</button>'+(hasEntryDraft()?'<button data-act="clearEntry">放棄本局輸入</button>':'')+'</div>';
 }
 function tableDisplayBalances(){return isHK()?balances():totals();}
-function viewSetupRules(){
-  const c=S.cfg;
-  let h='<h3>確認玩法規則</h3><div class="status">'+esc(gameName())+'</div>';
-  if(isHK()){
-    const q=c.hk;
-    h+='<div class="presetrow">'+Object.keys(HK_PRESETS).map(k=>'<button class="'+(q.preset===k?'on':'')+'" data-act="hkPreset" data-v="'+k+'">'+HK_PRESETS[k].name+'</button>').join('')+'</div><div class="grid2">';
-    h+='<label>起糊番數<input type="number" min="0" step="1" data-chg="hkn" data-k="minFan" value="'+q.minFan+'"></label>';
-    h+='<label>自摸每家比例<input type="number" min="0" step="any" data-chg="hkn" data-k="ratio" value="'+q.ratio+'"></label>';
-    [['renzhuang','莊家食糊連莊'],['flowers','花牌規則'],['bao12','十二章包'],['baoSan','大三元包']].forEach(x=>{h+='<label>'+x[1]+'<select data-chg="hkb" data-k="'+x[0]+'"><option value="1"'+(q[x[0]]?' selected':'')+'>開</option><option value="0"'+(!q[x[0]]?' selected':'')+'>關</option></select></label>';});
-    h+='</div>';
-  }else{
-    h+='<div class="presetbtns">'+[1,2,3,4].map(p=>'<button class="'+(curPreset()===p?'on':'')+'" data-act="preset" data-v="'+p+'">'+esc(PRESET_NAME[p])+'</button>').join('')+'</div><div class="grid2">';
-    h+='<label>每番金額<input type="number" min="0" step="any" data-chg="cfg" data-k="fanValue" value="'+c.fanValue+'"></label><label>起糊番數<input type="number" min="0" step="1" data-chg="cfg" data-k="minFan" value="'+c.minFan+'"></label>';
-    h+='<label>流局保留莊家<select data-chg="drawKeeps"><option value="1"'+(c.drawKeeps?' selected':'')+'>是</option><option value="0"'+(!c.drawKeeps?' selected':'')+'>否</option></select></label></div>';
-    if(isWild()){
-      h+='<div class="hint">本場百搭：'+c.wildLimit+' 張</div>';
-      [['wildMeld','容許含百搭明牌'],['wildNoMult','冇用百搭加倍']].forEach(x=>{h+='<div class="zl">'+x[1]+'</div><div class="seg"><button class="'+(!c[x[0]]?'on':'')+'" data-act="wildOpt" data-k="'+x[0]+'" data-v="0">關</button><button class="'+(c[x[0]]?'on':'')+'" data-act="wildOpt" data-k="'+x[0]+'" data-v="1">開</button></div>';});
-      h+='<label>冇用百搭倍數<input type="number" min="1" max="100" data-chg="wildMultN" value="'+c.wildMultN+'"></label>';
-    }
-  }
-  return h+'<div class="btnrow"><button data-act="setupBackType">返回玩法選擇</button><button class="primary" data-act="setupContinue">下一步：玩家及座位</button></div>';
-}
 
 function viewTable(){
   const b=tableDisplayBalances();
-  const card=s=>{ const p=S.seat[s]; return '<div class="card seat '+(s===S.dealerSeat?'dealer':'')+'" role="button" tabindex="0" data-act="startWinner" data-p="'+p+'" aria-label="選擇 '+esc(S.names[p])+' 食糊" style="cursor:pointer"><div class="sw">'+WIND[s]+'</div><div class="pn"><span style="font-size:1.6em" aria-hidden="true">'+avatar(p)+'</span><br>'+nm(p)+'</div><div class="mini">門風 '+windOf(p)+(s===S.dealerSeat?' · 莊':'')+'</div><div class="bal '+(b[p]>=0?'pos':'neg')+'">'+money(b[p])+'</div></div>'; };
-  let h='<div class="status">'+WIND[S.wind]+'風圈 · 莊家 '+nm(dealerPid())+' · 連莊 '+S.streak+' 次'+(isHK()?'':'(莊家加 '+(1+2*S.streak)+' 番)')+'<br><small>'+esc(gameName())+'</small></div>';
-  if(lastEntryMessage)h+='<div class="note">'+esc(lastEntryMessage)+' <button data-act="tab" data-v="history">查看記錄</button><button data-act="undoRec">撤銷上一筆</button></div>';
+  const card=s=>{ const p=S.seat[s]; const name=nm(p); return '<div class="card seat '+(s===S.dealerSeat?'dealer':'')+'" role="button" tabindex="0" data-act="startWinner" data-p="'+p+'" aria-label="選擇 '+esc(name)+' 食糊" style="cursor:pointer" title="'+esc(name)+'"><div class="sw">'+WIND[s]+'</div><div class="pn" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"><span style="font-size:1.6em" aria-hidden="true">'+avatar(p)+'</span><br>'+esc(name)+'</div><div class="mini">門風 '+windOf(p)+(s===S.dealerSeat?' · 莊':'')+'</div><div class="bal '+(b[p]>=0?'pos':'neg')+'">'+money(b[p])+'</div></div>'; };
+  let h='<div class="status '+(S.cfg.largeFont?'large-font':'')+'"><span class="badge">莊 '+nm(dealerPid())+'</span> '+WIND[S.wind]+'風圈 · 連莊 <span class="badge">'+S.streak+' 次</span>'+(isHK()?'':'(莊家加 '+(1+2*S.streak)+' 番)')+'<br><small>'+esc(gameName())+'</small></div>';
+  if(lastEntryMessage){
+    let undoBtn='';
+    if(lastUndo){
+      undoBtn='<button class="danger" data-act="undoRec">撤銷 '+esc(lastUndo.label)+'</button>';
+    } else {
+      undoBtn='<button data-act="undoRec">撤銷上一筆</button>';
+    }
+    h+='<div class="note">'+esc(lastEntryMessage)+' <button data-act="tab" data-v="history">查看記錄</button>'+undoBtn+'</div>';
+  }
+  if(draftCache){ h+='<div class="note">找到未完成草稿（莊家 '+WIND[draftCache.ctx.wind]+'風圈 連莊 '+draftCache.ctx.streak+'）<button class="primary" data-act="applyDraft">繼續輸入</button><button data-act="discardDraft">放棄草稿</button></div>'; }
   if(hasEntryDraft())h+='<div class="note">有未完成的本局輸入 <button class="primary" data-act="tab" data-v="calc">繼續輸入</button></div>';
   h+='<div class="cross"><div></div>'+card(3)+'<div></div>'+card(2)+'<div class="center">點選玩家<br><small>記錄食糊</small></div>'+card(0)+'<div></div>'+card(1)+'<div></div></div>';
   h+='<p class="hint">'+(isHK()?'格內金額為已收付淨額。':'格內大字為總淨額（已收付＋未收拉－未付拉）；拉數明細見下方。')+'</p>';
@@ -596,17 +709,76 @@ function baoVisible(){
   const h=S.cfg.hk;
   return !!(h.bao12||h.baoSan);
 }
+
+function nextStepText(){
+  if(hasCurrentData()||pending.length>0){
+    if(pending.length>0){
+      const disc = S.names[pending[0].disc]||'';
+      return '繼續 '+playerLabel(pending[0].p)+' 食 '+disc;
+    }
+    if(E.winner!=null){
+      return '繼續 '+(S.names[E.winner]||'')+' 輸入';
+    }
+    return '繼續未完成輸入';
+  }
+  return '點選食糊玩家';
+}
 function inputSection(){
   if(isHK()) return inputSectionHK();
   const md=E.mode, w=isWild();
+  const useSeg=S.cfg.useSegment;
+  // fixed height mode hint (item 5)
+  const tipText=md==='pick'?'點牌盤新增手牌':(md==='meld'?'標記明牌':(md==='jmeld'?'選3或4張含百搭明牌':'點選食糊牌'));
   const tip=md==='pick'?'① 點牌盤入牌堆 ② 點牌堆刪牌 ③ 點「明牌」框空白,進入下一步'
     :(md==='meld'?'① 點牌堆標明牌 ② 再點取消 ③ 點「食糊牌」框空白,進入下一步'
     :(md==='jmeld'?'① 點牌堆選3或4張 ② 再點取消 ③ 按下面上／碰／槓'
     :'① 點牌堆指食糊牌 ② 再點取消 ③ 往下加花牌與特殊情況'));
-  let h='<h3>① 輸入牌型</h3>';
-  h+='<div class="modebar">'+tip+'</div>';
+  let h='';
+  // wizard steps (16) - actual content switching
+  let wizardStep=0;
+  if(S.cfg.wizard){
+    const steps=['贏家','手牌','花牌/確認'];
+    if(entryStep==='pick'||entryStep==='method'||entryStep==='payer') wizardStep=0;
+    else if(hasCurrentData()||E.melds.length>0||E.wildGroups.length>0) wizardStep=1;
+    else wizardStep=0;
+    if(E.flowers.some(Boolean)||E.extra.length>0||E.win!=null) wizardStep=Math.max(wizardStep,2);
+    // if has winner but no hand, step 1; if has hand and win, step 2
+    if(E.winner!=null && E.all.length>0) wizardStep=1;
+    if(E.win!=null) wizardStep=2;
+    h+='<div class="card"><div class="zl">精簡嚮導（'+(wizardStep+1)+'/3）</div><div style="display:flex;gap:6px;margin-bottom:8px;">'+steps.map((s,i)=>'<div style="flex:1;text-align:center;padding:6px;border-radius:999px;background:'+(i===wizardStep?'var(--acc)':'var(--btn)')+';color:'+(i===wizardStep?'var(--onacc)':'inherit')+'">'+(i+1)+'. '+s+'</div>').join('')+'</div>';
+    h+='<div class="btnrow"><button '+(wizardStep===0?'disabled':'')+' data-act="wizPrev">上一步</button><button '+(wizardStep===2?'disabled':'')+' data-act="wizNext">下一步</button></div></div>';
+  }
+  // item 12 common ron locking display
+  if(pending.length>0){
+    const common = pending[0].ron ? pending[0].ron.winTile : null;
+    if(common!=null){
+      h+='<div class="note" style="position:sticky;top:0;z-index:3;">共同放炮牌鎖定：'+mt(common)+' <small>食糊牌選擇器只允許同一張</small></div>';
+    }
+    // item 11 chips
+    h+='<div class="card"><div class="zl">已加入 (晶片可刪)</div><div>';
+    h+=pending.map((pw,idx)=>{
+      const name=playerLabel(pw.p);
+      const disc = S.names[pw.disc]||'';
+      return '<span class="chip">'+esc(name)+' 食 '+esc(disc)+' '+pw.total+'番 <span class="x" data-act="rmPending" data-i="'+idx+'">✕</span></span>';
+    }).join('');
+    h+='</div></div>';
+  }
+  // item 5 fixed height mode hint
+  h+='<h3>① 輸入牌型</h3>';
+  h+='<div class="modebar-fixed">'+esc(tipText)+' - '+esc(tip)+'</div>';
+  // item 6 optional segmented
+  if(useSeg){
+    h+='<div class="seg three sticky-footer" style="position:sticky;top:40px;z-index:4;"><button class="'+(md==='pick'?'on':'')+'" data-act="mode" data-v="pick">選牌</button><button class="'+(md==='meld'||md==='jmeld'?'on':'')+'" data-act="mode" data-v="meld">標明牌</button><button class="'+(md==='win'?'on':'')+'" data-act="mode" data-v="win">選食糊牌</button></div>';
+  }
   h+=palette();
-  h+='<div class="zl">牌堆 <small>共 '+E.all.length+' 張</small></div>';
+  h+='<div class="zl">牌堆 <small>已輸入 '+E.all.length+' 張'+((w&&E.wildGroups.length)?'':' / 需 '+(need()+E.melds.reduce((n,m)=>n+(m.t==='kong'?4:3),0))+' 張')+'</small></div>';
+  // progress bar for remaining (item 4-like)
+  const meldTileCount=E.melds.reduce((n,m)=>n+(m.t==='kong'?4:3),0);
+  const needN=need()+meldTileCount;
+  if(!(w&&E.wildGroups.length)){
+    const pct=Math.max(0, Math.min(100, Math.round(Math.min(E.all.length,needN)/needN*100)));
+    h+='<div class="progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="'+pct+'"><i style="width:'+pct+'%"></i></div>';
+  }
   let markedWin=false;
   const used=Array(35).fill(0);
   h+='<div class="zone poolbox"><div class="tiles">'+(E.all.length?E.all.slice().sort((a,b)=>a-b).map(t=>{
@@ -614,10 +786,10 @@ function inputSection(){
     let cls=isMk?'mk2':'';
     if(!isMk&&idx<mk+js) cls='mark';
     else if(!isMk&&E.win===t&&!markedWin){ markedWin=true; cls='mark'; }
-    return mt(t,{tag:'button',cls:cls,attrs:'data-act="poolTap" data-t="'+t+'"'});
+    return mt(t,{tag:'button',cls:cls+(E.win===t?' selected':''),attrs:'data-act="poolTap" data-t="'+t+'"'});
   }).join(''):'<span class="hint">點上方牌盤選牌</span>')+'</div></div>';
   h+='<div class="btnrow"><button data-act="undoTile">退一張</button><button data-act="clearHand">全部清空</button></div>';
-  h+='<h3>② 確認明牌</h3><div class="card entered">';
+  if(!S.cfg.wizard || wizardStep>=1){ h+='<h3>② 確認明牌</h3><div class="card entered">';
   h+='<div class="zl" style="margin-top:0">明牌 <small>'+(E.melds.length+(w?E.wildGroups.length:0))+' 組(點空白處選明牌,點牌可取消)</small></div>';
   h+='<div class="zone tap'+(md==='meld'?' active':'')+'" data-act="mode" data-v="meld">'+((E.melds.length||(w&&E.wildGroups.length))?E.melds.map((m,i)=>meldGroup(m,i)).join('')+(w?E.wildGroups.map((g,i)=>'<div class="mg" data-act="wildRemoveGroup" data-i="'+i+'"><div class="row">'+g.physical.map(t=>mt(t)).join('')+'</div><small>'+(g.t==='chow'?'上':g.t==='pung'?'碰':g.open?'明槓':'暗槓')+'(含百搭,代表'+M.tName(g.tile)+') ✕</small></div>').join(''):''):'<span class="hint">點此選明牌(沒有明牌可略過)</span>')+'</div>';
   if(w&&E.partAmbig) h+='<div class="hint">明牌標記有多種分法,目前按其中一種計算;如不符,請調整標記。</div>';
@@ -629,18 +801,31 @@ function inputSection(){
       h+='<div class="note"><b>這組代表哪張牌?</b>(點選)</div><div class="tiles" style="margin:6px 0">'+pr.cands.map(t=>pr.grp.t==='chow'?'<button data-act="repPick" data-t="'+t+'" style="padding:10px 12px">'+chowName(t)+'</button>':mt(t,{tag:'button',attrs:'data-act="repPick" data-t="'+t+'"'})).join('')+'</div><div class="btnrow"><button data-act="repCancel">取消</button></div>';
     }
   }
-  h+='</div><h3>③ 確認食糊牌</h3><div class="card entered"><div class="zl" style="margin-top:0">食糊牌(胡牌) <small>'+(E.win!=null?'點牌可取消':'點空白處指名')+(w?(E.win===34?'(百搭只限自摸)':''):'')+'</small></div>';
-  h+='<div class="zone winzone tap'+(md==='win'?' active':'')+'" data-act="mode" data-v="win">'+(E.win!=null?mt(E.win,{tag:'button',cls:'big',attrs:'data-act="clearWin"'}):'<span class="hint">點此選食糊牌</span>')+'</div>';
-  h+='</div>';
+  h+='</div>'; } if(!S.cfg.wizard || wizardStep>=2){ h+='<h3>③ 確認食糊牌</h3><div class="card entered"><div class="zl" style="margin-top:0">食糊牌(胡牌) <small>'+(E.win!=null?'點牌可取消':'點空白處指名')+(w?(E.win===34?'(百搭只限自摸)':''):'')+'</small></div>';
+  h+='<div class="zone winzone tap'+(md==='win'?' active':'')+'" data-act="mode" data-v="win">'+(E.win!=null?mt(E.win,{tag:'button',cls:'big selected',attrs:'data-act="clearWin"'}):'<span class="hint">點此選食糊牌</span>')+'</div>';
+  h+='</div>'; } 
+  // item 9 fixed bottom confirm - separate continue and confirm
+  let footerBtns='';
+  if(S.cfg.wizard && wizardStep<2){
+    footerBtns='<button data-act="wizNext" class="primary" style="flex:1">下一步：'+(wizardStep===0?'輸入手牌':'選食糊牌')+'</button>';
+  } else if(hasCurrentData() && E.win!=null){
+    footerBtns='<button data-act="wizPrev" style="flex:1">上一步</button><button class="primary" data-act="confirm" style="flex:2">確認記錄</button>';
+  } else if(pending.length>0){
+    footerBtns='<button class="primary" data-act="confirm" style="flex:1">確認本局（'+pending.length+'位）</button>';
+  } else {
+    footerBtns='<button data-act="tab" data-v="table" style="flex:1">返回牌桌</button><button class="primary" data-act="confirm" disabled style="flex:1">請先選食糊牌</button>';
+  }
+  h+='<div class="sticky-footer"><div class="btnrow">'+footerBtns+'</div></div>';
   return h;
 }
+
 function inputSectionHK(){
   const mq=E.flags.menqing;
   let h='<h3>輸入牌</h3>';
   h+='<div class="modebar">選牌:點上方牌盤選齊全部的牌(有槓時,每個槓多一張),點牌堆裡的牌可刪除。不用標明牌和食糊牌。</div>';
   h+=palette();
   h+=hkFlowerInput();
-  h+='<div class="zl">牌堆 <small>共 '+E.all.length+' 張</small></div>';
+  h+='<div class="zl">牌堆 <small>已輸入 '+E.all.length+' 張 / 需 '+(isHK()? '14+槓數' : need()+'張')+'</small></div>';
   h+='<div class="zone poolbox"><div class="tiles">'+(E.all.length?E.all.slice().sort((a,b)=>a-b).map(t=>mt(t,{tag:'button',attrs:'data-act="poolTap" data-t="'+t+'"'})).join(''):'<span class="hint">點上方牌盤選牌</span>')+'</div></div>';
   h+='<div class="btnrow"><button data-act="undoTile">退一張</button><button data-act="clearHand">全部清空</button></div>';
   h+=hkWinPicker();
@@ -730,56 +915,117 @@ function viewInstantControls(){
   return h;
 }
 
-function historyCompactValidLedger(rows){
+function validLedgerSnapshot(rows){
   return Array.isArray(rows)&&rows.every(r=>r&&Number.isInteger(r.from)&&r.from>=0&&r.from<4&&Number.isInteger(r.to)&&r.to>=0&&r.to<4&&Number.isFinite(r.amt));
 }
+function ledgerFigures(rows){
+  const incoming=[0,0,0,0],outgoing=[0,0,0,0];
+  rows.forEach(r=>{incoming[r.to]+=r.amt;outgoing[r.from]+=r.amt;});
+  return {incoming,outgoing,net:incoming.map((n,p)=>n-outgoing[p])};
+}
 function finalizeFinancialSnapshots(){
+  // Seal only records created by this build, after the action has finished updating the ledger.
   S.history.forEach((r,i)=>{
-    if(r.financePending!==true)return;const next=S.history[i+1];
-    const after=next&&historyCompactValidLedger(next.ledgerBefore)?next.ledgerBefore:(i===S.history.length-1?S.ledger:null);
-    if(!historyCompactValidLedger(after))return;
+    if(r.financePending!==true)return;
+    const next=S.history[i+1];
+    const after=next&&validLedgerSnapshot(next.ledgerBefore)?next.ledgerBefore:(i===S.history.length-1?S.ledger:null);
+    if(!validLedgerSnapshot(after))return;
     r.ledgerAfter=copyL(after);r.financeSchema=1;delete r.financePending;
   });
 }
-function historyCompactSnapshot(index){
-  const r=S.history[index];if(!r)return {known:false,before:null,after:null};
-  const mode=r.financeMode||S.game;if(mode==='hk')return {known:true,before:[],after:[]};
-  const before=historyCompactValidLedger(r.ledgerBefore)?r.ledgerBefore:null;
-  let after=historyCompactValidLedger(r.ledgerAfter)?r.ledgerAfter:null;
-  if(after===null){const next=S.history[index+1];if(next&&historyCompactValidLedger(next.ledgerBefore))after=next.ledgerBefore;else if(index===S.history.length-1&&historyCompactValidLedger(S.ledger))after=S.ledger;}
-  return {known:before!==null&&after!==null,before,after};
+function historyFinancials(index){
+  const r=S.history[index];
+  const cash=[0,1,2,3].map(p=>Number.isFinite((r.deltas||[])[p])?r.deltas[p]:0);
+  const mode=r.financeMode||S.game;
+  if(mode==='hk')return {complete:true,cash,total:cash.slice(),pending:[0,0,0,0],receivableChange:[0,0,0,0],payableChange:[0,0,0,0],mode};
+  const before=r.ledgerBefore,next=S.history[index+1];
+  let after=r.ledgerAfter;
+  if(!validLedgerSnapshot(after)){
+    if(next&&validLedgerSnapshot(next.ledgerBefore))after=next.ledgerBefore;
+    else if(index===S.history.length-1&&validLedgerSnapshot(S.ledger))after=S.ledger;
+  }
+  if(!validLedgerSnapshot(before)||!validLedgerSnapshot(after))return {complete:false,cash,total:null,pending:null,mode};
+  const a=ledgerFigures(before),b=ledgerFigures(after);
+  const pending=b.net.map((n,p)=>n-a.net[p]);
+  return {complete:true,cash,total:cash.map((n,p)=>n+pending[p]),pending,
+    receivableChange:b.incoming.map((n,p)=>n-a.incoming[p]),payableChange:b.outgoing.map((n,p)=>n-a.outgoing[p]),mode};
 }
-function historyCompactNet(rows){const net=[0,0,0,0];rows.forEach(r=>{net[r.to]+=r.amt;net[r.from]-=r.amt;});return net;}
-function historyCompactChange(index,snapshot){
-  const r=S.history[index];if(!r||!snapshot.known||!Array.isArray(r.deltas)||r.deltas.length!==4||!r.deltas.every(Number.isFinite))return null;
-  const before=historyCompactNet(snapshot.before),after=historyCompactNet(snapshot.after);return r.deltas.map((cash,p)=>cash+after[p]-before[p]);
-}
-function historyCompactName(p){return esc((S.names&&S.names[p])||('玩家'+(p+1)));}
-function historyCompactPlayer(p){const defaults=['🐉','🐯','🐼','🦊'],emoji=(S.avatars&&S.avatars[p])||defaults[p]||'🙂';return esc(emoji)+' '+historyCompactName(p);}
 function historyMoneyHtml(index){
-  const snapshot=historyCompactSnapshot(index),change=historyCompactChange(index,snapshot),seats=Array.isArray(S.seat)&&S.seat.length===4?S.seat:[0,1,2,3];
-  let h='<div class="zl">本局淨變動</div><div class="prev">';
-  h+=seats.map(p=>{const value=change?change[p]:null;return '<div><small>'+historyCompactPlayer(p)+'</small><b'+(value===null?'':' class="'+(value>=0?'pos':'neg')+'"')+'>'+(value===null?'—':money(value))+'</b></div>';}).join('');h+='</div>';
-  if(change===null)h+='<div class="hint">舊紀錄資料不足</div>';
-  h+='<div class="zl">尚未結算金額</div>';
-  if(snapshot.after===null)h+='<div class="hint">資料不足</div>';
-  else{const rows=snapshot.after.filter(r=>r.amt!==0);h+=rows.length?rows.map(r=>'<div class="hint">'+historyCompactName(r.from)+' 欠 '+historyCompactName(r.to)+' $'+esc(r.amt)+' (拉'+esc(r.k==null?1:r.k)+'口)</div>').join(''):'<div class="hint">無</div>';}
+  const f=historyFinancials(index);
+  let h='<div class="hint">本局淨變動（完成後總額 − 開始前總額）</div><div class="prev">';
+  h+=S.seat.map(p=>{
+    const value=f.complete?f.total[p]:null;
+    let cell='<div><small>'+playerLabel(p)+'</small><b'+(value==null?'':' class="'+(value>=0?'pos':'neg')+'"')+'>'+(value==null?'—':money(value))+'</b>';
+    cell+='<small style="display:block">已收付 '+money(f.cash[p])+'</small>';
+    if(f.complete&&f.mode!=='hk')cell+='<small style="display:block">未結算變動 '+money(f.pending[p])+'</small>';
+    return cell+'</div>';
+  }).join('');h+='</div>';
+  if(!f.complete)h+='<div class="warn">舊紀錄缺少拉數快照，無法確認本局總淨變動；小字只顯示已收付，未假設未結算金額為 0。</div>';
+  else if(f.mode!=='hk'){
+    h+='<div class="hint">未結算變動為本筆記錄造成的拉數淨額變化，包含新增、結清、踢半等；不是目前累計拉數。</div>';
+    const both=[0,1,2,3].filter(p=>f.receivableChange[p]!==0&&f.payableChange[p]!==0);
+    if(both.length)h+='<div class="hint">'+both.map(p=>playerLabel(p)+'：未收拉變動 '+money(f.receivableChange[p])+'／未付拉變動 '+money(f.payableChange[p])).join('；')+'</div>';
+  }
   return h;
 }
+
+
+
+function historyPlayerName(p){return esc((S.names&&S.names[p])||('玩家'+(Number(p)+1)));}
+function historyPlayerLabel(p){
+  const emoji=(S.avatars&&S.avatars[p])||(typeof DEFAULT_AVATARS!=='undefined'?DEFAULT_AVATARS[p]:'');
+  return (emoji?esc(emoji)+' ':'')+historyPlayerName(p);
+}
+function historyAfterLedger(idx){
+  const r=S.history[idx];
+  if((r.financeMode||S.game)==='hk')return [];
+  if(validLedgerSnapshot(r.ledgerAfter))return r.ledgerAfter;
+  const next=S.history[idx+1];
+  if(next&&validLedgerSnapshot(next.ledgerBefore))return next.ledgerBefore;
+  if(idx===S.history.length-1&&validLedgerSnapshot(S.ledger))return S.ledger;
+  return null;
+}
+function historyFanText(w){
+  return (w.fans||[]).map(f=>esc(f.name||f.id)+((f.n||1)>1?'×'+esc(f.n):'')+' '+esc(f.total)).join(' · ');
+}
 function viewHistory(){
-  if(!S.history.length)return '<p class="hint">目前沒有紀錄</p>';
-  let h='<div class="btnrow"><button data-act="undoRec">撤銷最後一局</button></div>';
-  for(let index=S.history.length-1;index>=0;index--){
-    const r=S.history[index],t=new Date(r.time),time=Number.isNaN(t.getTime())?'—':t.getHours()+':'+String(t.getMinutes()).padStart(2,'0');
-    const title=r.kind==='win'?'食糊':r.kind==='draw'?'流局':r.kind==='settle'?esc(r.name||'結清'):'籌碼:'+esc(r.name||'');
-    h+='<div class="card rec"><div class="rh"><b>#'+(index+1)+'</b> '+title+' <small>'+(WIND[r.wind]||'東')+'風圈 · 莊 '+historyCompactName(r.dealer)+' 連莊'+esc(r.streak==null?0:r.streak)+' · '+time+'</small></div>';
-    if(r.kind==='win')(r.winners||[]).forEach(w=>{
-      const who=historyCompactName(w.p)+(w.self?' 自摸':' 食 '+historyCompactName(w.disc)+' 出銃'),bao=w.bao!=null&&w.bao!==w.p?'(由 '+historyCompactName(w.bao)+' 包)':'',raw=w.raw!=null&&w.raw>w.total?'<small>(疊加 '+esc(w.raw)+' 番,封頂)</small>':'';
-      const fans=(w.fans||[]).map(f=>esc(f.name)+(f.n>1?'×'+esc(f.n):'')+' '+esc(f.total)).join(' · ');
-      h+='<div class="rw">'+who+bao+' — <b>'+esc(w.total)+'番</b>'+raw+(fans?'<div class="hint">'+fans+'</div>':'')+'</div>';
-    });
-    h+=historyMoneyHtml(index)+'</div>';
+  finalizeFinancialSnapshots();
+  const totalLen=S.history.length;
+  if(!totalLen)return '<h3>歷史紀錄</h3><p class="hint">暫無紀錄</p>';
+  const start=historyShowAll?0:Math.max(0,totalLen-10);
+  let h='<h3>歷史紀錄</h3>';
+  if(totalLen>10)h+='<div class="btnrow"><button data-act="toggleHistory">'+(historyShowAll?'只顯示最近10局':'展開全部 '+totalLen+' 局')+'</button></div>';
+  for(let idx=totalLen-1;idx>=start;idx--){
+    const r=S.history[idx],t=new Date(r.time);
+    const time=Number.isNaN(t.getTime())?'—':t.getHours()+':'+String(t.getMinutes()).padStart(2,'0');
+    const kind=r.kind==='win'?'食糊':r.kind==='draw'?'流局':r.kind==='settle'?(r.name||'結清'):('籌碼:'+(r.name||''));
+    h+='<div class="card rec"><div class="rh"><b>#'+(idx+1)+'</b> '+esc(kind)+' <small>'+esc(WIND[r.wind]||'東')+'風圈 · 莊 '+historyPlayerName(r.dealer)+' 連莊'+esc(r.streak==null?0:r.streak)+' · '+time+'</small></div>';
+    if(r.kind==='win'){
+      (r.winners||[]).forEach(w=>{
+        const who=historyPlayerName(w.p)+(w.self?' 自摸':' 食 '+historyPlayerName(w.disc)+' 出銃');
+        const bao=(w.bao!=null&&w.bao!==w.p)?'(由 '+historyPlayerName(w.bao)+' 包)':'';
+        const raw=(w.raw!=null&&w.raw>w.total)?'<small>(疊加 '+esc(w.raw)+' 番,封頂)</small>':'';
+        const fans=historyFanText(w);
+        h+='<div class="rw">'+who+bao+' — <b>'+esc(w.total)+'番</b>'+raw+(fans?'<div class="hint">'+fans+'</div>':'')+'</div>';
+      });
+    }
+    const f=historyFinancials(idx);
+    h+='<div class="zl">本局淨變動</div><div class="prev">';
+    h+=S.seat.map(p=>{
+      const v=f.complete?f.total[p]:null;
+      return '<div><small>'+historyPlayerLabel(p)+'</small><b'+(v==null?'':' class="'+(v>=0?'pos':'neg')+'"')+'>'+(v==null?'—':money(v))+'</b></div>';
+    }).join('')+'</div>';
+    if(!f.complete)h+='<div class="hint">舊紀錄資料不足</div>';
+    h+='<div class="zl">尚未結算金額</div>';
+    const after=historyAfterLedger(idx);
+    if(after===null)h+='<div class="hint">資料不足</div>';
+    else{
+      const rows=after.filter(x=>x.amt!==0);
+      h+=rows.length?rows.map(x=>'<div class="hint">'+historyPlayerName(x.from)+' 欠 '+historyPlayerName(x.to)+' $'+esc(x.amt)+' (拉'+esc(x.k==null?1:x.k)+'口)</div>').join(''):'<div class="hint">無</div>';
+    }
+    h+='</div>';
   }
+  h+='<div class="btnrow"><button data-act="copySum">複製總結</button><button data-act="exportFile">匯出備份</button></div>';
   return h;
 }
 
@@ -827,6 +1073,15 @@ function viewSettings(){
   let h='<div class="btnrow"><button data-act="editPlayers">玩家名稱及 emoji</button></div><h3>版本資訊</h3><div class="card"><div>目前版本:<b>'+APP_VERSION+'</b></div>'+(buildInfo?'<div>更新時間:<b>'+esc(buildInfo)+'</b></div>':'')+''+(upd?'<div class="pos">最新版本:<b>'+esc(upd.version)+'</b>'+(upd.updated?'('+esc(upd.updated)+')':'')+'</div>':'')+'<div class="dev">開發者:Instagram <a href="https://www.instagram.com/'+DEV_IG+'/" target="_blank" rel="noopener">@'+DEV_IG+'</a></div><div class="btnrow">'+(upd?'<button class="primary" data-act="upgrade">立即升級</button>':'')+'<button data-act="checkUpd">'+(checking?'檢查中…':'檢查更新')+'</button></div><div class="hint">App 開啟時會自動檢查。升級只會更新程式,不會清除你的紀錄。</div></div>';
   h+='<h3>玩法</h3><div class="card"><div>目前玩法:<b>'+gameLabel(S.game)+'</b></div><div class="btnrow"><button data-act="toChooser">更換玩法</button></div></div>';
   if(isWild()) h+='<h3>百搭設定</h3><div class="card"><div class="note">本場加 '+S.cfg.wildLimit+' 張通用百搭;要改數量,請到「更換玩法」重新選擇。百搭可代34種非花牌,真白板仍是白板;代入後同款牌連明牌最多4張;不額外加百搭番。</div><div class="zl">百搭可用於明牌</div><div class="seg"><button class="'+(!S.cfg.wildMeld?'on':'')+'" data-act="wildOpt" data-k="wildMeld" data-v="0">關</button><button class="'+(S.cfg.wildMeld?'on':'')+'" data-act="wildOpt" data-k="wildMeld" data-v="1">開</button></div><div class="zl">冇用百搭,全部番數加倍</div><div class="seg"><button class="'+(!S.cfg.wildNoMult?'on':'')+'" data-act="wildOpt" data-k="wildNoMult" data-v="0">關</button><button class="'+(S.cfg.wildNoMult?'on':'')+'" data-act="wildOpt" data-k="wildNoMult" data-v="1">開</button></div><label>倍數<input type="number" min="1" max="100" step="1" data-chg="wildMultN" value="'+S.cfg.wildMultN+'"></label></div>';
+  // P2 settings: 6,16,17,18,21
+  h+='<h3>輸入體驗設定（P1/P2）</h3><div class="card">'
+    +'<label>三段式切換（選牌｜標明牌｜選食糊牌）<select data-chg="useSegment"><option value="0"'+(!S.cfg.useSegment?' selected':'')+'>關（預設現有）</option><option value="1"'+(S.cfg.useSegment?' selected':'')+'>開</option></select></label>'
+    +'<label>精簡／嚮導模式<select data-chg="wizard"><option value="0"'+(!S.cfg.wizard?' selected':'')+'>精簡（預設，老手）</option><option value="1"'+(S.cfg.wizard?' selected':'')+'>嚮導（新手逐步）</option></select></label>'
+    +'<label>牌桌字級放大<select data-chg="largeFont"><option value="0"'+(!S.cfg.largeFont?' selected':'')+'>關（預設）</option><option value="1"'+(S.cfg.largeFont?' selected':'')+'>開（大字）</option></select></label>'
+    +'<label>短動畫（尊重減少動態）<select data-chg="useShortAnim"><option value="1"'+(S.cfg.useShortAnim?' selected':'')+'>開（預設150ms）</option><option value="0"'+(!S.cfg.useShortAnim?' selected':'')+'>關</option></select></label>'
+    +'<div class="zl">儲存容量：約 <span id="storageSize">'+getStorageSizeKB()+' KB</span> <button data-act="calcStorage">重新計算</button></div>'
+    +'<div class="hint">三段式預設關沿用現有操作；嚮導只切換顯示順序，唔改邏輯；字級放大預設關；短動畫尊重系統「減少動態」設定，震動預設不做。</div>'
+    +'</div>';
   if(isHK()) h+=hkSettings();
   else {
     h+='<h3>番表預設</h3><div class="presetbtns">'
@@ -863,20 +1118,19 @@ function viewSettings(){
   return h;
 }
 function render(){
+  try{ document.body.classList.toggle('large-font', !!S.cfg.largeFont); document.body.classList.toggle('no-anim', !S.cfg.useShortAnim); document.body.classList.toggle('oled-contrast', S.cfg.theme&&S.cfg.theme.bg==='#000000'); }catch(e){}
+
   if(tab==='players'&&isNameField(document.activeElement)&&nameEdits.has(+document.activeElement.dataset.playerName))return;
-  if(S.setupStage==='type')tab='chooser';
-  else if(S.setupStage==='rules'&&S.game)tab='rules';
-  else if(S.setupStage==='players'&&S.game){if(!playerDraft)openPlayerSetup();else tab='players';}
   if(wildJob&&(!isWild()||wildKey!==wildSignature())){wildStop();wildDone=null;wildKey='';}
   const y=window.scrollY;
   derive();
   applyTheme();
   const el=document.getElementById('app');
   if(!S.game||tab==='chooser'){ el.innerHTML='<div class="body">'+updBanner()+viewChooser()+'</div>'; window.scrollTo(0,0); return; }
-  if(!S.playersReady&&tab!=='players'&&tab!=='rules')openPlayerSetup();
-  const views={rules:viewSetupRules,players:viewPlayers,table:viewTable,calc:viewCalc,history:viewHistory,settle:viewSettle,settings:viewSettings};
+  if(!S.playersReady&&tab!=='players')openPlayerSetup();
+  const views={players:viewPlayers,table:viewTable,calc:viewCalc,history:viewHistory,settle:viewSettle,settings:viewSettings};
   const tabs=[['table','牌桌'],['calc','算番'],['history','歷史'],['settle','結算'],['settings','設定']];
-  el.innerHTML='<div class="body">'+updBanner()+a2hsBanner()+(views[tab]||viewTable)()+'</div><nav>'+((tab==='players'||tab==='rules')?'':tabs.map(t=>'<button class="'+(tab===t[0]?'on':'')+'" data-act="tab" data-v="'+t[0]+'">'+t[1]+'</button>').join(''))+'</nav>';
+  el.innerHTML='<div class="body">'+updBanner()+a2hsBanner()+(views[tab]||viewTable)()+'</div><nav>'+(tab==='players'?'':tabs.map(t=>'<button class="'+(tab===t[0]?'on':'')+'" data-act="tab" data-v="'+t[0]+'">'+t[1]+'</button>').join(''))+'</nav>';
   window.scrollTo(0,y);
 }
 function advance(keep,fromDraw){
@@ -912,32 +1166,20 @@ function validateCur(){
 }
 function resetGameData(){
   try{ localStorage.setItem(PREV_KEY,JSON.stringify(S)); }catch(e){}
-  S.history=[]; S.ledger=[]; S.streak=0; S.wind=0; S.dealerSeat=0; E=newEntry();pending=[];entryStep='pick';lastEntryMessage='';playerDraft=null;nameEdits.clear();S.setupStage=null;
+  S.history=[]; S.ledger=[]; S.streak=0; S.wind=0; S.dealerSeat=0; E=newEntry();pending=[];entryStep='pick';lastEntryMessage='';playerDraft=null;nameEdits.clear();
 }
 function act(a,d){
-  if(S.setupStage&&['startWinner','confirm','addWinner','draw','instSave'].includes(a)){toast('請先完成開局設定');return;}
   derive();
   if(E.pickRep&&a!=='repPick'&&a!=='repCancel') E.pickRep=null;
   if(isWild()&&wildAction(a,d)){save();render();return;}
   switch(a){
-    case 'setupBackType':
-      readPlayerNames();nameEdits.clear();S.setupStage='type';tab='chooser';wildPick=false;window.scrollTo(0,0);break;
-    case 'setupBackRules':
-      readPlayerNames();nameEdits.clear();S.setupStage='rules';tab='rules';window.scrollTo(0,0);break;
-    case 'setupContinue':{
-      const values=isHK()?[S.cfg.hk.minFan,S.cfg.hk.ratio]:[S.cfg.minFan,S.cfg.fanValue];
-      if(values.some(n=>!Number.isFinite(n)||n<0)){toast('起糊番數、金額及比例必須是有效的非負數');return;}
-      S.setupStage='players';if(playerDraft)tab='players';else openPlayerSetup();window.scrollTo(0,0);break;
-    }
     case 'startWinner':beginWinner(+d.p);break;
     case 'editPlayers':
       if(hasEntryDraft()){toast('請先完成或放棄本局，才修改玩家及座位');return;}
       openPlayerSetup();window.scrollTo(0,0);break;
     case 'savePlayers':if(!savePlayerSetup())return;window.scrollTo(0,0);break;
-    case 'cancelPlayers':
-      if(S.setupStage==='players'){readPlayerNames();nameEdits.clear();S.setupStage='rules';tab='rules';break;}
-      playerDraft=null;nameEdits.clear();tab='table';break;
-    case 'entryPick':entryStep='pick';tab='calc';window.scrollTo(0,0);break;
+    case 'cancelPlayers':playerDraft=null;nameEdits.clear();setTab('table');break;
+    case 'entryPick':entryStep='pick';setTab('calc');window.scrollTo(0,0);break;
     case 'entryMethod':if(pending.length){toast('多響必須沿用同一位出銃者');return;}entryStep='method';break;
     case 'chooseMethod':
       if(E.winner==null){entryStep='pick';break;}
@@ -948,13 +1190,13 @@ function act(a,d){
       if(!S.seat.includes(p)||p===E.winner||pending.some(w=>w.p===p)){toast('出銃者不能是食糊者');return;}
       E.self=false;E.disc=p;entryStep='hand';window.scrollTo(0,0);break;
     }
-    case 'tab':if(S.setupStage||tab==='players'&&playerDraft){toast('請先完成或取消設定');return;}tab=d.v;window.scrollTo(0,0);break;
-    case 'toChooser': tab='chooser'; wildPick=false; break;
+    case 'tab':if(tab==='players'&&playerDraft){toast('請先確認或取消玩家設定');return;}tab=d.v;window.scrollTo(0,0);break;
+    case 'toChooser': setTab('chooser'); wildPick=false; break;
     case 'ruleHelp': ruleHelp=!ruleHelp; break;
     case 'menqing': E.flags.menqing=(d.v==='1'); E.excl={}; break;
     case 'game': {
       const v=d.v;
-      if(v==='wild'&&d.n==null){ wildPick=true; tab='chooser'; break; }
+      if(v==='wild'&&d.n==null){ wildPick=true; setTab('chooser'); break; }
       let wl=S.cfg.wildLimit;
       if(v==='wild'){
         wl=Number(d.n);
@@ -969,7 +1211,7 @@ function act(a,d){
       }
       wildPick=false; S.game=v; S.cfg.wildLimit=wl; pickM(); E=newEntry(); pending=[];
       const l0=instList()[0]; inst.id=l0.id; inst.mode=l0.mode; inst.mult=1;
-      entryStep='pick';lastEntryMessage='';S.setupStage='rules';tab='rules';window.scrollTo(0,0);toast('已選擇:'+gameLabel(v)); break; }
+      entryStep='pick';lastEntryMessage='';openPlayerSetup();window.scrollTo(0,0);toast('已選擇:'+gameLabel(v)); break; }
     case 'wildOpt': {
       S.cfg[d.k]=(d.v==='1');
       if(d.k==='wildMeld'&&!S.cfg.wildMeld&&isWild()){
@@ -997,25 +1239,45 @@ function act(a,d){
     case 'a2hsLater': a2hsHidden=true; break;
     case 'a2hsNever': a2hsHidden=true; try{ localStorage.setItem(A2HS_KEY,'1'); }catch(e){} toast('之後不再自動提示,可在設定頁查看教學'); break;
     case 'a2hsReset': try{ localStorage.removeItem(A2HS_KEY); }catch(e){} a2hsHidden=false; toast('下次開啟會再次提示'); break;
+    case 'toggleHistory': { historyShowAll=!historyShowAll; break; }
+    case 'applyDraft': { if(applyDraft()){ setTab('calc'); toast('已繼續草稿'); } break; }
+    case 'discardDraft': { discardDraft(); toast('已放棄草稿'); break; }
+    case 'calcStorage': { const sz=getStorageSizeKB(); toast('已用約 '+sz+' KB'); render(); break; }
     case 'scheme': S.cfg.theme=Object.assign({},DEFAULT_THEME,SCHEMES[+d.i][1]); break;
     case 'themeReset': S.cfg.theme=Object.assign({},DEFAULT_THEME); break;
     case 'newGame': {
-      if(!confirm('開始全新局?\n\n目前的紀錄、未結算的拉、連莊與風圈都會清空(玩家名稱、座位與設定會保留)。\n系統會先保存上一場,可在座位頁還原。')) return;
-      wildStop();wildDone=null;wildKey='';resetGameData();S.game=null;S.setupStage='type';tab='chooser';wildPick=false;window.scrollTo(0,0);toast('請先選擇新一場的玩法'); break; }
+      if(!confirm('開始全新局？\n\n將會清除：\n• 全部歷史紀錄\n• 未結算的拉數\n• 連莊與風圈\n\n保留：玩家名稱、座位、設定\n\n系統會先自動備份上一場到「上一場牌局」，可在牌桌頁「還原上一場」找回。\n\n確定要開始全新局？')) return;
+      try{
+        localStorage.setItem(PREV_KEY, JSON.stringify(S));
+      }catch(e){
+        toast('備份上一場失敗（儲存空間不足），請先到設定匯出備份再試');
+        return;
+      }
+      resetGameData(); S.game=null; setTab('chooser'); playerDraft=null; clearDraft(); try{ localStorage.setItem('mj_chooser_pending','1'); localStorage.removeItem('mj_tab'); }catch(e){} save(); window.scrollTo(0,0);toast('已開始全新局，請先選玩法，上一場已備份'); break; }
     case 'restoreGame': {
       let p=null; try{ p=JSON.parse(localStorage.getItem(PREV_KEY)); }catch(e){}
       if(!p||!p.names){ toast('沒有可還原的牌局'); return; }
-      if(!confirm('還原上一場牌局?目前的紀錄會被取代。')) return;
+      if(!confirm('還原上一場牌局？\n\n將會：\n• 取代目前的紀錄、拉數、連莊、風圈\n• 目前的牌局會再備份一次，可再次還原\n\n確定還原？')) return;
       try{ localStorage.setItem(PREV_KEY,JSON.stringify(S)); }catch(e){}
-      S=norm(p);pickM();wildStop();wildDone=null;wildKey='';E=newEntry();pending=[];entryStep='pick';playerDraft=null;nameEdits.clear();lastEntryMessage='';tab='table';toast('已還原'); break; }
+      S=norm(p);pickM();wildStop();wildDone=null;wildKey='';E=newEntry();pending=[];entryStep='pick';playerDraft=null;nameEdits.clear();lastEntryMessage='';setTab('table');clearDraft();toast('已還原上一場'); break; }
     case 'rename': { const p=+d.p; const n=prompt('玩家名稱',S.names[p]); if(n&&n.trim()) S.names[p]=n.trim().slice(0,10); break; }
     case 'streak':if(hasEntryDraft()){toast('請先完成或放棄本局，再修改連莊次數');return;}S.streak=Math.max(0,S.streak+(+d.d)); break;
     case 'draw': {
       if(hasEntryDraft()){toast('請先完成或放棄本局輸入，再記錄流局');return;}
-      if(!confirm('記錄本局為流局?'))return;
-      pushRec({kind:'draw',deltas:[0,0,0,0],events:[]});
+      const beforeTot=totals();
+      const beforeLedger=copyL(S.ledger);
+      const beforeState=before();
+      const recId=Date.now();
+      const beforeLen=S.history.length+1;
+      pushRec({id:recId, kind:'draw',deltas:[0,0,0,0],events:[],before:beforeState,ledgerBefore:beforeLedger});
       if(isHK()) advance(false); else advance(S.cfg.drawKeeps,true);
-      finishEntry('已記錄流局');break; }
+      const afterTot=totals();
+      const diffStr=afterTot.map((v,i)=>{ const d=v-beforeTot[i]; return d!==0?(S.names[i]+(d>0?'+':'')+d):''; }).filter(Boolean).join(' ');
+      const label='#'+beforeLen+' 流局';
+      lastUndo={id:recId, label:label, kind:'draw', beforeTot:beforeTot, afterTot:afterTot, beforeLen:beforeLen};
+      if(undoTimer) clearTimeout(undoTimer); undoTimer=setTimeout(()=>{ lastUndo=null; render(); }, 8000);
+      E=newEntry();pending=[];entryStep='pick';setTab('table');lastEntryMessage='已記錄流局'+(diffStr?' '+diffStr:'')+' · 撤銷 '+label;wildStop();wildDone=null;wildKey='';clearDraft();window.scrollTo(0,0);toast('已記錄流局'+(diffStr?' '+diffStr:'')+' · 可撤銷');
+      break; }
     case 'winner':beginWinner(+d.p);break;
     case 'disc':if(pending.length&&+d.p!==pending[0].disc){toast('多響必須沿用同一位出銃者');return;}if(+d.p===E.winner||pending.some(w=>w.p===+d.p)){toast('出銃者不能是食糊者');return;}E.disc=+d.p;break;
     case 'self':if(pending.length&&d.v==='1'){toast('多響不能混入自摸');return;}E.self=d.v==='1';E.bao=null;if(E.self)E.disc=null;else if(E.disc==null)entryStep='payer';break;
@@ -1049,6 +1311,7 @@ function act(a,d){
       if(!E.all.length) E.mode='pick';
       E.excl={}; break; }
     case 'clearHand': E.wildGroups=[]; E.jsel={}; E.all=[]; E.marks=Array(34).fill(0); E.kongOpen={}; E.melds=[]; E.win=null; E.mode='pick'; E.excl={}; break;
+    case 'rmPending': { const idx=+d.i; if(Number.isInteger(idx)&&pending[idx]){ pending.splice(idx,1); toast('已移除'); } break; }
     case 'rmMeld': {
       const m=E.melds[+d.i];
       if(m){
@@ -1129,7 +1392,7 @@ function act(a,d){
           if(!confirm(low.map(w=>S.names[w.p]+' 只有 '+w.total+' 番,不足 '+minF+' 番起糊').join('\n')+'\n每位當詐糊扣 '+pen+' 分，其他玩家不加分，本局重來。確定記錄嗎？'))return;
           low.forEach(w=>{del[w.p]-=pen;});
           pushRec({kind:'settle',name:'詐糊(不足'+minF+'番):'+low.map(w=>S.names[w.p]).join('、'),deltas:del,events:[]});
-          finishEntry('已記錄詐糊，本局重來');break;
+          finishEntry('已記錄詐糊，本局重來',undoInfoForLast());break;
         }
       }else{
         for(const w of ws){const f=w.total-diTotal(w.fans);if(minF>0&&f<minF&&!confirm(S.names[w.p]+' 只有 '+f+' 番(不含底),低於起糊 '+minF+' 番,仍要記錄?'))return;}
@@ -1137,7 +1400,7 @@ function act(a,d){
       for(const w of ws)if(w.total===0&&!confirm(S.names[w.p]+' 合計 0 番,仍要記錄?'))return;
       if(isHK()){
         pushRec({kind:'win',winners:ws.map(w=>({p:w.p,self:w.self,disc:w.disc,total:w.total,raw:w.raw,fans:w.fans,bao:w.bao,qiang:w.qiang,ron:w.ron})),deltas:settleHK(ws),events:[]});
-        advance(ws.some(w=>w.p===dealer)&&S.cfg.hk.renzhuang,false);finishEntry('已記錄');break;
+        advance(ws.some(w=>w.p===dealer)&&S.cfg.hk.renzhuang,false);finishEntry('已記錄',undoInfoForLast());break;
       }
       const out=applyHand(S.ledger,mkTxns(ws,dealer,S.streak),true);
       let ledger=out.ledger, cash=out.cash, ev=out.ev.slice();
@@ -1151,7 +1414,7 @@ function act(a,d){
       S.history.push({id:Date.now(),time:Date.now(),kind:'win',dealer,streak:S.streak,wind:S.wind,winners:ws.map(w=>({p:w.p,self:w.self,disc:w.disc,total:w.total,mult:w.mult,fans:w.fans,wild:w.wild,raw:w.raw,bao:w.bao,qiang:w.qiang,ron:w.ron})),deltas:cash,events:ev,before:before(),ledgerBefore:lb,financePending:true,financeMode:S.game});
       S.ledger=copyL(ledger);
       advance(ws.some(w=>w.p===dealer),false);
-      finishEntry('已記錄'); break; }
+      finishEntry('已記錄',undoInfoForLast()); break; }
     case 'payoff': {
       const r=S.ledger[+d.i]; if(!r) return;
       if(!confirm(S.names[r.from]+' 付清 '+S.names[r.to]+' $'+r.amt+'?')) return;
@@ -1172,9 +1435,31 @@ function act(a,d){
       pushRec({kind:'instant',name:I.name+(inst.mult>1?' ×'+inst.mult:''),deltas,events:[]});
       toast('已記錄 '+I.name); break; }
     case 'undoRec': {
-      if(!S.history.length) return; if(!confirm('撤銷最後一局?')) return;
-      const r=S.history.pop();lastEntryMessage='已撤銷上一筆';if(r.before){ S.dealerSeat=r.before.dealerSeat; S.streak=r.before.streak; S.wind=r.before.wind; }
-      S.ledger=copyL(r.ledgerBefore||[]); break; }
+      if(!S.history.length) return;
+      const targetId = d.id ? +d.id : (lastUndo ? lastUndo.id : null);
+      const idx = targetId ? S.history.findIndex(r=>r.id===targetId) : S.history.length-1;
+      if(idx<0){ toast('找不到要撤銷的紀錄'); return; }
+      const r = S.history[idx];
+      // 防重複：只允許撤銷最後一筆或指定的 lastUndo
+      if(lastUndo && r.id!==lastUndo.id && idx!==S.history.length-1){
+        toast('只能撤銷最近一筆，已有更新紀錄');
+        return;
+      }
+      // 直接撤銷，不再彈確認（因為記錄時已可描述，且有8秒可撤銷期）
+      const beforeTotUndo = totals();
+      const beforeLedgerUndo = copyL(S.ledger);
+      // 若撤銷非最後一筆，需要先回滾後續？簡化：只允許撤銷最後一筆
+      if(idx!==S.history.length-1){ toast('只能撤銷最後一筆'); return; }
+      S.history.splice(idx,1);
+      if(r.before){ S.dealerSeat=r.before.dealerSeat; S.streak=r.before.streak; S.wind=r.before.wind; }
+      S.ledger=copyL(r.ledgerBefore||[]);
+      const afterTotUndo = totals();
+      const diffUndo = afterTotUndo.map((v,i)=>{ const d=v-beforeTotUndo[i]; return d!==0?(S.names[i]+(d>0?'+':'')+d):''; }).filter(Boolean).join(' ');
+      const undoLabel=(lastUndo&&lastUndo.id===r.id)?lastUndo.label:recordLabel(r,idx);
+      lastEntryMessage='已撤銷 '+undoLabel+(diffUndo?' · '+diffUndo:'');
+      lastUndo=null; clearDraft();
+      toast(lastEntryMessage);
+      break; }
     case 'copySum': copy(summaryText()); break;
     case 'exportFile': { downloadJSON({app:'mahjong-jisaan',kind:'backup',version:APP_VERSION,exported:new Date().toISOString(),data:S},'mahjong-backup-'+new Date().toISOString().slice(0,10)+'.json'); toast('已下載設定檔'); return; }
     case 'importFile': pickFile(txt=>{ importBackupText(txt); }); return;
@@ -1191,7 +1476,7 @@ function act(a,d){
     case 'tblExport': { const t=S.cfg.customTables.find(x=>x.id===d.id); if(!t) return;
       downloadJSON({app:'mahjong-jisaan',kind:'fan-table',version:APP_VERSION,table:{name:t.name,p:t.p,over:t.over}},'fan-table-'+t.name.replace(/[\\\/:*?"<>|\s]+/g,'_').slice(0,20)+'.json'); toast('已下載番數表'); return; }
     case 'tblImport': pickFile(txt=>{ importTableText(txt); }); return;
-    case 'resetAll': if(confirm('確定清除全部玩家、紀錄與設定?此操作無法還原(自訂番數表會保留)')){ const keep=S.cfg.customTables; S=defState(); S.cfg.customTables=keep;pickM();wildStop();wildDone=null;wildKey='';E=newEntry();pending=[];entryStep='pick';playerDraft=null;nameEdits.clear();lastEntryMessage='';tab='table'; } else return; break;
+    case 'resetAll': if(confirm('重置全部？\n\n將會清除：\n• 全部玩家名稱、紀錄、拉數、連莊、風圈、設定\n• 保留：自訂番數表\n\n此操作無法還原，請先到設定頁「匯出備份」。\n\n確定重置？')){ const keep=S.cfg.customTables; S=defState(); S.cfg.customTables=keep;pickM();wildStop();wildDone=null;wildKey='';E=newEntry();pending=[];entryStep='pick';playerDraft=null;nameEdits.clear();lastEntryMessage='';setTab('table');clearDraft(); } else return; break;
     case 'resetRules': S.cfg.overs[pkey()]={}; delete S.cfg.activeCustom[pkey()]; break;
   }
   save(); render();
@@ -1242,6 +1527,10 @@ function chg(k,el){
     case 'wildN': { const n=Math.floor(Number(v)); S.cfg.wildLimit=(n>=1&&n<=50)?n:S.cfg.wildLimit; break; }
     case 'wildMultN': { const n=Math.floor(Number(v)); S.cfg.wildMultN=(n>=1&&n<=100)?n:S.cfg.wildMultN; break; }
     case 'kongKeep': S.cfg.kongKeep[curPreset()]=(v==='1'); break;
+    case 'useSegment': S.cfg.useSegment=v==='1'; break;
+    case 'wizard': S.cfg.wizard=v==='1'; break;
+    case 'largeFont': S.cfg.largeFont=v==='1'; break;
+    case 'useShortAnim': S.cfg.useShortAnim=v==='1'; break;
     case 'adjv': { const n=Math.round(Number(v)); E.adjust=isNaN(n)?0:Math.max(-999,Math.min(999,n)); break; }
     case 'tblName': tblDraft=String(v).replace(/[\u0000-\u001f<>]/g,'').slice(0,24); break;
     case 'rule': { const o=OV(); const q=o[d.id]=o[d.id]||{}; q[d.f]=parseFloat(v); break; }
@@ -1620,7 +1909,7 @@ function importBackupText(text){
   S=norm(d);
   const have=new Set(S.cfg.customTables.map(t=>t.id));
   keep.forEach(t=>{ if(!have.has(t.id)&&S.cfg.customTables.length<40) S.cfg.customTables.push(t); });
-  pickM();wildStop();wildDone=null;wildKey='';E=newEntry();pending=[];entryStep='pick';playerDraft=null;nameEdits.clear();lastEntryMessage='';tab='table';wildPick=false;storyImg=null; save(); render();
+  pickM();wildStop();wildDone=null;wildKey='';E=newEntry();pending=[];entryStep='pick';playerDraft=null;nameEdits.clear();lastEntryMessage='';setTab('table');wildPick=false;storyImg=null; save(); render();
   toast('已匯入設定檔(原有資料已存為上一場,可在座位頁還原)');
 }
 function importTableText(text){
@@ -1780,6 +2069,12 @@ document.addEventListener('change',e=>{ const el=e.target.closest('[data-chg]');
 document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='visible') checkUpdate(false); });
 if(navigator.storage&&navigator.storage.persist) navigator.storage.persist();
 if('serviceWorker' in navigator) window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
+let _hasDraft = loadDraft();
 render();
+if(_hasDraft){
+  // show draft choice banner via lastEntryMessage style handled in viewTable
+  toast('找到未完成草稿，可選擇繼續或放棄');
+}
+
 setTimeout(()=>checkUpdate(false),1200);
 })();
