@@ -37,7 +37,7 @@ const OPT_INST=[
 const defHK=()=>({preset:'10-128',minFan:3,bao12:true,baoSan:true,flowers:false,renzhuang:true,ratio:0.5,over:{}});
 const PLAYER_EMOJIS=['🐉','🐯','🐼','🦊','🐱','🐶','🦁','🐸','🐰','🐨','🐵','🐧','🦉','🐢','🦋','🐙','🌸','🌻','🍀','⭐','🌙','🔥','🍉','🍊'];
 const DEFAULT_AVATARS=PLAYER_EMOJIS.slice(0,4);
-const defState=()=>({game:null,avatars:DEFAULT_AVATARS.slice(),playersReady:false,names:['玩家1','玩家2','玩家3','玩家4'],seat:[0,1,2,3],dealerSeat:0,streak:0,wind:0,history:[],ledger:[],cfg:{fanValue:1,baseMult:5,minFan:0,drawKeeps:true,preset:1,wildLimit:4,wildPreset:3,wildMeld:false,wildNoMult:true,wildMultN:3,kongKeep:{1:false,2:false,3:false,4:true},overs:{1:{},2:{},3:{},4:{},hk:{}},instAmts:{1:{},2:{},3:{},4:{},hk:{}},customTables:[],activeCustom:{},hk:defHK(),theme:Object.assign({},DEFAULT_THEME)}});
+const defState=()=>({game:null,setupStage:null,avatars:DEFAULT_AVATARS.slice(),playersReady:false,names:['玩家1','玩家2','玩家3','玩家4'],seat:[0,1,2,3],dealerSeat:0,streak:0,wind:0,history:[],ledger:[],cfg:{fanValue:1,baseMult:5,minFan:0,drawKeeps:true,preset:1,wildLimit:4,wildPreset:3,wildMeld:false,wildNoMult:true,wildMultN:3,kongKeep:{1:false,2:false,3:false,4:true},overs:{1:{},2:{},3:{},4:{},hk:{}},instAmts:{1:{},2:{},3:{},4:{},hk:{}},customTables:[],activeCustom:{},hk:defHK(),theme:Object.assign({},DEFAULT_THEME)}});
 function norm(j){
   const d=defState(); const s=Object.assign(d,j,{cfg:Object.assign(d.cfg,j.cfg||{}),ledger:j.ledger||[]});
   const th=Object.assign({},DEFAULT_THEME,(j.cfg&&j.cfg.theme)||{});
@@ -62,6 +62,7 @@ function norm(j){
   s.names=[0,1,2,3].map(i=>String((s.names||[])[i]||('玩家'+(i+1))).slice(0,10));
   s.avatars=[0,1,2,3].map(i=>PLAYER_EMOJIS.includes((j.avatars||[])[i])?j.avatars[i]:DEFAULT_AVATARS[i]);
   s.playersReady=typeof j.playersReady==='boolean'?j.playersReady:!!(s.history&&s.history.length);
+  s.setupStage=['type','rules','players'].includes(j.setupStage)?j.setupStage:null;
   return s;
 }
 function load(){
@@ -474,7 +475,8 @@ function viewChooser(){
   h+='<button data-act="game" data-v="hk">廣東牌（13張）<small>四組面子加一對眼，三番起糊，10番封頂，二五雞・半辣上等計分表；可輸入花牌自動判斷</small></button>';
   if(!window.MJHK) h+='<div class="warn">未能載入廣東牌檔案(engine_hk.js),請確認已上傳。</div>';
   if(!window.MJCORE) h+='<div class="warn">未能載入共用檔案(mj-core.js),計番可能失敗,請確認已上傳並已加入 index.html。</div>';
-  if(S.game) h+='<div class="btnrow"><button data-act="tab" data-v="table" style="text-align:center;font-size:15px">返回目前牌局(現為'+gameLabel(S.game)+')</button></div>';
+  if(S.game&&!S.setupStage) h+='<div class="btnrow"><button data-act="tab" data-v="table" style="text-align:center;font-size:15px">返回目前牌局(現為'+gameLabel(S.game)+')</button></div>';
+  if(hasPrev())h+='<div class="btnrow"><button data-act="restoreGame">還原上一場牌局</button></div>';
   h+='<div class="dev" style="text-align:center">'+APP_VERSION+' · 開發者:Instagram <a href="https://www.instagram.com/'+DEV_IG+'/" target="_blank" rel="noopener">@'+DEV_IG+'</a></div></div>';
   return h;
 }
@@ -508,18 +510,20 @@ function viewPlayers(){
   h+='<h3>座位安排</h3><div class="grid2">';
   for(let q=0;q<4;q++)h+='<label>'+WIND[q]+'位<select data-chg="playerSeat" data-s="'+q+'">'+[0,1,2,3].map(p=>'<option value="'+p+'"'+(d.seat[q]===p?' selected':'')+'>'+esc(d.avatars[p])+' '+esc(d.names[p])+'</option>').join('')+'</select></label>';
   h+='</div><label>莊家座位<select data-chg="playerDealer">'+Array.from(WIND).map((w,i)=>'<option value="'+i+'"'+(d.dealerSeat===i?' selected':'')+'>'+w+'</option>').join('')+'</select></label>';
-  return h+'<div class="btnrow"><button class="primary" data-act="savePlayers">確認並返回牌桌</button>'+(S.playersReady?'<button data-act="cancelPlayers">取消修改</button>':'<button data-act="toChooser">返回玩法選擇</button>')+'</div>';
+  const back=S.setupStage==='players'?'<button data-act="setupBackRules">返回規則</button>':S.playersReady?'<button data-act="cancelPlayers">取消修改</button>':'<button data-act="toChooser">返回玩法選擇</button>';
+  return h+'<div class="btnrow"><button class="primary" data-act="savePlayers">確認並進入牌桌</button>'+back+'</div>';
 }
 function savePlayerSetup(){
   readPlayerNames();const d=playerDraft;if(!d)return false;
   const names=d.names.map((n,p)=>String(n).trim().slice(0,10)||S.names[p]||('玩家'+(p+1)));
   if(new Set(names).size!==4){toast('請使用不同玩家名稱，以免記錯');return false;}
   if(new Set(d.seat).size!==4||d.seat.some(p=>!Number.isInteger(p)||p<0||p>3)){toast('四個座位必須分配不同玩家');return false;}
-  S.names=names;S.avatars=d.avatars.map((e,p)=>PLAYER_EMOJIS.includes(e)?e:DEFAULT_AVATARS[p]);S.seat=d.seat.slice();S.dealerSeat=d.dealerSeat;S.playersReady=true;
+  S.names=names;S.avatars=d.avatars.map((e,p)=>PLAYER_EMOJIS.includes(e)?e:DEFAULT_AVATARS[p]);S.seat=d.seat.slice();S.dealerSeat=d.dealerSeat;S.playersReady=true;S.setupStage=null;
   playerDraft=null;nameEdits.clear();tab='table';toast('玩家設定已儲存');return true;
 }
 function finishEntry(message){E=newEntry();pending=[];entryStep='pick';tab='table';lastEntryMessage=message;wildStop();wildDone=null;wildKey='';window.scrollTo(0,0);toast(message);}
 function beginWinner(p){
+  if(S.setupStage){toast('請先完成開局設定');return false;}
   if(!Number.isInteger(p)||!S.seat.includes(p)){toast('請選擇食糊者');return false;}
   if(pending.length>=3){toast('已加入三位，請確認本局');tab='calc';entryStep='pick';return false;}
   if(pending.some(w=>w.p===p)){toast('這位玩家已加入本局');return false;}
@@ -543,6 +547,28 @@ function viewEntryFlow(){
   return h+'<div class="btnrow"><button data-act="tab" data-v="table">返回牌桌（保留本局）</button>'+(hasEntryDraft()?'<button data-act="clearEntry">放棄本局輸入</button>':'')+'</div>';
 }
 function tableDisplayBalances(){return isHK()?balances():totals();}
+function viewSetupRules(){
+  const c=S.cfg;
+  let h='<h3>確認玩法規則</h3><div class="status">'+esc(gameName())+'</div>';
+  if(isHK()){
+    const q=c.hk;
+    h+='<div class="presetrow">'+Object.keys(HK_PRESETS).map(k=>'<button class="'+(q.preset===k?'on':'')+'" data-act="hkPreset" data-v="'+k+'">'+HK_PRESETS[k].name+'</button>').join('')+'</div><div class="grid2">';
+    h+='<label>起糊番數<input type="number" min="0" step="1" data-chg="hkn" data-k="minFan" value="'+q.minFan+'"></label>';
+    h+='<label>自摸每家比例<input type="number" min="0" step="any" data-chg="hkn" data-k="ratio" value="'+q.ratio+'"></label>';
+    [['renzhuang','莊家食糊連莊'],['flowers','花牌規則'],['bao12','十二章包'],['baoSan','大三元包']].forEach(x=>{h+='<label>'+x[1]+'<select data-chg="hkb" data-k="'+x[0]+'"><option value="1"'+(q[x[0]]?' selected':'')+'>開</option><option value="0"'+(!q[x[0]]?' selected':'')+'>關</option></select></label>';});
+    h+='</div>';
+  }else{
+    h+='<div class="presetbtns">'+[1,2,3,4].map(p=>'<button class="'+(curPreset()===p?'on':'')+'" data-act="preset" data-v="'+p+'">'+esc(PRESET_NAME[p])+'</button>').join('')+'</div><div class="grid2">';
+    h+='<label>每番金額<input type="number" min="0" step="any" data-chg="cfg" data-k="fanValue" value="'+c.fanValue+'"></label><label>起糊番數<input type="number" min="0" step="1" data-chg="cfg" data-k="minFan" value="'+c.minFan+'"></label>';
+    h+='<label>流局保留莊家<select data-chg="drawKeeps"><option value="1"'+(c.drawKeeps?' selected':'')+'>是</option><option value="0"'+(!c.drawKeeps?' selected':'')+'>否</option></select></label></div>';
+    if(isWild()){
+      h+='<div class="hint">本場百搭：'+c.wildLimit+' 張</div>';
+      [['wildMeld','容許含百搭明牌'],['wildNoMult','冇用百搭加倍']].forEach(x=>{h+='<div class="zl">'+x[1]+'</div><div class="seg"><button class="'+(!c[x[0]]?'on':'')+'" data-act="wildOpt" data-k="'+x[0]+'" data-v="0">關</button><button class="'+(c[x[0]]?'on':'')+'" data-act="wildOpt" data-k="'+x[0]+'" data-v="1">開</button></div>';});
+      h+='<label>冇用百搭倍數<input type="number" min="1" max="100" data-chg="wildMultN" value="'+c.wildMultN+'"></label>';
+    }
+  }
+  return h+'<div class="btnrow"><button data-act="setupBackType">返回玩法選擇</button><button class="primary" data-act="setupContinue">下一步：玩家及座位</button></div>';
+}
 
 function viewTable(){
   const b=tableDisplayBalances();
@@ -709,8 +735,7 @@ function historyCompactValidLedger(rows){
 }
 function finalizeFinancialSnapshots(){
   S.history.forEach((r,i)=>{
-    if(r.financePending!==true)return;
-    const next=S.history[i+1];
+    if(r.financePending!==true)return;const next=S.history[i+1];
     const after=next&&historyCompactValidLedger(next.ledgerBefore)?next.ledgerBefore:(i===S.history.length-1?S.ledger:null);
     if(!historyCompactValidLedger(after))return;
     r.ledgerAfter=copyL(after);r.financeSchema=1;delete r.financePending;
@@ -718,65 +743,41 @@ function finalizeFinancialSnapshots(){
 }
 function historyCompactSnapshot(index){
   const r=S.history[index];if(!r)return {known:false,before:null,after:null};
-  const mode=r.financeMode||S.game;
-  if(mode==='hk')return {known:true,before:[],after:[]};
+  const mode=r.financeMode||S.game;if(mode==='hk')return {known:true,before:[],after:[]};
   const before=historyCompactValidLedger(r.ledgerBefore)?r.ledgerBefore:null;
   let after=historyCompactValidLedger(r.ledgerAfter)?r.ledgerAfter:null;
-  if(after===null){
-    const next=S.history[index+1];
-    if(next&&historyCompactValidLedger(next.ledgerBefore))after=next.ledgerBefore;
-    else if(index===S.history.length-1&&historyCompactValidLedger(S.ledger))after=S.ledger;
-  }
+  if(after===null){const next=S.history[index+1];if(next&&historyCompactValidLedger(next.ledgerBefore))after=next.ledgerBefore;else if(index===S.history.length-1&&historyCompactValidLedger(S.ledger))after=S.ledger;}
   return {known:before!==null&&after!==null,before,after};
 }
-function historyCompactNet(rows){
-  const net=[0,0,0,0];rows.forEach(r=>{net[r.to]+=r.amt;net[r.from]-=r.amt;});return net;
-}
+function historyCompactNet(rows){const net=[0,0,0,0];rows.forEach(r=>{net[r.to]+=r.amt;net[r.from]-=r.amt;});return net;}
 function historyCompactChange(index,snapshot){
-  const r=S.history[index];
-  if(!r||!snapshot.known||!Array.isArray(r.deltas)||r.deltas.length!==4||!r.deltas.every(Number.isFinite))return null;
-  const before=historyCompactNet(snapshot.before),after=historyCompactNet(snapshot.after);
-  return r.deltas.map((cash,p)=>cash+after[p]-before[p]);
+  const r=S.history[index];if(!r||!snapshot.known||!Array.isArray(r.deltas)||r.deltas.length!==4||!r.deltas.every(Number.isFinite))return null;
+  const before=historyCompactNet(snapshot.before),after=historyCompactNet(snapshot.after);return r.deltas.map((cash,p)=>cash+after[p]-before[p]);
 }
 function historyCompactName(p){return esc((S.names&&S.names[p])||('玩家'+(p+1)));}
-function historyCompactPlayer(p){
-  const defaults=['🐉','🐯','🐼','🦊'],emoji=(S.avatars&&S.avatars[p])||defaults[p]||'🙂';
-  return esc(emoji)+' '+historyCompactName(p);
-}
+function historyCompactPlayer(p){const defaults=['🐉','🐯','🐼','🦊'],emoji=(S.avatars&&S.avatars[p])||defaults[p]||'🙂';return esc(emoji)+' '+historyCompactName(p);}
 function historyMoneyHtml(index){
-  const snapshot=historyCompactSnapshot(index),change=historyCompactChange(index,snapshot);
-  const seats=Array.isArray(S.seat)&&S.seat.length===4?S.seat:[0,1,2,3];
+  const snapshot=historyCompactSnapshot(index),change=historyCompactChange(index,snapshot),seats=Array.isArray(S.seat)&&S.seat.length===4?S.seat:[0,1,2,3];
   let h='<div class="zl">本局淨變動</div><div class="prev">';
-  h+=seats.map(p=>{
-    const value=change?change[p]:null;
-    return '<div><small>'+historyCompactPlayer(p)+'</small><b'+(value===null?'':' class="'+(value>=0?'pos':'neg')+'"')+'>'+(value===null?'—':money(value))+'</b></div>';
-  }).join('');h+='</div>';
+  h+=seats.map(p=>{const value=change?change[p]:null;return '<div><small>'+historyCompactPlayer(p)+'</small><b'+(value===null?'':' class="'+(value>=0?'pos':'neg')+'"')+'>'+(value===null?'—':money(value))+'</b></div>';}).join('');h+='</div>';
   if(change===null)h+='<div class="hint">舊紀錄資料不足</div>';
   h+='<div class="zl">尚未結算金額</div>';
   if(snapshot.after===null)h+='<div class="hint">資料不足</div>';
-  else{
-    const rows=snapshot.after.filter(r=>r.amt!==0);
-    h+=rows.length?rows.map(r=>'<div class="hint">'+historyCompactName(r.from)+' 欠 '+historyCompactName(r.to)+' $'+esc(r.amt)+' (拉'+esc(r.k==null?1:r.k)+'口)</div>').join(''):'<div class="hint">無</div>';
-  }
+  else{const rows=snapshot.after.filter(r=>r.amt!==0);h+=rows.length?rows.map(r=>'<div class="hint">'+historyCompactName(r.from)+' 欠 '+historyCompactName(r.to)+' $'+esc(r.amt)+' (拉'+esc(r.k==null?1:r.k)+'口)</div>').join(''):'<div class="hint">無</div>';}
   return h;
 }
 function viewHistory(){
   if(!S.history.length)return '<p class="hint">目前沒有紀錄</p>';
   let h='<div class="btnrow"><button data-act="undoRec">撤銷最後一局</button></div>';
   for(let index=S.history.length-1;index>=0;index--){
-    const r=S.history[index],t=new Date(r.time);
-    const time=Number.isNaN(t.getTime())?'—':t.getHours()+':'+String(t.getMinutes()).padStart(2,'0');
+    const r=S.history[index],t=new Date(r.time),time=Number.isNaN(t.getTime())?'—':t.getHours()+':'+String(t.getMinutes()).padStart(2,'0');
     const title=r.kind==='win'?'食糊':r.kind==='draw'?'流局':r.kind==='settle'?esc(r.name||'結清'):'籌碼:'+esc(r.name||'');
     h+='<div class="card rec"><div class="rh"><b>#'+(index+1)+'</b> '+title+' <small>'+(WIND[r.wind]||'東')+'風圈 · 莊 '+historyCompactName(r.dealer)+' 連莊'+esc(r.streak==null?0:r.streak)+' · '+time+'</small></div>';
-    if(r.kind==='win'){
-      (r.winners||[]).forEach(w=>{
-        const who=historyCompactName(w.p)+(w.self?' 自摸':' 食 '+historyCompactName(w.disc)+' 出銃');
-        const bao=w.bao!=null&&w.bao!==w.p?'(由 '+historyCompactName(w.bao)+' 包)':'';
-        const raw=w.raw!=null&&w.raw>w.total?'<small>(疊加 '+esc(w.raw)+' 番,封頂)</small>':'';
-        const fans=(w.fans||[]).map(f=>esc(f.name)+(f.n>1?'×'+esc(f.n):'')+' '+esc(f.total)).join(' · ');
-        h+='<div class="rw">'+who+bao+' — <b>'+esc(w.total)+'番</b>'+raw+(fans?'<div class="hint">'+fans+'</div>':'')+'</div>';
-      });
-    }
+    if(r.kind==='win')(r.winners||[]).forEach(w=>{
+      const who=historyCompactName(w.p)+(w.self?' 自摸':' 食 '+historyCompactName(w.disc)+' 出銃'),bao=w.bao!=null&&w.bao!==w.p?'(由 '+historyCompactName(w.bao)+' 包)':'',raw=w.raw!=null&&w.raw>w.total?'<small>(疊加 '+esc(w.raw)+' 番,封頂)</small>':'';
+      const fans=(w.fans||[]).map(f=>esc(f.name)+(f.n>1?'×'+esc(f.n):'')+' '+esc(f.total)).join(' · ');
+      h+='<div class="rw">'+who+bao+' — <b>'+esc(w.total)+'番</b>'+raw+(fans?'<div class="hint">'+fans+'</div>':'')+'</div>';
+    });
     h+=historyMoneyHtml(index)+'</div>';
   }
   return h;
@@ -863,16 +864,19 @@ function viewSettings(){
 }
 function render(){
   if(tab==='players'&&isNameField(document.activeElement)&&nameEdits.has(+document.activeElement.dataset.playerName))return;
+  if(S.setupStage==='type')tab='chooser';
+  else if(S.setupStage==='rules'&&S.game)tab='rules';
+  else if(S.setupStage==='players'&&S.game){if(!playerDraft)openPlayerSetup();else tab='players';}
   if(wildJob&&(!isWild()||wildKey!==wildSignature())){wildStop();wildDone=null;wildKey='';}
   const y=window.scrollY;
   derive();
   applyTheme();
   const el=document.getElementById('app');
   if(!S.game||tab==='chooser'){ el.innerHTML='<div class="body">'+updBanner()+viewChooser()+'</div>'; window.scrollTo(0,0); return; }
-  if(!S.playersReady&&tab!=='players')openPlayerSetup();
-  const views={players:viewPlayers,table:viewTable,calc:viewCalc,history:viewHistory,settle:viewSettle,settings:viewSettings};
+  if(!S.playersReady&&tab!=='players'&&tab!=='rules')openPlayerSetup();
+  const views={rules:viewSetupRules,players:viewPlayers,table:viewTable,calc:viewCalc,history:viewHistory,settle:viewSettle,settings:viewSettings};
   const tabs=[['table','牌桌'],['calc','算番'],['history','歷史'],['settle','結算'],['settings','設定']];
-  el.innerHTML='<div class="body">'+updBanner()+a2hsBanner()+(views[tab]||viewTable)()+'</div><nav>'+(tab==='players'?'':tabs.map(t=>'<button class="'+(tab===t[0]?'on':'')+'" data-act="tab" data-v="'+t[0]+'">'+t[1]+'</button>').join(''))+'</nav>';
+  el.innerHTML='<div class="body">'+updBanner()+a2hsBanner()+(views[tab]||viewTable)()+'</div><nav>'+((tab==='players'||tab==='rules')?'':tabs.map(t=>'<button class="'+(tab===t[0]?'on':'')+'" data-act="tab" data-v="'+t[0]+'">'+t[1]+'</button>').join(''))+'</nav>';
   window.scrollTo(0,y);
 }
 function advance(keep,fromDraw){
@@ -908,19 +912,31 @@ function validateCur(){
 }
 function resetGameData(){
   try{ localStorage.setItem(PREV_KEY,JSON.stringify(S)); }catch(e){}
-  S.history=[]; S.ledger=[]; S.streak=0; S.wind=0; S.dealerSeat=0; E=newEntry();pending=[];entryStep='pick';lastEntryMessage='';playerDraft=null;nameEdits.clear();
+  S.history=[]; S.ledger=[]; S.streak=0; S.wind=0; S.dealerSeat=0; E=newEntry();pending=[];entryStep='pick';lastEntryMessage='';playerDraft=null;nameEdits.clear();S.setupStage=null;
 }
 function act(a,d){
+  if(S.setupStage&&['startWinner','confirm','addWinner','draw','instSave'].includes(a)){toast('請先完成開局設定');return;}
   derive();
   if(E.pickRep&&a!=='repPick'&&a!=='repCancel') E.pickRep=null;
   if(isWild()&&wildAction(a,d)){save();render();return;}
   switch(a){
+    case 'setupBackType':
+      readPlayerNames();nameEdits.clear();S.setupStage='type';tab='chooser';wildPick=false;window.scrollTo(0,0);break;
+    case 'setupBackRules':
+      readPlayerNames();nameEdits.clear();S.setupStage='rules';tab='rules';window.scrollTo(0,0);break;
+    case 'setupContinue':{
+      const values=isHK()?[S.cfg.hk.minFan,S.cfg.hk.ratio]:[S.cfg.minFan,S.cfg.fanValue];
+      if(values.some(n=>!Number.isFinite(n)||n<0)){toast('起糊番數、金額及比例必須是有效的非負數');return;}
+      S.setupStage='players';if(playerDraft)tab='players';else openPlayerSetup();window.scrollTo(0,0);break;
+    }
     case 'startWinner':beginWinner(+d.p);break;
     case 'editPlayers':
       if(hasEntryDraft()){toast('請先完成或放棄本局，才修改玩家及座位');return;}
       openPlayerSetup();window.scrollTo(0,0);break;
     case 'savePlayers':if(!savePlayerSetup())return;window.scrollTo(0,0);break;
-    case 'cancelPlayers':playerDraft=null;nameEdits.clear();tab='table';break;
+    case 'cancelPlayers':
+      if(S.setupStage==='players'){readPlayerNames();nameEdits.clear();S.setupStage='rules';tab='rules';break;}
+      playerDraft=null;nameEdits.clear();tab='table';break;
     case 'entryPick':entryStep='pick';tab='calc';window.scrollTo(0,0);break;
     case 'entryMethod':if(pending.length){toast('多響必須沿用同一位出銃者');return;}entryStep='method';break;
     case 'chooseMethod':
@@ -932,7 +948,7 @@ function act(a,d){
       if(!S.seat.includes(p)||p===E.winner||pending.some(w=>w.p===p)){toast('出銃者不能是食糊者');return;}
       E.self=false;E.disc=p;entryStep='hand';window.scrollTo(0,0);break;
     }
-    case 'tab':if(tab==='players'&&playerDraft){toast('請先確認或取消玩家設定');return;}tab=d.v;window.scrollTo(0,0);break;
+    case 'tab':if(S.setupStage||tab==='players'&&playerDraft){toast('請先完成或取消設定');return;}tab=d.v;window.scrollTo(0,0);break;
     case 'toChooser': tab='chooser'; wildPick=false; break;
     case 'ruleHelp': ruleHelp=!ruleHelp; break;
     case 'menqing': E.flags.menqing=(d.v==='1'); E.excl={}; break;
@@ -953,7 +969,7 @@ function act(a,d){
       }
       wildPick=false; S.game=v; S.cfg.wildLimit=wl; pickM(); E=newEntry(); pending=[];
       const l0=instList()[0]; inst.id=l0.id; inst.mode=l0.mode; inst.mult=1;
-      entryStep='pick';lastEntryMessage='';openPlayerSetup();window.scrollTo(0,0);toast('已選擇:'+gameLabel(v)); break; }
+      entryStep='pick';lastEntryMessage='';S.setupStage='rules';tab='rules';window.scrollTo(0,0);toast('已選擇:'+gameLabel(v)); break; }
     case 'wildOpt': {
       S.cfg[d.k]=(d.v==='1');
       if(d.k==='wildMeld'&&!S.cfg.wildMeld&&isWild()){
@@ -985,7 +1001,7 @@ function act(a,d){
     case 'themeReset': S.cfg.theme=Object.assign({},DEFAULT_THEME); break;
     case 'newGame': {
       if(!confirm('開始全新局?\n\n目前的紀錄、未結算的拉、連莊與風圈都會清空(玩家名稱、座位與設定會保留)。\n系統會先保存上一場,可在座位頁還原。')) return;
-      resetGameData();openPlayerSetup();window.scrollTo(0,0);toast('已開始全新局'); break; }
+      wildStop();wildDone=null;wildKey='';resetGameData();S.game=null;S.setupStage='type';tab='chooser';wildPick=false;window.scrollTo(0,0);toast('請先選擇新一場的玩法'); break; }
     case 'restoreGame': {
       let p=null; try{ p=JSON.parse(localStorage.getItem(PREV_KEY)); }catch(e){}
       if(!p||!p.names){ toast('沒有可還原的牌局'); return; }
