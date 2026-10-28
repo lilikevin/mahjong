@@ -666,7 +666,7 @@ function viewEntryFlow(){
     S.seat.forEach(p=>{const disabled=pending.some(w=>w.p===p)||pending.length>=3||(pending.length&&pending[0].disc===p);h+='<button data-act="startWinner" data-p="'+p+'"'+(disabled?' disabled':'')+'>'+playerLabel(p)+'<br><small>'+windOf(p)+'位</small></button>';});h+='</div>';
     if(pending.length)h+='<div class="btnrow"><button class="primary" data-act="confirm">確認本局（'+pending.length+' 位食糊者）</button></div>';
   }else if(entryStep==='method'){
-    h+='<h3>'+playerLabel(E.winner)+' 食糊</h3><p class="hint">選擇食糊方式，下一步輸入牌型。</p><div class="seg two"><button data-act="chooseMethod" data-v="self">自摸</button><button data-act="chooseMethod" data-v="ron">食炮</button></div><div class="btnrow"><button data-act="entryPick">重新選擇贏家</button></div>';
+    h+='<h3>'+playerLabel(E.winner)+' 食糊</h3><p class="hint">選擇食糊方式，下一步輸入牌型。</p><div class="seg two"><button data-act="chooseMethod" data-v="self">自摸</button><button data-act="chooseMethod" data-v="ron">別家出銃</button></div><div class="btnrow"><button data-act="entryPick">重新選擇贏家</button></div>';
   }else if(entryStep==='payer'){
     h+='<h3>'+playerLabel(E.winner)+' 別家出銃</h3><p class="hint">選擇出銃者（放炮者）</p><div class="grid2">'+S.seat.filter(p=>p!==E.winner).map(p=>'<button data-act="choosePayer" data-p="'+p+'">'+playerLabel(p)+'</button>').join('')+'</div><div class="btnrow"><button data-act="entryMethod">返回食糊方式</button></div>';
   }
@@ -1016,7 +1016,7 @@ function viewHistory(){
       return '<div><small>'+historyPlayerLabel(p)+'</small><b'+(v==null?'':' class="'+(v>=0?'pos':'neg')+'"')+'>'+(v==null?'—':money(v))+'</b></div>';
     }).join('')+'</div>';
     if(!f.complete)h+='<div class="hint">舊紀錄資料不足</div>';
-    h+='<div class="zl">尚未結算金額</div>';
+    h+='<div class="zl">截至本局剩餘尚未結算金額</div>';
     const after=historyAfterLedger(idx);
     if(after===null)h+='<div class="hint">資料不足</div>';
     else{
