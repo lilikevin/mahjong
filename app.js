@@ -238,6 +238,7 @@ function rgb2hex(a){ return '#'+a.map(v=>Math.max(0,Math.min(255,Math.round(v)))
 function mix(c,t,f){ const a=hex2rgb(c), b=hex2rgb(t); return rgb2hex(a.map((v,i)=>v+(b[i]-v)*f)); }
 function lum(c){ const a=hex2rgb(c).map(v=>{ v/=255; return v<=0.03928?v/12.92:Math.pow((v+0.055)/1.055,2.4); }); return 0.2126*a[0]+0.7152*a[1]+0.0722*a[2]; }
 const STATIC_CSS=`
+.seat,.seat *,.seat .pn,.seat .pn *{text-decoration:none!important;-webkit-text-decoration:none!important;text-decoration-line:none!important;border-bottom:0!important;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}.seat:focus,.seat:focus-visible{outline:none}.seat{-webkit-tap-highlight-color:transparent}
 .payrow{display:grid;gap:6px;margin:6px 0}.payrow>button{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;padding:8px 4px;min-width:0;text-align:center}.payrow .pl{display:flex;align-items:center;justify-content:center;gap:6px;min-width:0;max-width:100%}.payrow .em{font-size:1.5em;line-height:1;flex:0 0 auto}.payrow .nm{min-width:0;overflow-wrap:anywhere;word-break:break-word;line-height:1.2;text-align:left}.payrow small{opacity:.8}
 .editbox{background:var(--bg);color:#eef5ef;border:1px solid var(--bd);border-radius:14px;padding:14px;text-align:left;max-height:88vh;overflow:auto}.editbox h3{margin:0 0 8px;color:#eef5ef}.editbox .card{margin:8px 0}.editbox .hint{color:#b9cbbd}.edl{display:block;margin:8px 0;font-size:14px;color:#eef5ef}.edl select,.edl input{margin-top:4px;color:#eef5ef;background:var(--card2)!important;border:1px solid var(--bd);border-radius:8px;padding:8px;font-size:16px}details summary{cursor:pointer;color:var(--acc);font-size:13px;min-height:0}
 .zl{font-size:13px;color:#9db;margin:10px 0 4px}
@@ -759,13 +760,13 @@ function tableDisplayBalances(){return isHK()?balances():totals();}
 
 function viewTable(){
   const b=tableDisplayBalances();
-  const card=s=>{ const p=S.seat[s]; const name=nm(p); return '<div class="card seat '+(s===S.dealerSeat?'dealer':'')+'" role="button" tabindex="0" data-act="startWinner" data-p="'+p+'" aria-label="選擇 '+esc(name)+' 食糊" style="cursor:pointer" title="'+esc(name)+'"><div class="sw">'+WIND[s]+'</div><div class="pn" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"><span style="font-size:1.6em" aria-hidden="true">'+avatar(p)+'</span><br>'+esc(name)+'</div><div class="mini">門風 '+windOf(p)+(s===S.dealerSeat?' · 莊':'')+'</div><div class="bal '+(b[p]>=0?'pos':'neg')+'">'+money(b[p])+'</div></div>'; };
+  const card=s=>{ const p=S.seat[s]; const name=nm(p); return '<div class="card seat '+(s===S.dealerSeat?'dealer':'')+'" role="button" tabindex="0" data-act="startWinner" data-p="'+p+'" aria-label="選擇 '+esc(name)+' 食糊" style="cursor:pointer;text-decoration:none!important;-webkit-text-decoration:none!important"><div class="sw">'+WIND[s]+'</div><div class="pn" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-decoration:none!important;-webkit-text-decoration:none!important"><span style="font-size:1.6em;text-decoration:none!important" aria-hidden="true">'+avatar(p)+'</span><br><span style="text-decoration:none!important">'+esc(name)+'</span></div><div class="mini">門風 '+windOf(p)+(s===S.dealerSeat?' · 莊':'')+'</div><div class="bal '+(b[p]>=0?'pos':'neg')+'">'+money(b[p])+'</div></div>'; };
   let h='<div class="status '+(S.cfg.largeFont?'large-font':'')+'"><span class="badge">莊 '+nm(dealerPid())+'</span> '+WIND[S.wind]+'風圈 · 連莊 <span class="badge">'+S.streak+' 次</span>'+(isHK()?'':'(莊家加 '+(1+2*S.streak)+' 番)')+'<br><small>'+esc(gameName())+'</small></div>';
   let notices='';
   if(lastEntryMessage){
     let undoBtn='';
     if(lastUndo){
-      undoBtn='<button class="danger" data-act="undoRec">撤銷 '+esc(lastUndo.label)+'</button>';
+      undoBtn='<button class="danger" data-act="'+(lastUndo.kind==='instant'?'delInst':'undoRec')+'" data-id="'+esc(lastUndo.id)+'">撤銷 '+esc(lastUndo.label)+'</button>';
     } else {
       undoBtn='<button data-act="undoRec">撤銷上一筆</button>';
     }
@@ -1001,7 +1002,7 @@ function viewCalc(){
 }
 function viewInstantControls(){
   let h='';
-  h+='<h3>即時籌碼 / 罰則</h3><p class="hint">這類籌碼即時收付'+(isHK()?'':',不受拉、踢半影響')+'。金額可直接修改,數字 0 的項目請自行填寫。</p>';
+  h+='<h3>即時籌碼 / 罰則</h3>'+(lastUndo&&lastUndo.kind==='instant'?'<div class="note">'+esc(lastEntryMessage)+' <button class="danger" data-act="delInst" data-id="'+esc(lastUndo.id)+'">撤銷 '+esc(lastUndo.label)+'</button></div>':'')+'<p class="hint">這類籌碼即時收付'+(isHK()?'':',不受拉、踢半影響')+'。金額可直接修改,數字 0 的項目請自行填寫。</p>';
   const lst=instList(); let I=lst.find(x=>x.id===inst.id);
   if(!I){ I=lst[0]; inst.id=I.id; inst.mode=I.mode; }
   if(inst.payee==null) inst.payee=S.seat[0];
@@ -1276,7 +1277,8 @@ function viewHistory(){
       return '<div><small>'+historyPlayerLabel(p)+'</small><b'+(v==null?'':' class="'+(v>=0?'pos':'neg')+'"')+'>'+(v==null?'—':money(v))+'</b></div>';
     }).join('')+'</div>';
     if(!f.complete)h+='<div class="hint">舊紀錄資料不足</div>';
-    if((r.financeMode||S.game)!=='hk'){
+    const showRemain=(r.financeMode||S.game)!=='hk'&&(r.kind==='win'||(r.kind==='settle'&&(r.events||[]).length>0));
+    if(showRemain){
       h+='<div class="zl">截至本局剩餘尚未結算金額</div>';
       const after=historyAfterLedger(idx);
       if(after===null)h+='<div class="hint">資料不足</div>';
@@ -1285,6 +1287,8 @@ function viewHistory(){
         h+=rows.length?rows.map(x=>'<div class="hint">'+historyPlayerName(x.from)+' 欠 '+historyPlayerName(x.to)+' $'+esc(x.amt)+' (拉'+esc(x.k==null?1:x.k)+'口)'+ledgerDetailHtml(idx,x)+'</div>').join(''):'<div class="hint">無</div>';
       }
     }
+    if(r.kind==='instant')h+='<div class="btnrow"><button class="danger" data-act="delInst" data-id="'+esc(r.id)+'">撤銷此籌碼紀錄</button></div>';
+    else if(r.kind==='settle'&&idx===totalLen-1)h+='<div class="btnrow"><button class="danger" data-act="undoRec" data-id="'+esc(r.id)+'">撤銷此筆</button></div>';
     if(canEditRec(idx))h+='<div class="btnrow"><button data-act="editOpen" data-i="'+idx+'">修改重算</button></div>';
     h+='</div>';
   }
@@ -1751,7 +1755,18 @@ function act(a,d){
       amt=amt*(inst.mult||1);
       const deltas=instDeltas({amt:amt,mode:inst.mode,payee:inst.payee,payer:inst.payer},1);
       pushRec({kind:'instant',name:I.name+(inst.mult>1?' ×'+inst.mult:''),deltas,events:[]});
-      toast('已記錄 '+I.name); break; }
+      lastUndo=undoInfoForLast(); if(undoTimer) clearTimeout(undoTimer); undoTimer=setTimeout(()=>{ lastUndo=null; render(); }, 8000);
+      lastEntryMessage='已記錄 '+I.name+(inst.mult>1?' ×'+inst.mult:'');
+      toast('已記錄 '+I.name+' · 可撤銷'); break; }
+    case 'delInst': {
+      const id=+d.id, idx=S.history.findIndex(r=>r.id===id);
+      if(idx<0||S.history[idx].kind!=='instant'){ toast('找不到要撤銷的籌碼紀錄'); return; }
+      const r=S.history[idx], quick=!!(lastUndo&&lastUndo.id===id);
+      if(!quick&&!confirm('撤銷 #'+(idx+1)+' '+(r.name||'籌碼')+'?\n這筆收付會一併取消,之後的紀錄編號會改變。'))return;
+      S.history.splice(idx,1);
+      if(quick){ lastUndo=null; if(undoTimer) clearTimeout(undoTimer); }
+      lastEntryMessage='已撤銷 #'+(idx+1)+' '+(r.name||'籌碼');
+      toast(lastEntryMessage); break; }
     case 'undoRec': {
       if(!S.history.length) return;
       const targetId = d.id ? +d.id : (lastUndo ? lastUndo.id : null);
