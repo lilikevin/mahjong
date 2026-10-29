@@ -1,6 +1,6 @@
 (function(){
 'use strict';
-const APP_VERSION='1.5.1';
+const APP_VERSION='1.5.2';
 const DEV_IG='kevinli999';
 let M=window.MJ;
 const KEY='mj_hk_tw_v1';
