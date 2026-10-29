@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#091b14">
+<title>麻雀計番</title>
+<link rel="stylesheet" href="mockup.css">
+<script src="mj-core.js" defer></script>
+<script src="engine.js" defer></script>
+<script src="engine2.js" defer></script>
+<script src="engine4.js" defer></script>
+<script src="engine_hk.js" defer></script>
+<script src="engine_wild.js" defer></script>
+<script src="mockup.js" defer></script>
+</head>
+<body>
+<div id="prototype" class="prototype">
+<header class="app-header">
+<button id="back" type="button" aria-label="返回">‹</button>
+<h1 id="page-title">開始新牌局</h1>
+</header>
+<main id="screen" tabindex="-1" aria-label="目前畫面">
+<section class="screen welcome" data-screen="game">
+<h2>選擇玩法</h2>
+<div class="game-options">
+<button type="button" data-action="choose-game" data-game="tw">港式台牌<span>無百搭</span></button>
+<button type="button" data-action="choose-game" data-game="wild">港式台牌・通用百搭</button>
+<button type="button" data-action="choose-game" data-game="hk">廣東牌</button>
+</div>
+</section>
+</main>
+<footer id="actions" class="action-bar" aria-label="本頁操作"></footer>
+<nav id="main-nav" class="main-nav" aria-label="主導覽" hidden>
+<button type="button" data-action="tab" data-tab="table">牌桌</button>
+<button type="button" data-action="tab" data-tab="records">歷史與結算</button>
+<button type="button" data-action="tab" data-tab="settings">高級設置</button>
+</nav>
+</div>
+<dialog id="panel" aria-labelledby="panel-title">
+<header class="panel-header"><h2 id="panel-title"></h2><button type="button" data-action="close-panel" aria-label="關閉">×</button></header>
+<div id="panel-body"></div>
+<footer id="panel-actions" class="action-bar"></footer>
+</dialog>
+<div id="notice" role="status" aria-live="polite" hidden></div>
+<template id="editor-template">
+<section class="screen editor-screen">
+<nav class="step-nav" aria-label="五段式輸入進度">
+<button type="button" data-action="step" data-step="0">① 選牌</button>
+<button type="button" data-action="step" data-step="1">② 明牌</button>
+<button type="button" data-action="step" data-step="2">③ 食糊</button>
+<button type="button" data-action="step" data-step="3">④ 花牌</button>
+<button type="button" data-action="step" data-step="4">⑤ 特殊</button>
+</nav>
+<p id="step-help" class="step-help"></p>
+<div id="fan-preview" class="fan-preview" role="status" aria-live="polite"></div>
+<div id="hand-pile" class="hand-pile" aria-label="已輸入牌堆"></div>
+<div id="step-content" class="step-content" aria-label="本步操作區"></div>
+</section>
+</template>
+<noscript><p>請啟用 JavaScript 以使用麻雀計番。</p></noscript>
+</body>
+</html>
