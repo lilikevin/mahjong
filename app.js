@@ -238,7 +238,8 @@ function rgb2hex(a){ return '#'+a.map(v=>Math.max(0,Math.min(255,Math.round(v)))
 function mix(c,t,f){ const a=hex2rgb(c), b=hex2rgb(t); return rgb2hex(a.map((v,i)=>v+(b[i]-v)*f)); }
 function lum(c){ const a=hex2rgb(c).map(v=>{ v/=255; return v<=0.03928?v/12.92:Math.pow((v+0.055)/1.055,2.4); }); return 0.2126*a[0]+0.7152*a[1]+0.0722*a[2]; }
 const STATIC_CSS=`
-.editor-live{position:sticky;top:0;z-index:4;margin:4px 0 6px;padding:8px 12px;border-radius:10px;font-size:15px;text-align:center;background:var(--card);border:1px solid var(--bd)}.editor-live.good{background:#14502d;border-color:#2f8f57;color:#eafff0}.editor-live.bad{background:#6a1d24;border-color:#d9534f;color:#ffecec}.editor-live.idle{opacity:.85}.editor-live b{font-size:20px}
+.editor-tools button{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:5px 4px!important}.editor-compact-tools button{white-space:nowrap}
+.editor-live{position:sticky;top:0;z-index:4;margin:4px 0 6px;padding:8px 12px;border-radius:10px;font-size:15px;line-height:1.3;text-align:center;background:var(--card);border:1px solid var(--bd);box-sizing:border-box;width:100%;max-width:680px;margin-left:auto;margin-right:auto}.editor-live.good{background:#14502d;border-color:#2f8f57;color:#eafff0}.editor-live.bad{background:#6a1d24;border-color:#d9534f;color:#ffecec}.editor-live.idle{opacity:.85}.editor-live b{font-size:20px}.editor-live small{opacity:.85;font-size:12px}
 .overbox{outline:2px solid #ff5a5f!important;outline-offset:1px;animation:mjshake .15s linear 2}@keyframes mjshake{25%{transform:translateX(-3px)}75%{transform:translateX(3px)}}
 .lockdim{opacity:.28!important;filter:grayscale(1)}.lockhi{outline:3px solid var(--acc)!important;outline-offset:1px;animation:mjpulse 1.2s ease-in-out infinite}@keyframes mjpulse{50%{box-shadow:0 0 0 6px rgba(230,180,34,.4)}}
 @media (prefers-reduced-motion:reduce){.overbox,.lockhi{animation:none}}
@@ -934,8 +935,15 @@ function liveTotalHtml(){
     const total=isHK()?Math.min(raw,hkCap()):raw,minF=isHK()?S.cfg.hk.minFan:S.cfg.minFan;
     const eff=isHK()?total:total-diTotal(items);
     const low=minF>0&&eff<minF;
-    const note=isHK()?(typeof E.flags.menqing!=='boolean'?'(門清未確認)':''):'(未計莊家及連莊)';
-    return '<div class="editor-live '+(low?'bad':'good')+'">'+who+' — '+(low?'✕ ':'✓ ')+'已 <b>'+total+'</b> 番'+(raw>total?'(封頂)':'')+note+(low?' · 未達 '+minF+' 番起糊':'')+'</div>';
+    let num;
+    if(isHK())num='<b>'+total+'</b>'+(raw>total?'(封頂)':'');
+    else{
+      const dealer=dealerPid(),bonus=1+2*S.streak;
+      const b=(E.winner===dealer||(!E.self&&E.disc===dealer))?bonus:0;
+      num='<b>'+total+'</b> + <b>'+b+'</b>';
+    }
+    const note=isHK()?(typeof E.flags.menqing!=='boolean'?' <small>(門清未確認)</small>':''):(E.self&&E.winner!==dealerPid()?' <small>(莊家一份 +'+(1+2*S.streak)+')</small>':'');
+    return '<div class="editor-live '+(low?'bad':'good')+'">'+who+' — '+(low?'✕ ':'✓ ')+num+' 番'+note+(low?' · 未達 '+minF+' 番起糊':'')+'</div>';
   }catch(e){return '';}
 }
 function editorHtml(){
@@ -943,9 +951,9 @@ function editorHtml(){
   const marked=isHK()?Object.values(E.hkKongs||{}).filter(v=>v==='open'||v==='closed').length*4:E.marks.reduce((n,x)=>n+(x||0),0);
   const lock=pending.length&&pending[0].ron?pending[0].ron.winTile:null;
   const steps=[['pick','選牌'],['meld',isHK()?'槓／門清':'明牌'],['win','食糊'],['flowers','花牌'],['flags','特殊']];
-  let h='<div class="editor-screen" role="region" aria-label="五段式輸入"><header class="editor-head"><div>'+playerLabel(E.winner)+' <small>'+(E.self?'自摸':'食 '+nm(E.disc))+'</small></div><div class="editor-head-actions"><span class="editor-compact-tools"><button data-act="undoTile">退牌</button><button data-act="clearHand">清空</button></span><button data-act="editorBack">返回牌桌</button></div></header>';
+  let h='<div class="editor-screen" role="region" aria-label="五段式輸入"><header class="editor-head"><div>'+playerLabel(E.winner)+' <small>'+(E.self?'自摸':'食 '+nm(E.disc))+'</small></div><div class="editor-head-actions"><span class="editor-compact-tools"><button data-act="undoTile">退牌</button><button data-act="clearHand">清空</button>'+(isHK()&&!pending.length?'<button data-act="quickStart">快速</button>':'')+'</span><button data-act="editorBack">返回牌桌</button></div></header>';
   h+='<main class="editor-main"><div class="editor-stats">共'+n+'張'+(n>max?'（超出上限'+max+'）':'')+' · 明／槓'+marked+'張 · '+(win==null?'未選食糊牌':'食糊 '+esc(tileName(win)))+(lock!=null?' · 共同 '+esc(tileName(lock)):'')+'</div>';
-  h+=liveTotalHtml()+editorPoolHtml()+'<div class="editor-tools"><button data-act="undoTile">退一張</button><button data-act="clearHand">全部清空</button>'+(isHK()&&!pending.length?'<button data-act="quickStart">快速記番(不輸牌)</button>':'')+'</div><div class="editor-panel" aria-label="目前模式內容">'+editorPanelHtml()+'</div></main>';
+  h+=liveTotalHtml()+editorPoolHtml()+'<div class="editor-tools"><button data-act="undoTile">退一張</button><button data-act="clearHand">全部清空</button>'+(isHK()&&!pending.length?'<button data-act="quickStart">快速記番</button>':'')+'</div><div class="editor-panel" aria-label="目前模式內容">'+editorPanelHtml()+'</div></main>';
   h+='<footer class="editor-footer"><div class="editor-segments" role="group" aria-label="輸入模式">'+steps.map(([v,label],i)=>'<button data-act="mode" data-v="'+v+'" aria-label="第'+(i+1)+'段：'+label+'" aria-pressed="'+(v==='meld'?marking:mode===v)+'" class="'+((v==='meld'?marking:mode===v)?'on':'')+'">'+label+'</button>').join('')+'</div><div class="editor-hint" aria-live="polite">'+esc(editorHint())+'</div><div class="editor-finish"><button data-act="editorBack">稍後繼續</button><button class="primary" data-act="editorFinish">完成輸入，查看結果</button></div></footer></div>';
   return h;
 }
@@ -1424,7 +1432,6 @@ function viewSettings(){
   if(!isHK()){
     h+='<h3>金額設定</h3><div class="grid2">';
     h+='<label>每番金額<input type="number" step="any" data-chg="cfg" data-k="fanValue" value="'+c.fanValue+'"></label>';
-    h+='<label>底(番)<input disabled value="在下面番數表「底」一行修改"></label>';
     h+='<label>最低食糊番數(胡牌)<input type="number" data-chg="cfg" data-k="minFan" value="'+c.minFan+'"></label>';
     h+='<label>流局後<select data-chg="drawKeeps"><option value="1"'+(c.drawKeeps?' selected':'')+'>莊家繼續做莊</option><option value="0"'+(!c.drawKeeps?' selected':'')+'>輪莊</option></select></label></div>';
   }
