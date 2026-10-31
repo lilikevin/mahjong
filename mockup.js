@@ -2548,7 +2548,7 @@ function layoutTiles(tiles,nSets){
   gs.push({k:'眼',tiles:[D.pair,D.pair]});
   return gs;
 }
- function specialCardGroups(tiles,winTile,kind){
+function specialCardGroups(tiles,winTile,kind){
   const counts=Array(34).fill(0);
   tiles.forEach(t=>{if(t<34)counts[t]++;});
   const groups=[];
@@ -2855,7 +2855,6 @@ function cardGroups(res){
     '</div>'
   );
 }
- 
  function jiuziShape(c){
   for(let su=0;su<3;su++){
     const base=[3,1,1,1,1,1,1,1,3]; let ok=true,extra=0,tot=0;
@@ -2879,7 +2878,6 @@ function hkHintHtml(){
   }
   return out.length?'<div class="note">'+out.map(esc).join('<br>')+'</div>':'';
 }
- 
 function diRow(){ return (isHK()||M.FANS.some(f=>f.id==='di'))?[]:[{id:'di',name:'底',fan:S.cfg.baseMult,fanC:null,manual:false}]; }
 function diTotal(items){ const d=(items||[]).find(x=>x.id==='di'); return (!isHK()&&d&&typeof d.total==='number')?d.total:0; }
 function adjustUI(){
