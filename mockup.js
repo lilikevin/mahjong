@@ -1328,6 +1328,29 @@ function base_quickPanelHtml(){
   if(cf.length)h+=cf.map(x=>'<div class="warn">'+esc(x)+'</div>').join('');
   return h+'</div>';
 }
+
+ function quickFanIds(){
+  const R=RL();
+  return Object.keys(R).filter(id=>R[id]&&id!=='zimo').sort((a,b)=>R[a].fan-R[b].fan);
+}
+function quickPanelHtml(){
+  const R=RL(),ids=quickFanIds(),pageCount=Math.max(1,Math.ceil(ids.length/6));
+  uiQuickPage=Math.max(0,Math.min(Number.isInteger(uiQuickPage)?uiQuickPage:0,pageCount-1));
+  let h='<section class="card quickpanel u-quick-panel"><div class="zl" style="margin-top:0">選擇番種'+(E.self?' <small>(自摸 1 番已自動計入)</small>':'')+'</div>',last=null;
+  ids.slice(uiQuickPage*6,uiQuickPage*6+6).forEach(id=>{
+    const f=R[id];
+    if(f.fan!==last){h+='<div class="zl">'+esc(f.fan)+' 番</div>';last=f.fan;}
+    const n=(E.quick&&E.quick[id])||0;
+    h+='<div class="qrow'+(n>0?' on':'')+'"><span>'+esc(f.name)+'</span><span class="qstep"><button type="button" data-act="quickN" data-id="'+id+'" data-d="-1"'+(n?'':' disabled')+'>−</button><b>'+n+'</b><button type="button" data-act="quickN" data-id="'+id+'" data-d="1">＋</button></span></div>';
+  });
+  const cf=quickConflicts();
+  if(cf.length)h+=cf.map(x=>'<div class="warn">'+esc(x)+'</div>').join('');
+  return h+'</section>';
+}
+function uQuickPager(page,total){
+  if(total<=1)return '<div class="u-pager-slot empty"><span>1 / 1</span></div>';
+  return '<nav class="u-quick-pager" aria-label="快速記番頁面">'+Array.from({length:total},(_,i)=>ub(String(i+1),'uiQuickPage','data-page="'+i+'" aria-label="第'+(i+1)+'頁"'+(i===page?' aria-current="page"':''),i===page?'on':'')).join('')+'</nav>';
+}
 function editorSummaryHtml(){
   const count=physicalEntries().length,win=editorWin();
   return '<div class="card editor-reviewed"><div><div class="zl">輸入已完成 · '+count+' 張 · 花牌'+E.flowers.filter(Boolean).length+'張</div><small>食糊牌：'+esc(win==null?'自動分析':tileName(win))+'</small></div><button data-act="editorEdit">修改輸入</button></div>';
