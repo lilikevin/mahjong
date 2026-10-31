@@ -1,4 +1,4 @@
-const C='mj-v20-v2.0.13';
+const C='mj-v20-v2.0.14';
 const A=['./','index.html','mockup.html','mockup.js','mockup.css','mj-core.js','engine.js','engine2.js','engine4.js','engine_hk.js','engine_wild.js','wild-worker.js','manifest.json','version.json','icon-192.png','icon-512.png'];
 self.addEventListener('install',e=>e.waitUntil(caches.open(C).then(c=>c.addAll(A)).then(()=>self.skipWaiting())));
 self.addEventListener('activate',e=>e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>k.startsWith('mj-')&&k!==C).map(k=>caches.delete(k)))).then(()=>self.clients.claim())));

@@ -1,7 +1,7 @@
 (function(){
 'use strict';
 if(!window.MJ){const a=document.getElementById('app');if(a)a.textContent='計番引擎未能載入，請確認 engine.js 已上傳。';return;}
-const APP_VERSION='2.0.13';
+const APP_VERSION='2.0.14';
 const DEV_IG='kevinli999';
 let M=window.MJ;
 const KEY='mj_v2_full_merge_1';
@@ -403,7 +403,7 @@ function injectCss(){
   try{
     if(document.getElementById('mj-static')) return;
     const a=document.createElement('style'); a.id='mj-static'; a.textContent=STATIC_CSS; document.head.appendChild(a);
-    const b=document.createElement('style'); b.id='mj-dyn'; b.textContent=DYN_CSS; document.head.appendChild(b);const c=document.createElement('link');c.rel='stylesheet';c.href='mockup.css?v=2.0.13';document.head.appendChild(c);
+    const b=document.createElement('style'); b.id='mj-dyn'; b.textContent=DYN_CSS; document.head.appendChild(b);const c=document.createElement('link');c.rel='stylesheet';c.href='mockup.css?v=2.0.14';document.head.appendChild(c);
   }catch(e){}
 }
 function applyTheme(){
@@ -3444,8 +3444,8 @@ if (a === 'poolTap' && E.mode === 'meld' && +d.t !== 34) {
  case 'uiKeyboardDone':document.activeElement?.blur();document.body.classList.remove('table-keyboard-open');break;
  case 'uiClose':
    if(uiModal?.title==='編輯玩家'){
-     const name=document.querySelector('.u-dialog [data-chg="uiName"]');
-     const avatar=document.querySelector('.u-dialog [data-chg="uiAvatar"]');
+     const name=document.querySelector('.u-dialog [data-player-edit-name]');
+     const avatar=document.querySelector('.u-dialog [data-player-edit-avatar]');
      const p=Number(name?.dataset.p??avatar?.dataset.p);
      if(Number.isInteger(p)&&p>=0&&p<S.names.length){
        if(name?.value.trim())S.names[p]=name.value.trim().slice(0,10);
@@ -3474,7 +3474,7 @@ case 'uiOpenSavedSources':uiPage=0;act('uiSourceList',{v:'saved'});return true;
  case 'uiTheme':uPopup('顏色與字體',uThemes(),ub('完成','uiClose'));break;
  case 'uiBack':if(uiWizard){act('uiStage',{stage:'cancel'});return true;}if(tab==='calc')uiResume=uiCurrentLocation();if(tab==='settings'&&uiSetting!=='menu'){uiSetting='menu';uiPage=0;}else setTab('table');uiModal=null;break;
 case 'uiPlayer':uPopup(S.names[+d.p],'<div class="u-stack">'+(uiCanResume()?ub('繼續輸入','uiContinue','','primary'):ub('食糊／自摸','startWinner','data-p="'+d.p+'"','primary'))+ub('記錄賞罰','uiInstant','data-p="'+d.p+'"')+ub('編輯玩家','uiEditPlayer','data-p="'+d.p+'"')+ub('換位','uiSeats')+'</div>');break; 
-  case 'uiEditPlayer':if(hasEntryDraft()&&!uiWizard){toast('請先完成或放棄目前輸入再改玩家');break;}uPopup('編輯玩家','<label>名稱<input maxlength="10" data-chg="uiName" data-p="'+d.p+'" value="'+esc(S.names[+d.p])+'"></label><label>Emoji<select data-chg="uiAvatar" data-p="'+d.p+'">'+PLAYER_EMOJIS.map(e=>'<option'+(e===S.avatars[+d.p]?' selected':'')+'>'+e+'</option>').join('')+'</select></label>',ub('完成','uiClose'));break;
+  case 'uiEditPlayer':if(hasEntryDraft()&&!uiWizard){toast('請先完成或放棄目前輸入再改玩家');break;}uPopup('編輯玩家','<label>名稱<input maxlength="10" data-player-edit-name data-p="'+d.p+'" value="'+esc(S.names[+d.p])+'"></label><label>Emoji<select data-player-edit-avatar data-p="'+d.p+'">'+PLAYER_EMOJIS.map(e=>'<option'+(e===S.avatars[+d.p]?' selected':'')+'>'+e+'</option>').join('')+'</select></label>',ub('完成','uiClose'));break;
  case 'uiSeats':uPopup('調整座位','<div class="grid2">'+S.seat.map((p,i)=>'<label>'+WIND[i]+'位<select data-chg="seat" data-s="'+i+'">'+S.seat.map(q=>'<option value="'+q+'"'+(q===p?' selected':'')+'>'+nm(q)+'</option>').join('')+'</select></label>').join('')+'</div>',ub('完成','uiClose'));break;
  case 'uiWinner':if(uiCanResume())uiContinue();else{uiModal=null;entryStep='pick';setTab('calc');}break;
  case 'uiInstant':if(d.p!=null)inst.payer=inst.payee=+d.p;uPopup('即時籌碼／罰則',viewInstantControls(),ub('取消','uiClose'));break;
