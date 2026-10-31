@@ -3583,19 +3583,22 @@ if (a === 'poolTap' && E.mode === 'meld' && +d.t !== 34) {
  if(!a.startsWith('ui'))return false;
  switch(a){
    case 'uiRestoreDraft':if(applyDraft()){uiModal=null;setTab('calc');toast('已恢復未完成的輸入');}else{toast('未能恢復草稿，請返回牌桌後重試');}break;
-case 'uiClose':
-   if(uiModal?.title==='編輯玩家'){
-     const nameEl=document.querySelector('.u-dialog [data-player-edit-name], .u-dialog [data-chg="uiName"]');
-     const avatarEl=document.querySelector('.u-dialog [data-player-edit-avatar], .u-dialog [data-chg="uiAvatar"]');
-     const p=Number(nameEl?.dataset.p??avatarEl?.dataset.p);
+
+   case 'uiKeyboardDone':document.activeElement?.blur();document.body.classList.remove('table-keyboard-open');break;
+ case 'uiSavePlayer':{
+     const p=Number(d.p);
+     const nameEl=document.getElementById('edit-player-name')||document.querySelector('.u-dialog [data-player-edit-name]')||document.querySelector('.u-dialog [data-p="'+p+'"]');
+     const avatarEl=document.getElementById('edit-player-avatar')||document.querySelector('.u-dialog [data-player-edit-avatar]');
      if(Number.isInteger(p)&&p>=0&&p<S.names.length){
        const nameVal=(nameEl?.value||'').trim();
        if(nameVal) S.names[p]=nameVal.slice(0,10);
        const avVal=avatarEl?.value;
        if(avVal&&PLAYER_EMOJIS.includes(avVal)) S.avatars[p]=avVal;
      }
-   }
-   uiModal=null;break;
+     uiModal=null;break;}
+case 'uiClose':uiModal=null;break;
+ case 'uiA2HSHowto':uPopup('加入 iPhone／iPad 主畫面',a2hsSteps(),ub('完成','uiClose'));break;
+   
   case 'uiContinue':uiContinue();break;
  case 'uiDiscard':if(confirm('放棄目前未完成輸入？')){E=newEntry();pending=[];entryStep='pick';uiResume=null;draftCache=null;clearDraft();uiModal=null;setTab('table');}break;
 case 'uiNav':uPopup('切換畫面','<div class="u-stack">'+ub('牌桌','tab','data-v="table"')+ub('歷史與結算','tab','data-v="history"')+ub('高級設置','tab','data-v="settings"')+'</div>',ub('牌局管理','uiMore'));break;
