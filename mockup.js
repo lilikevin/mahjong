@@ -3620,8 +3620,30 @@ case 'uiOpenSavedSources':uiPage=0;act('uiSourceList',{v:'saved'});return true;
  case 'uiTheme':uPopup('顏色與字體',uThemes(),ub('完成','uiClose'));break;
  case 'uiBack':if(uiWizard){act('uiStage',{stage:'cancel'});return true;}if(tab==='calc')uiResume=uiCurrentLocation();if(tab==='settings'&&uiSetting!=='menu'){uiSetting='menu';uiPage=0;}else setTab('table');uiModal=null;break;
 case 'uiPlayer':uPopup(S.names[+d.p],'<div class="u-stack">'+(uiCanResume()?ub('繼續輸入','uiContinue','','primary'):ub('食糊／自摸','startWinner','data-p="'+d.p+'"','primary'))+ub('記錄賞罰','uiInstant','data-p="'+d.p+'"')+ub('編輯玩家','uiEditPlayer','data-p="'+d.p+'"')+ub('換位','uiSeats')+'</div>');break; 
-  case 'uiEditPlayer':if(hasEntryDraft()&&!uiWizard){toast('請先完成或放棄目前輸入再改玩家');break;}uPopup('編輯玩家','<label>名稱<input maxlength="10" data-chg="uiName" data-p="'+d.p+'" value="'+esc(S.names[+d.p])+'"></label><label>Emoji<select data-chg="uiAvatar" data-p="'+d.p+'">'+PLAYER_EMOJIS.map(e=>'<option'+(e===S.avatars[+d.p]?' selected':'')+'>'+e+'</option>').join('')+'</select></label>',ub('完成','uiClose'));break;
- case 'uiSeats':uPopup('調整座位','<div class="grid2">'+S.seat.map((p,i)=>'<label>'+WIND[i]+'位<select data-chg="seat" data-s="'+i+'">'+S.seat.map(q=>'<option value="'+q+'"'+(q===p?' selected':'')+'>'+nm(q)+'</option>').join('')+'</select></label>').join('')+'</div>',ub('完成','uiClose'));break;
+case 'uiEditPlayer':
+  uPopup('編輯玩家',
+    '<input id="edit-player-name" data-player-edit-name ...>'+
+    '<select id="edit-player-avatar" data-player-edit-avatar ...>',
+    ub('完成','uiSavePlayer','data-p="'+d.p+'"','primary'));
+case 'uiSeats':
+  uPopup('調整座位',
+    '<div id="seat-adjust-grid">'+
+    S.seat.map((p,i)=>'<select data-seat-s="'+i+'" data-s="'+i+'">...')+
+    '</div>', ub('完成','uiSaveSeats','','primary'));
+case 'uiSavePlayer':{
+  const nameEl=document.getElementById('edit-player-name');
+  const avatarEl=document.getElementById('edit-player-avatar');
+  S.names[p]=nameVal.slice(0,10);
+  S.avatars[p]=avVal;
+  uiModal=null;break;}
+case 'uiSaveSeats':{
+  const selects=document.querySelectorAll('select[data-seat-s]');
+  // 逐個讀，swap
+  S.seat=newSeat;
+  uiModal=null;break;}
+case 'uiClose':uiModal=null;break;
+   
+  case 'uiSeats':uPopup('調整座位','<div class="grid2">'+S.seat.map((p,i)=>'<label>'+WIND[i]+'位<select data-chg="seat" data-s="'+i+'">'+S.seat.map(q=>'<option value="'+q+'"'+(q===p?' selected':'')+'>'+nm(q)+'</option>').join('')+'</select></label>').join('')+'</div>',ub('完成','uiClose'));break;
  case 'uiWinner':if(uiCanResume())uiContinue();else{uiModal=null;entryStep='pick';setTab('calc');}break;
  case 'uiInstant':if(d.p!=null)inst.payer=inst.payee=+d.p;uPopup('即時籌碼／罰則',viewInstantControls(),ub('取消','uiClose'));break;
  case 'uiLedger':uiDebtPage=0;uLedger();break;
