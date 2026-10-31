@@ -3610,9 +3610,20 @@ case 'uiOpenSavedSources':uiPage=0;act('uiSourceList',{v:'saved'});return true;
  case 'uiTheme':uPopup('顏色與字體',uThemes(),ub('完成','uiClose'));break;
  case 'uiBack':if(uiWizard){act('uiStage',{stage:'cancel'});return true;}if(tab==='calc')uiResume=uiCurrentLocation();if(tab==='settings'&&uiSetting!=='menu'){uiSetting='menu';uiPage=0;}else setTab('table');uiModal=null;break;
 case 'uiPlayer':uPopup(S.names[+d.p],'<div class="u-stack">'+(uiCanResume()?ub('繼續輸入','uiContinue','','primary'):ub('食糊／自摸','startWinner','data-p="'+d.p+'"','primary'))+ub('記錄賞罰','uiInstant','data-p="'+d.p+'"')+ub('編輯玩家','uiEditPlayer','data-p="'+d.p+'"')+ub('換位','uiSeats')+'</div>');break; 
-  case 'uiEditPlayer':if(hasEntryDraft()&&!uiWizard){toast('請先完成或放棄目前輸入再改玩家');break;}uPopup('編輯玩家','<label>名稱<input id="edit-player-name" maxlength="10" data-player-edit-name data-p="'+d.p+'" value="'+esc(S.names[+d.p])+'"></label><label>Emoji<select id="edit-player-avatar" data-player-edit-avatar data-p="'+d.p+'">'+PLAYER_EMOJIS.map(e=>'<option'+(e===S.avatars[+d.p]?' selected':'')+'>'+e+'</option>').join('')+'</select></label>',ub('完成','uiSavePlayer','data-p="'+d.p+'"','primary'));break;
-case 'uiSeats':uPopup('調整座位','<div class="grid2" id="seat-adjust-grid">'+S.seat.map((p,i)=>'<label>'+WIND[i]+'位<select data-seat-s="'+i+'" data-s="'+i+'">'+S.seat.map(q=>'<option value="'+q+'"'+(q===p?' selected':'')+'>'+nm(q)+'</option>').join('')+'</select></label>').join('')+'</div>',ub('完成','uiSaveSeats','','primary'));break;
-case 'uiSavePlayer':{
+case 'uiEditPlayer':uPopup('編輯玩家',
+  '<label>名稱<input id="edit-player-name" maxlength="10" data-player-edit-name data-p="'+d.p+'" value="'+esc(S.names[+d.p])+'"></label>'+
+  '<label>Emoji<select id="edit-player-avatar" data-player-edit-avatar data-p="'+d.p+'">'+PLAYER_EMOJIS.map(e=>'<option'+(e===S.avatars[+d.p]?' selected':'')+'>'+e+'</option>').join('')+'</select></label>',
+  ub('完成','uiSavePlayer','data-p="'+d.p+'"','primary'));break;
+  case 'uiSeats':
+  uPopup('調整座位',
+    '<div class="grid2" id="seat-adjust-grid">'+
+    S.seat.map((p,i)=>'<label>'+WIND[i]+'位'+
+      '<select data-seat-s="'+i+'" data-s="'+i+'" data-prev="'+p+'">'+
+        S.seat.map(q=>'<option value="'+q+'"'+(q===p?' selected':'')+'>'+nm(q)+'</option>').join('')+
+      '</select></label>').join('')+'</div>',
+    ub('完成','uiSaveSeats','','primary'));break;
+   
+  case 'uiSavePlayer':{
      const pId=Number(d.p);
      const nameEl=document.getElementById('edit-player-name')||document.querySelector('.u-dialog [data-player-edit-name]');
      const avatarEl=document.getElementById('edit-player-avatar')||document.querySelector('.u-dialog [data-player-edit-avatar]');
@@ -3731,7 +3742,7 @@ case 'uiGroupPage':uiGroupPage=Math.max(0,uiGroupPage+(+d.d));uShowGroups(uiGrou
  }
  return true;
 }
-function uiChange(k,el){const d=el.dataset,v=el.value;if(k==='uiName'){if(v.trim())S.names[+d.p]=v.trim().slice(0,10);return true;}if(k==='uiAvatar'){if(PLAYER_EMOJIS.includes(v))S.avatars[+d.p]=v;return true;}if(k==='uiBool'){(d.hk==='true'?S.cfg.hk:S.cfg)[d.k]=el.checked;return true;}if(k==='uiHK'){if(HK_PRESETS[v])S.cfg.hk.preset=v;return true;}if(k==='uiTableName'){const name=v.trim().replace(/[<>]/g,'').slice(0,24);if(name)uSetOrigin(uOrigin().kind,name);return true;}if(k==='uiTableQuery'){uiTableQuery=v.slice(0,80);uiPage=0;return true;}if(k==='uiRule'){const n=Number(v);if(!Number.isFinite(n)||n<0||n>100000){toast('請輸入0至100000的番數');return true;}const o=OV();(o[d.id]||(o[d.id]={}))[d.f]=n;if(uiWizard)uiWizard.touched=true;if(uOrigin().kind==='preset')uSetOrigin('edited',uOrigin().name);return true;}return false;}
+function uiChange(k,el){const d=el.dataset,v=el.value;if(k==='uiName'){if(v.trim())S.names[+d.p]=v.trim().slice(0,10);return false;}if(k==='uiAvatar'){if(PLAYER_EMOJIS.includes(v))S.avatars[+d.p]=v;return false;}if(k==='uiBool'){(d.hk==='true'?S.cfg.hk:S.cfg)[d.k]=el.checked;return true;}if(k==='uiHK'){if(HK_PRESETS[v])S.cfg.hk.preset=v;return true;}if(k==='uiTableName'){const name=v.trim().replace(/[<>]/g,'').slice(0,24);if(name)uSetOrigin(uOrigin().kind,name);return true;}if(k==='uiTableQuery'){uiTableQuery=v.slice(0,80);uiPage=0;return true;}if(k==='uiRule'){const n=Number(v);if(!Number.isFinite(n)||n<0||n>100000){toast('請輸入0至100000的番數');return true;}const o=OV();(o[d.id]||(o[d.id]={}))[d.f]=n;if(uiWizard)uiWizard.touched=true;if(uOrigin().kind==='preset')uSetOrigin('edited',uOrigin().name);return true;}return false;}
 
 let _hasDraft = loadDraft();
 if(window.__UI_TEST__){window.__UI_CORE__={get:()=>S,set:x=>{S=norm(x);pickM();},entry:()=>E,setEntry:x=>{E=Object.assign(newEntry(),x);derive();},act,change:uiChange,mkTxns,applyHand,analyze,curItems,historyFinancials,validateCurrentEntry,finalizeFinancialSnapshots,uBlankValues,uApplySource,uOrigin,uImportPayload,uEntry,uResult,uWizardView,editorHtml,uTableLayout,uTableView,uTableFooter,modal:()=>uiModal,wizard:()=>uiWizard,resume:()=>uiResume,clearResume:()=>uiResume=null,location:()=>({tab,...uiCurrentLocation()}),capture:uiCaptureResume,canResume:uiCanResume,saveDraft,loadDraft,applyDraft};}else{if(_hasDraft){setTab('table');const who=Number.isInteger(draftCache.E.winner)?esc(S.names[draftCache.E.winner]):'未選擇玩家';const steps={pick:'輸入手牌',meld:'確認槓／明牌',jmeld:'確認百搭明牌',win:'確認食糊牌',flowers:'花牌',flags:'特殊情況'};uPopup('找到未完成的輸入','<div class="u-stack"><p>玩家：'+who+'</p><p>輸入進度：'+esc(steps[draftCache.E.mode]||'未完成輸入')+'</p><p>是否繼續剛才的輸入？返回牌桌仍會保留草稿。</p>'+ub('繼續輸入','uiRestoreDraft','','primary')+ub('返回牌桌，保留草稿','uiClose')+'</div>');}render();}
@@ -3739,10 +3750,34 @@ if(!window.__UI_TEST__){
   setTimeout(()=>checkUpdate(false),800);
 }
 
+['dblclick'].forEach(ev=>document.addEventListener(ev,e=>e.preventDefault()));
 window.addEventListener('pagehide',()=>saveDraft());
 document.addEventListener('visibilitychange',()=>{
   if(document.visibilityState==='hidden')saveDraft();
   else if(!window.__UI_TEST__&&Date.now()-lastUpdateCheck>15*60*1000)checkUpdate(false);
+});
+document.addEventListener('change',e=>{
+  const seatEl=e.target.closest&&e.target.closest('[data-seat-s]');
+  if(seatEl){
+    const newP=Number(seatEl.value);
+    const oldP=Number(seatEl.dataset.prev);
+    if(newP!==oldP){
+      const grid=document.getElementById('seat-adjust-grid');
+      const all=grid?grid.querySelectorAll('select[data-seat-s]'):document.querySelectorAll('select[data-seat-s]');
+      for(const other of all){
+        if(other===seatEl) continue;
+        if(Number(other.value)===newP){
+          other.value=String(oldP);
+          other.dataset.prev=String(oldP);
+          break;
+        }
+      }
+      seatEl.dataset.prev=String(newP);
+    }
+    return;
+  }
+  const el=e.target.closest('[data-chg]'); 
+  if(el) chg(el.dataset.chg,el);
 });
 
 })();
