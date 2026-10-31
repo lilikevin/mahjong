@@ -21,8 +21,8 @@ const MANUAL=['xiaohuahu','dahuahu'];
 const FANS=RAW.map(r=>({id:r[0],name:r[1],fan:r[2],fanC:null,manual:MANUAL.indexOf(r[0])>=0}));
 const FLAGS=[['menqing','門前清'],['qiangkong','搶槓'],['kongshang','槓上自摸'],['haidi','海底撈月'],['gsg','槓上槓自摸'],['tianhu','天糊'],['dihu','地糊']];
 const INSTANT=[
- {id:'zhahu',name:'詐糊(扣例牌分,不加給他家)',amt:'cap',mode:'burn'},
- {id:'penalty',name:'犯規罰分(自訂,扣分)',amt:0,mode:'burn'}
+ {id:'zhahu',name:'詐糊(賠最大番數分給三家)',amt:'cap',mode:'payall'},
+{id:'penalty',name:'其他賠錢情況（自訂）',amt:0,mode:'payall'}
 ];
 function buildRules(over){
   const R={}; FANS.forEach(f=>{R[f.id]={id:f.id,name:f.name,fan:f.fan,fanC:null,manual:f.manual};});
