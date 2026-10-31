@@ -4,9 +4,17 @@ importScripts('mj-core.js','engine.js','engine2.js','engine4.js','engine_wild.js
 onmessage=function(event){
  try{
  const {inp,over={},excluded=[]}=event.data||{};
+ self.BUDA_MODE = (inp.flags&&inp.flags.budaMode) || 'strict';
+ if(self.MJ) self.MJ.BUDA_MODE = self.BUDA_MODE;
+ if(self.MJ2) self.MJ2.BUDA_MODE = self.BUDA_MODE;
+ if(self.MJ3) self.MJ3.BUDA_MODE = self.BUDA_MODE;
+ if(self.MJ4) self.MJ4.BUDA_MODE = self.BUDA_MODE;
  if(!inp||!Array.isArray(inp.hand)||!Array.isArray(inp.groups))throw Error('百搭輸入資料不完整');
  const engines={1:self.MJ,2:self.MJ2,3:self.MJ3,4:self.MJ4},base=engines[inp.preset||3];if(!base)throw Error('番表未載入');
- const M=inp.preset!==4&&self.MJRULES?self.MJRULES.wrap(base):base,R=M.buildRules(over),excludedSet=new Set(excluded);
+ const M=inp.preset!==4&&self.MJRULES?self.MJRULES.wrap(base):base;
+ M.BUDA_MODE = self.BUDA_MODE;
+ const R=M.buildRules(over),excludedSet=new Set(excluded);
+
  const all=inp.hand.concat(...inp.groups.map(g=>g.physical));
  if(all.some(t=>!Number.isInteger(t)||t<0||t>34))throw Error('牌張編號無效');
  if(all.filter(t=>t===34).length>inp.limit)throw Error('百搭超過本場上限');
