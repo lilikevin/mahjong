@@ -1,7 +1,7 @@
 (function(){
 'use strict';
 if(!window.MJ){const a=document.getElementById('app');if(a)a.textContent='計番引擎未能載入，請確認 engine.js 已上傳。';return;}
-const APP_VERSION='2.0.12';
+const APP_VERSION='2.0.13';
 const DEV_IG='kevinli999';
 let M=window.MJ;
 const KEY='mj_v2_full_merge_1';
@@ -403,7 +403,7 @@ function injectCss(){
   try{
     if(document.getElementById('mj-static')) return;
     const a=document.createElement('style'); a.id='mj-static'; a.textContent=STATIC_CSS; document.head.appendChild(a);
-    const b=document.createElement('style'); b.id='mj-dyn'; b.textContent=DYN_CSS; document.head.appendChild(b);const c=document.createElement('link');c.rel='stylesheet';c.href='mockup.css?v=2.0.12';document.head.appendChild(c);
+    const b=document.createElement('style'); b.id='mj-dyn'; b.textContent=DYN_CSS; document.head.appendChild(b);const c=document.createElement('link');c.rel='stylesheet';c.href='mockup.css?v=2.0.13';document.head.appendChild(c);
   }catch(e){}
 }
 function applyTheme(){
@@ -1827,7 +1827,7 @@ function validateCur(){
   return true;
 }
 function resetGameData(){try{localStorage.setItem(PREV_KEY,JSON.stringify(S));}catch(e){}S.history=[];S.ledger=[];S.streak=0;S.wind=0;S.dealerSeat=0;S.startDealerPid=null;S.playersReady=false;E=newEntry();pending=[];entryStep='pick';lastEntryMessage='';playerDraft=null;nameEdits.clear();}
-const UI_ONLY_ACTIONS=new Set(['tab','editorBack','uiBack','uiClose','uiNav','uiMore','uiPage','uiRulePage','uiSourcePage','uiSourceList','uiHistory','uiDetail','uiReview','uiFlagPage','uiQuickPage','uiGroupPage','uiDebtPage','uiSetting','uiTheme','uiOpenSavedSources','uiKeyboardDone']);
+const UI_ONLY_ACTIONS=new Set(['tab','editorBack','uiBack','uiNav','uiMore','uiPage','uiRulePage','uiSourcePage','uiSourceList','uiHistory','uiDetail','uiReview','uiFlagPage','uiQuickPage','uiGroupPage','uiDebtPage','uiSetting','uiTheme','uiOpenSavedSources','uiKeyboardDone']);
  function act(a,d){
   d=d||{};if(uiAction(a,d)){save(!UI_ONLY_ACTIONS.has(a));render();return;}
   if(['mode','tile','poolTap','clearHand','clearWin','undoTile','editorEdit'].includes(a))editorError='';
@@ -3442,7 +3442,17 @@ if (a === 'poolTap' && E.mode === 'meld' && +d.t !== 34) {
  switch(a){
    case 'uiRestoreDraft':if(applyDraft()){uiModal=null;setTab('calc');toast('已恢復未完成的輸入');}else{toast('未能恢復草稿，請返回牌桌後重試');}break;
  case 'uiKeyboardDone':document.activeElement?.blur();document.body.classList.remove('table-keyboard-open');break;
- case 'uiClose':uiModal=null;break;
+ case 'uiClose':
+   if(uiModal?.title==='編輯玩家'){
+     const name=document.querySelector('.u-dialog [data-chg="uiName"]');
+     const avatar=document.querySelector('.u-dialog [data-chg="uiAvatar"]');
+     const p=Number(name?.dataset.p??avatar?.dataset.p);
+     if(Number.isInteger(p)&&p>=0&&p<S.names.length){
+       if(name?.value.trim())S.names[p]=name.value.trim().slice(0,10);
+       if(avatar&&PLAYER_EMOJIS.includes(avatar.value))S.avatars[p]=avatar.value;
+     }
+   }
+   uiModal=null;break;
  case 'uiA2HSHowto':uPopup('加入 iPhone／iPad 主畫面',a2hsSteps(),ub('完成','uiClose'));break;
  case 'uiContinue':uiContinue();break;
  case 'uiDiscard':if(confirm('放棄目前未完成輸入？')){E=newEntry();pending=[];entryStep='pick';uiResume=null;draftCache=null;clearDraft();uiModal=null;setTab('table');}break;
