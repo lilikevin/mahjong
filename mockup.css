@@ -60,3 +60,11 @@
 .u-image-review #shareCard .u-share-set>small{font-size:9px!important}
 #shareCard .u-share-groups{grid-template-columns:repeat(3,minmax(0,1fr))}
 #shareCard .u-share-label{font-size:8px!important;white-space:nowrap}
+.u-quick-panel{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:8px 10px}
+.u-quick-panel>.zl{margin:5px 0;font-size:13px}
+.u-quick-panel .qrow{min-height:42px;padding:4px 0;border-bottom:1px solid var(--bd)}
+.u-quick-panel .qstep{gap:7px}
+.u-quick-panel .qstep button{min-width:40px;min-height:36px;padding:4px 8px}
+.u-quick-panel .qstep b{min-width:18px;text-align:center}
+.u-quick-pager{display:grid;grid-template-columns:repeat(auto-fit,minmax(40px,1fr));gap:5px;width:100%;max-width:320px;margin:0 auto;flex:none}
+.u-quick-pager button{min-height:40px;padding:5px 8px}
