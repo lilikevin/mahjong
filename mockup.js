@@ -605,15 +605,28 @@ function analyzeHK(){
   best.autoMq=E.flags.menqing===undefined&&N===14&&jiuziShape(ac);return best;
 }
 function analyze(){
+  const mode = S.cfg.budaLoose ? 'loose' : 'strict';
+  M.BUDA_MODE = mode;
+  if(self) self.BUDA_MODE = mode;
+  E.flags.budaMode = mode; // 俾引擎用 flags 讀
+
   if(isWild()){
- if(jokerTotal()>0)return wildResult();if(E.win==null)return null;const inp=wildInput(),melds=inp.groups.map(g=>({t:g.t,tile:g.tile,open:g.t==='kong'?g.open!==false:true}));
-   M.BUDA_MODE = S.cfg.budaLoose ? 'loose' : 'strict';
-if(self) self.BUDA_MODE = M.BUDA_MODE;
- const r=M.analyze(Object.assign({},inp,{hand:inp.hand,melds,win:E.win}),OV());return r&&!r.error?Object.assign({},r,{complete:true,replacements:[],assigned:inp.hand.slice(),win:E.win}):r;
- }
+    if(jokerTotal()>0) return wildResult();
+    if(E.win==null) return null;
+    const inp=wildInput(), melds=inp.groups.map(g=>({t:g.t,tile:g.tile,open:g.t==='kong'?g.open!==false:true}));
+    const r=M.analyze(Object.assign({},inp,{
+      hand:inp.hand,melds,win:E.win,
+      flags:Object.assign({},E.flags,{budaMode:mode})
+    }),OV());
+    return r&&!r.error?Object.assign({},r,{complete:true,replacements:[],assigned:inp.hand.slice(),win:E.win}):r;
+  }
   if(isHK()) return analyzeHK();
   if(E.win==null||E.hand.length!==need()-1) return null;
-  return M.analyze(Object.assign({hand:E.hand.concat([E.win]),melds:E.melds,win:E.win,flowers:E.flowers,selfDraw:E.self,flags:E.flags},ctxExtra()),OV());
+  return M.analyze(Object.assign({
+    hand:E.hand.concat([E.win]),melds:E.melds,win:E.win,
+    flowers:E.flowers,selfDraw:E.self,
+    flags:Object.assign({},E.flags,{budaMode:mode,budaLoose:S.cfg.budaLoose})
+  },ctxExtra()),OV());
 }
 
  function firstStepIssue() {
