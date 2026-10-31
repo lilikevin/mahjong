@@ -65,15 +65,3 @@ html{padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-i
 .u-image-review #shareCard .u-share-set>small{font-size:9px!important}
 #shareCard .u-share-groups{grid-template-columns:repeat(3,minmax(0,1fr))}
 #shareCard .u-share-label{font-size:8px!important;white-space:nowrap}
-
-/* 分頁統一為 < 1/5 > 箭嘴樣式 - 同番表選擇一樣 */
-.u-pager, .u-pager-slot, .u-record-pager{
-  display:flex; align-items:center; justify-content:center; gap:12px;
-  min-height:44px;
-}
-.u-pager button, .u-pager-slot button{
-  min-height:44px; min-width:44px;
-  border-radius:12px;
-  background:var(--btn); border:1px solid var(--bd);
-}
-.u-pager small{ min-width:64px; text-align:center; font-size:14px; color:var(--acc); font-weight:700; }
