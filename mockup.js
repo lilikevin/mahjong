@@ -1,7 +1,7 @@
 (function(){
 'use strict';
 if(!window.MJ){const a=document.getElementById('app');if(a)a.textContent='計番引擎未能載入，請確認 engine.js 已上傳。';return;}
-const APP_VERSION='2.0.16';
+const APP_VERSION='2.0.15';
 const DEV_IG='kevinli999';
 let M=window.MJ;
 const KEY='mj_v2_full_merge_1';
@@ -403,7 +403,7 @@ function injectCss(){
   try{
     if(document.getElementById('mj-static')) return;
     const a=document.createElement('style'); a.id='mj-static'; a.textContent=STATIC_CSS; document.head.appendChild(a);
-    const b=document.createElement('style'); b.id='mj-dyn'; b.textContent=DYN_CSS; document.head.appendChild(b);const c=document.createElement('link');c.rel='stylesheet';c.href='mockup.css?v=2.0.16';document.head.appendChild(c);
+    const b=document.createElement('style'); b.id='mj-dyn'; b.textContent=DYN_CSS; document.head.appendChild(b);const c=document.createElement('link');c.rel='stylesheet';c.href='mockup.css?v=2.0.15';document.head.appendChild(c);
   }catch(e){}
 }
 function applyTheme(){
@@ -1318,7 +1318,7 @@ function quickConflicts(){
 function quickSummaryHtml(){
   return '<div class="card editor-reviewed"><div><div class="zl">快速記番 · 不輸入牌型</div><small>直接選番種計番;系統不會檢查牌型是否真的成立</small></div><button data-act="quickStop">改用牌型輸入</button></div>';
 }
-function quickPanelHtml(){
+function base_quickPanelHtml(){
   const R=RL(),ids=Object.keys(R).filter(id=>R[id]&&id!=='zimo').sort((a,b)=>(R[a].fan-R[b].fan));
   let h='<div class="card quickpanel"><div class="zl" style="margin-top:0">選擇番種'+(E.self?' <small>(自摸 1 番已自動計入)</small>':'')+'</div>',last=null;
   ids.forEach(id=>{
