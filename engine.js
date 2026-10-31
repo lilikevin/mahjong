@@ -456,8 +456,8 @@ const INSTANT1=[
 {id:'zhuifan',name:'追番子(付其餘三家)',amt:5,mode:'payall'},{id:'zhuikai',name:'追開章(付其餘三家)',amt:10,mode:'payall'}
 ];
 const FLAGS1=[['ting','叮'],['qiangkong','搶槓'],['huashang','花上自摸'],['kongshang','槓上自摸'],['haidi','海底撈月'],['tianhu','天胡'],['dihu','地胡'],['renhu','人胡'],['tianting','天叮'],['shuangxiang','雙響'],['sanxiang','三響']];
-const API1=makeEngine({id:'tw1',RAW:RAW1,MANUAL:MAN1,SUP:SUP1,INSTANT:INSTANT1,FLAGS:FLAGS1,ziyiseKillAn:true});
-
+const API1=makeEngine({id:'tw1',RAW:RAW1,MANUAL:MAN1,SUP:SUP1,INSTANT:INSTANT1,FLAGS:FLAGS1,ziyiseKillAn:true,autoSpecial:true});
+  
 /* ===== 預設 #3:台牌百搭番數表 ===== */
 const RAW3=[
 ['ting','聽牌',5],['menting','門清聽牌',15],['jishi','即食',5],['menqing','門清',5],
