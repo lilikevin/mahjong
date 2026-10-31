@@ -168,7 +168,7 @@ const newEntry=()=>({shapeDone:false,hkKongs:{},winner:null,self:true,disc:null,
 let _savedTab=null; try{ _savedTab=localStorage.getItem('mj_v2_full_tab'); }catch(e){}
 let E=newEntry(), pending=[], tab=(_savedTab && ['chooser','players','calc','table','history','settings'].includes(_savedTab) ? _savedTab : (S.game? 'table' : 'chooser')), wildPick=false;
 let inst={id:null,mode:'one',payee:null,payer:null,mult:1};
-let upd=null, updDismissed=false, checking=false, a2hsHidden=false, buildInfo=null, storyImg=null, ruleHelp=false, tblDraft='', fileInput=null;
+let upd=null, updDismissed=false, checking=false, lastUpdateCheck=0, a2hsHidden=false, buildInfo=null, storyImg=null, ruleHelp=false, tblDraft='', fileInput=null;
 const esc=s=>String(s).replace(/[&<>"'`]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;','`':'&#96;'}[c]));
 const seatOf=p=>S.seat.indexOf(p);
 const dealerPid=()=>S.seat[S.dealerSeat];
@@ -437,11 +437,12 @@ function meldGroup(m,i){
 }
 
 async function checkUpdate(manual){
-  if(checking) return; checking=true;
+  if(checking) return; checking=true; lastUpdateCheck=Date.now();
   try{
     const r=await fetch('version.json?t='+Date.now(),{cache:'no-store'});
     if(!r.ok) throw new Error('http');
     const j=await r.json();
+    if(!j||typeof j.version!=='string'||!j.version) throw new Error('invalid version metadata');
     if(j&&j.version) buildInfo=j.updated||null;
     if(j&&j.version&&j.version!==APP_VERSION){ upd=j; updDismissed=false; if(manual) toast('發現新版本 '+j.version); }
     else { upd=null; if(manual) toast('目前已是最新版本'); }
