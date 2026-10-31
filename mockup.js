@@ -39,7 +39,7 @@ const OPT_INST=[
 const defHK=()=>({preset:'10-128',minFan:3,bao12:true,baoSan:true,flowers:false,renzhuang:true,ratio:0.5,over:{}});
 const PLAYER_EMOJIS=['🐉','🐯','🐼','🦊','🐱','🐶','🦁','🐸','🐰','🐨','🐵','🐧','🦉','🐢','🦋','🐙','🌸','🌻','🍀','⭐','🌙','🔥','🍉','🍊'];
 const DEFAULT_AVATARS=PLAYER_EMOJIS.slice(0,4);
-const defState=()=>({game:null,avatars:DEFAULT_AVATARS.slice(),playersReady:false,names:['玩家1','玩家2','玩家3','玩家4'],seat:[0,1,2,3],dealerSeat:0,streak:0,wind:0,history:[],ledger:[],cfg:{fanValue:1,baseMult:5,minFan:0,drawKeeps:true,preset:1,wildLimit:4,wildPreset:3,wildMeld:false,wildNoMult:true,wildMultN:3,kongKeep:{1:false,2:false,3:false,4:true},overs:{1:{},2:{},3:{},4:{},hk:{}},instAmts:{1:{},2:{},3:{},4:{},hk:{}},customTables:[],activeCustom:{},hk:defHK(),theme:Object.assign({},DEFAULT_THEME),useSegment:true,wizard:false,largeFont:false,useShortAnim:true}});
+const defState=()=>({game:null,avatars:DEFAULT_AVATARS.slice(),playersReady:false,names:['玩家1','玩家2','玩家3','玩家4'],seat:[0,1,2,3],dealerSeat:0,streak:0,wind:0,history:[],ledger:[],cfg:{fanValue:1,baseMult:5,minFan:0,budaLoose:false,drawKeeps:true,preset:1,wildLimit:4,wildPreset:3,wildMeld:false,wildNoMult:true,wildMultN:3,kongKeep:{1:false,2:false,3:false,4:true},overs:{1:{},2:{},3:{},4:{},hk:{}},instAmts:{1:{},2:{},3:{},4:{},hk:{}},customTables:[],activeCustom:{},hk:defHK(),theme:Object.assign({},DEFAULT_THEME),useSegment:true,wizard:false,largeFont:false,useShortAnim:true}});
 function norm(j){
   const d=defState(); const s=Object.assign(d,j,{cfg:Object.assign(d.cfg,j.cfg||{}),ledger:j.ledger||[]});
   const th=Object.assign({},DEFAULT_THEME,(j.cfg&&j.cfg.theme)||{});
@@ -59,6 +59,7 @@ function norm(j){
   c.wildPreset=[1,2,3,4].includes(+c.wildPreset)?+c.wildPreset:3;
   c.wildMeld=!!c.wildMeld; c.wildNoMult=c.wildNoMult!==false;
   c.wildMultN=(Number.isFinite(+c.wildMultN)&&+c.wildMultN>=1&&+c.wildMultN<=100)?+c.wildMultN:3;
+ c.budaLoose=!!c.budaLoose;
   c.kongKeep=Object.assign({1:false,2:false,3:false,4:true},c.kongKeep||{});
   c.useSegment=true; c.wizard=false; c.largeFont=!!c.largeFont; c.useShortAnim=c.useShortAnim!==false;
   if(s.game!=='tw'&&s.game!=='hk'&&s.game!=='wild') s.game=(s.history&&s.history.length)?'tw':null;
@@ -606,6 +607,8 @@ function analyzeHK(){
 function analyze(){
   if(isWild()){
  if(jokerTotal()>0)return wildResult();if(E.win==null)return null;const inp=wildInput(),melds=inp.groups.map(g=>({t:g.t,tile:g.tile,open:g.t==='kong'?g.open!==false:true}));
+   M.BUDA_MODE = S.cfg.budaLoose ? 'loose' : 'strict';
+if(self) self.BUDA_MODE = M.BUDA_MODE;
  const r=M.analyze(Object.assign({},inp,{hand:inp.hand,melds,win:E.win}),OV());return r&&!r.error?Object.assign({},r,{complete:true,replacements:[],assigned:inp.hand.slice(),win:E.win}):r;
  }
   if(isHK()) return analyzeHK();
@@ -3301,7 +3304,7 @@ function gameName(){const o=uOrigin();return ['blank','import','saved','edited']
 function uToggle(n,k,hk=false){return '<label class="u-check">'+n+'<input type="checkbox" data-chg="uiBool" data-k="'+k+'" data-hk="'+hk+'"'+((hk?S.cfg.hk:S.cfg)[k]?' checked':'')+'></label>';}
 function uThemes(){return '<div class="grid2">'+SCHEMES.map(([n,c],i)=>ub(esc(n),'scheme','data-i="'+i+'" style="border-color:'+c.acc+'"')).join('')+'</div>'+uToggle('大字體','largeFont');}
 function uBasic(){return '<div class="grid2">'+(isHK()?'<label>計分方案<select data-chg="uiHK">'+Object.keys(HK_PRESETS).map(k=>'<option value="'+k+'"'+(k===S.cfg.hk.preset?' selected':'')+'>'+HK_PRESETS[k].name+'</option>').join('')+'</select></label><label>自摸付款比例<input type="number" min="0" step="any" data-chg="hkn" data-k="ratio" value="'+S.cfg.hk.ratio+'"></label>':'<label>每番金額<input type="number" min="0" step="any" data-chg="cfg" data-k="fanValue" value="'+S.cfg.fanValue+'"></label>')+'<label>最低食糊番數<input type="number" min="0" data-chg="'+(isHK()?'hkn':'cfg')+'" data-k="minFan" value="'+(isHK()?S.cfg.hk.minFan:S.cfg.minFan)+'"></label>'+(isWild()?'<label>百搭數量<input type="number" min="1" max="50" data-chg="wildN" value="'+S.cfg.wildLimit+'"></label>':'')+'</div>';}
-function uAdvanced(){return '<div class="u-stack">'+(isHK()?uToggle('使用花牌規則','flowers',true)+uToggle('莊家食糊連莊','renzhuang',true)+uToggle('十二章包牌','bao12',true)+uToggle('大三元包牌','baoSan',true):uToggle('流局繼續做莊','drawKeeps')+(isWild()?uToggle('百搭可用於明牌','wildMeld')+uToggle('冇用百搭加倍','wildNoMult')+'<label>倍數<input type="number" min="1" max="100" data-chg="wildMultN" value="'+S.cfg.wildMultN+'"></label>':''))+ub('顏色與字體','uiTheme')+'</div>';}
+function uAdvanced(){return '<div class="u-stack">'+(isHK()?uToggle('使用花牌規則','flowers',true)+uToggle('莊家食糊連莊','renzhuang',true)+uToggle('十二章包牌','bao12',true)+uToggle('大三元包牌','baoSan',true):uToggle('流局繼續做莊','drawKeeps')+(isWild()?uToggle('百搭可用於明牌','wildMeld')+uToggle('冇用百搭加倍','wildNoMult')+'<label>倍數<input type="number" min="1" max="100" data-chg="wildMultN" value="'+S.cfg.wildMultN+'"></label>':''))+uToggle('十六不搭寬鬆：有萬筒條且不連張即可','budaLoose')+ub('顏色與字體','uiTheme')+'</div>';}
 function uChooser(){return '<div class="u-center"><h2>選擇玩法</h2>'+[['tw','港式台牌・無百搭'],['wild','港式台牌・通用百搭'],['hk','廣東牌']].map(([v,n])=>ub(n,'uiChoose','data-v="'+v+'"')).join('')+(S.game?ub('繼續本場','tab','data-v="table"'):'')+'</div>';}
 function uBlankValues(){const o={};fanList().forEach(f=>{o[f.id]={fan:0};if(f.fanC!=null)o[f.id].fanC=0;});if(!isHK())o.di={fan:0};return o;}
 function uSourceButtons(){return '<div class="btnrow">'+ub(isHK()?'選擇廣東牌番數設定':'選擇預設1–4','uiSourceList','data-v="preset"')+ub('選擇已儲存番表','uiOpenSavedSources')+'</div>';}
