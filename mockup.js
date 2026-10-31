@@ -3255,7 +3255,7 @@ function hkWinPicker(){
 }
 
 let tStart=null, lastTouchAct=0;
-document.addEventListener('touchstart',e=>{ if(e.touches.length>1){ tStart=null; return; } const t=e.touches[0]; tStart={x:t.clientX,y:t.clientY}; },{passive:true});
+document.addEventListener('touchstart',e=>{ lastTouchAct=0; if(e.touches.length>1){ tStart=null; return; } const t=e.touches[0]; tStart={x:t.clientX,y:t.clientY}; },{passive:true});
 document.addEventListener('touchend',e=>{
   if(!tStart) return; const t=e.changedTouches[0];
   const moved=Math.abs(t.clientX-tStart.x)+Math.abs(t.clientY-tStart.y); tStart=null;
@@ -3268,9 +3268,10 @@ document.addEventListener('click',e=>{
 });
 window.addEventListener('resize',fitEditor);
 if(window.visualViewport){window.visualViewport.addEventListener('resize',fitEditor);window.visualViewport.addEventListener('scroll',fitEditor);}
-document.addEventListener('focusin',e=>{if(isNameField(e.target))nameFieldFocus(e.target);});
-document.addEventListener('focusout',e=>{if(isNameField(e.target))settleNameField(e.target);});
+document.addEventListener('focusin',e=>{if(isNameField(e.target))nameFieldFocus(e.target);if(e.target.matches?.('.u-table-screen input'))document.body.classList.add('table-keyboard-open');});
+document.addEventListener('focusout',e=>{if(isNameField(e.target))settleNameField(e.target);if(e.target.matches?.('.u-table-screen input'))setTimeout(()=>{if(!document.activeElement?.matches?.('.u-table-screen input'))document.body.classList.remove('table-keyboard-open');},0);});
 document.addEventListener('keydown',e=>{
+  if(e.key==='Enter'&&e.target.matches?.('.u-table-screen input')){e.preventDefault();e.target.blur();return;}
   const el=e.target.closest&&e.target.closest('[role="button"][data-act="startWinner"]');
   if(el&&(e.key==='Enter'||e.key===' ')){e.preventDefault();act('startWinner',el.dataset);}
 });
