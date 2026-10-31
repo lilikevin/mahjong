@@ -1875,7 +1875,7 @@ function hkSettings(){
   h+='<label>大三元包<select data-chg="hkb" data-k="baoSan"><option value="1"'+(h0.baoSan?' selected':'')+'>開</option><option value="0"'+(!h0.baoSan?' selected':'')+'>關</option></select></label>';
   h+='<label>花牌規則(144張)<select data-chg="hkb" data-k="flowers"><option value="0"'+(!h0.flowers?' selected':'')+'>自動(沒輸入花牌就計門前清;輸入花牌就按花牌規則)</option><option value="1"'+(h0.flowers?' selected':'')+'>一律按花牌規則(沒有花也計無花)</option></select></label>';
   h+='<label>食糊後連莊<select data-chg="hkb" data-k="renzhuang"><option value="1"'+(h0.renzhuang?' selected':'')+'>莊家連莊</option><option value="0"'+(!h0.renzhuang?' selected':'')+'>輪莊</option></select></label></div>';
-  h+='<p class="hint">總例:完全複合原則(必然並存的番種全部相加),相加後超過封頂番數就按封頂計;同一手牌有多種讀法取最高番。流局莊家輪替。不足起糊番數而食糊,當詐糊:扣例牌(封頂)分數,其他家不加分,本局重來。</p>';
+  h+='<p class="hint">總例:完全複合原則(必然並存的番種全部相加),相加後超過封頂番數就按封頂計;同一手牌有多種讀法取最高番。流局莊家輪替。不足起糊番數而食糊,當詐糊:賠例牌(封頂)分數給其餘三家(賠三家),本局重來。</p>';
   h+='<h3>番數對應分數(出銃)</h3><div class="fanTable">';
   for(let f=1;f<=pr.cap;f++) h+='<div class="frow"><span>'+f+' 番'+(f===pr.cap?'(封頂)':'')+'</span><input type="number" data-chg="hkrow" data-f="'+f+'" value="'+hkRon(f)+'"><i></i></div>';
   h+='</div><div class="btnrow"><button data-act="hkResetTable">還原分數表</button></div>';
@@ -2296,8 +2296,8 @@ case 'mode': {
         const low=ws.filter(w=>minF>0&&w.total<minF);
         if(low.length){
           const pen=hkRon(99),del=[0,0,0,0];
-          if(!confirm(low.map(w=>S.names[w.p]+' 只有 '+w.total+' 番,不足 '+minF+' 番起糊').join('\n')+'\n每位當詐糊扣 '+pen+' 分，其他玩家不加分，本局重來。確定記錄嗎？'))return;
-          low.forEach(w=>{del[w.p]-=pen;});
+          if(!confirm(low.map(w=>S.names[w.p]+' 只有 '+w.total+' 番,不足 '+minF+' 番起糊').join('\n')+'\n每位當詐糊賠 '+pen+' 分給其餘三家，本局重來。確定記錄嗎？'))return;
+          low.forEach(w=>{del[w.p]-=3*pen;[0,1,2,3].forEach(q=>{if(q!==w.p)del[q]+=pen;});});
           pushRec({kind:'settle',name:'詐糊(不足'+minF+'番):'+low.map(w=>S.names[w.p]).join('、'),deltas:del,events:[]});
           finishEntry('已記錄詐糊，本局重來',undoInfoForLast());break;
         }
@@ -2349,8 +2349,13 @@ case 'mode': {
       const r=S.history[idx], quick=!!(lastUndo&&lastUndo.id===id);
       if(!quick&&!confirm('撤銷 #'+(idx+1)+' '+(r.name||'籌碼')+'?\n這筆收付會一併取消,之後的紀錄編號會改變。'))return;
       S.history.splice(idx,1);
+      // 重設歷史頁碼，避免 #號 與項目對唔上
+      uiHistory=Math.max(-1,Math.min(uiHistory,S.history.length-1));
+      uiPage=0;
       if(quick){ lastUndo=null; if(undoTimer) clearTimeout(undoTimer); }
       lastEntryMessage='已撤銷 #'+(idx+1)+' '+(r.name||'籌碼');
+      // 清空即時項目選擇，避免殘留自訂項目
+      if(S.history.length===0) inst={id:instList()[0]?.id||'foul',mode:'all',payee:S.seat[0],payer:S.seat[1],mult:1};
       toast(lastEntryMessage); break; }
     case 'undoRec': {
       if(!S.history.length) return;
@@ -2358,24 +2363,22 @@ case 'mode': {
       const idx = targetId ? S.history.findIndex(r=>r.id===targetId) : S.history.length-1;
       if(idx<0){ toast('找不到要撤銷的紀錄'); return; }
       const r = S.history[idx];
-      // 防重複：只允許撤銷最後一筆或指定的 lastUndo
       if(lastUndo && r.id!==lastUndo.id && idx!==S.history.length-1){
         toast('只能撤銷最近一筆，已有更新紀錄');
         return;
       }
-      // 直接撤銷，不再彈確認（因為記錄時已可描述，且有8秒可撤銷期）
       const beforeTotUndo = totals();
-      const beforeLedgerUndo = copyL(S.ledger);
-      // 若撤銷非最後一筆，需要先回滾後續？簡化：只允許撤銷最後一筆
       if(idx!==S.history.length-1){ toast('只能撤銷最後一筆'); return; }
       S.history.splice(idx,1);
       if(r.before){ S.dealerSeat=r.before.dealerSeat; S.streak=r.before.streak; S.wind=r.before.wind; }
       S.ledger=copyL(r.ledgerBefore||[]);
+      uiHistory=Math.max(-1,Math.min(uiHistory,S.history.length-1));
+      uiPage=0;
       const afterTotUndo = totals();
       const diffUndo = afterTotUndo.map((v,i)=>{ const d=v-beforeTotUndo[i]; return d!==0?(S.names[i]+(d>0?'+':'')+d):''; }).filter(Boolean).join(' ');
-      const undoLabel=(lastUndo&&lastUndo.id===r.id)?lastUndo.label:recordLabel(r,idx);
+      const undoLabel=recordLabel(r,idx);
       lastEntryMessage='已撤銷 '+undoLabel+(diffUndo?' · '+diffUndo:'');
-      lastUndo=null; clearDraft();
+      lastUndo=null; clearDraft(); if(undoTimer) clearTimeout(undoTimer);
       toast(lastEntryMessage);
       break; }
     case 'copySum': copy(summaryText()); break;
