@@ -1252,33 +1252,157 @@ function editorPanelHtml(){
   }
   return '<div class="editor-win-status">'+(win==null?(isHK()?'未指定食糊牌；單人可先繼續，影響番種時會要求補選。':'未選食糊牌'):('已選 '+esc(tileName(win))+(win===34?'（只限自摸）':'')))+'<div class="hint">可切換花牌／特殊，完成後查看結果。</div></div>';
 }
+function liveTotalHtml() {
+  const who = E.winner != null
+    ? nm(E.winner) + (E.self ? ' 自摸' : ' 食糊')
+    : '本手';
 
-function liveTotalHtml(){
-  try{
-    if(isWild())return '';
+  try {
     derive();
-    const who=E.winner!=null?nm(E.winner)+(E.self?' 自摸':' 食糊'):'本手';
-    const res=analyze();
-    if(!res){
-      const n=physicalEntries().length;
-      return '<div class="editor-live idle">'+who+' — 暫未成牌('+n+' 張'+(isHK()?'':',請選食糊牌')+')</div>';
+
+    const res = analyze();
+    const hasWild = isWild() && jokerTotal() > 0;
+
+    if (hasWild && wildBusy) {
+      return (
+        '<div class="editor-live idle">' +
+          esc(who) +
+          ' — 百搭搜尋中，完成後才可確認番數' +
+        '</div>'
+      );
     }
-    if(res.error)return '<div class="editor-live bad">'+who+' — ✕ '+esc(res.error)+'</div>';
-    const items=curItems(res),raw=Math.max(0,items.reduce((s,x)=>s+x.total,0));
-    const total=isHK()?Math.min(raw,hkCap()):raw,minF=isHK()?S.cfg.hk.minFan:S.cfg.minFan;
-    const eff=isHK()?total:total-diTotal(items);
-    const low=minF>0&&eff<minF;
-    let num;
-    if(isHK())num='<b>'+total+'</b>'+(raw>total?'(封頂)':'');
-    else{
-      const dealer=dealerPid(),bonus=1+2*S.streak;
-      const b=(E.winner===dealer||(!E.self&&E.disc===dealer))?bonus:0;
-      num='<b>'+total+'</b> + <b>'+b+'</b>';
+
+    if (!res) {
+      const n = physicalEntries().length;
+
+      let message;
+
+      if (hasWild) {
+        message = '百搭番數尚未完成搜尋';
+      } else if (!isHK() && E.win == null) {
+        message = '請先選食糊牌';
+      } else if (!isHK()) {
+        message =
+          '牌數與預期不符：手牌連食糊牌' +
+          (E.hand.length + (E.win == null ? 0 : 1)) +
+          '張，應為' + need() + '張';
+      } else {
+        message = '尚未取得分析結果';
+      }
+
+      return (
+        '<div class="editor-live idle">' +
+          esc(who) + ' — ' +
+          esc(message) +
+          '（目前共' + n + '張）' +
+        '</div>'
+      );
     }
-    const note=isHK()?(typeof E.flags.menqing!=='boolean'?' <small>(門清未確認)</small>':''):(E.self&&E.winner!==dealerPid()?' <small>(莊家一份 +'+(1+2*S.streak)+')</small>':'');
-    return '<div class="editor-live '+(low?'bad':'good')+'">'+who+' — '+(low?'✕ ':'✓ ')+num+' 番'+note+(low?' · 未達 '+minF+' 番起糊':'')+'</div>';
-  }catch(e){return '';}
+
+    if (res.error) {
+      return (
+        '<div class="editor-live bad">' +
+          esc(who) + ' — ✕ ' +
+          esc(String(res.error)) +
+        '</div>'
+      );
+    }
+
+    if (hasWild && !res.complete) {
+      return (
+        '<div class="editor-live idle">' +
+          esc(who) +
+          ' — 百搭搜尋尚未完整完成，暫不確認番數' +
+        '</div>'
+      );
+    }
+
+    const items = curItems(res);
+
+    // 不把缺失或無效的番數默默當作0。
+    const values = items.map(x => Number(x.total));
+
+    if (values.some(n => !Number.isFinite(n))) {
+      throw new Error('番種明細含無效番數，請檢查 curItems()');
+    }
+
+    const raw = Math.max(
+      0,
+      values.reduce((sum, n) => sum + n, 0)
+    );
+
+    const hk = isHK();
+    const total = hk ? Math.min(raw, hkCap()) : raw;
+    const minF = hk ? S.cfg.hk.minFan : S.cfg.minFan;
+    const effective = hk ? total : total - diTotal(items);
+    const low = minF > 0 && effective < minF;
+
+    const details = [];
+
+    if (hk) {
+      if (raw > total) {
+        details.push('原計' + raw + '番，封頂' + total + '番');
+      }
+
+      if (typeof E.flags.menqing !== 'boolean') {
+        details.push('門清尚未確認，番數可能改變');
+      }
+
+      if (res.needsSelect && E.hkWin == null) {
+        details.push('請指定食糊牌，不同選擇會影響番種');
+      }
+    } else {
+      const dealer = dealerPid();
+      const bonus = 1 + 2 * S.streak;
+
+      details.push('牌型番數已含底，未加莊家／連莊');
+
+      if (
+        E.winner === dealer ||
+        (!E.self && E.disc === dealer)
+      ) {
+        details.push(
+          '莊家／連莊另加' + bonus +
+          '番，連同牌型為' + (total + bonus) + '番'
+        );
+      } else if (E.self && E.winner !== dealer) {
+        details.push(
+          '莊家支付的一份另加' + bonus + '番'
+        );
+      }
+    }
+
+    if (low) {
+      details.push('未達' + minF + '番起糊');
+    }
+
+    return (
+      '<div class="editor-live ' + (low ? 'bad' : 'good') + '">' +
+        esc(who) + ' — ' +
+        (low ? '✕ ' : '✓ ') +
+        (hk ? '' : '牌型 ') +
+        '<b>' + total + '</b> 番' +
+        (
+          details.length
+            ? '<br><small>' +
+                details.map(text => esc(text)).join('；') +
+              '</small>'
+            : ''
+        ) +
+      '</div>'
+    );
+  } catch (e) {
+    console.error('liveTotalHtml 計番失敗', e);
+
+    return (
+      '<div class="editor-live bad">' +
+        esc(who) + ' — 即時計番失敗：' +
+        esc(String(e?.message || e)) +
+      '</div>'
+    );
+  }
 }
+ 
 function base_editorHtml(){
   const mode=E.mode,marking=mode==='meld'||mode==='jmeld',n=physicalEntries().length,win=editorWin(),max=isHK()?18:22;
   const marked=isHK()?Object.values(E.hkKongs||{}).filter(v=>v==='open'||v==='closed').length*4:E.marks.reduce((n,x)=>n+(x||0),0);
