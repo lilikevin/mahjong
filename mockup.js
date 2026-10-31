@@ -3585,18 +3585,7 @@ if (a === 'poolTap' && E.mode === 'meld' && +d.t !== 34) {
    case 'uiRestoreDraft':if(applyDraft()){uiModal=null;setTab('calc');toast('已恢復未完成的輸入');}else{toast('未能恢復草稿，請返回牌桌後重試');}break;
 
    case 'uiKeyboardDone':document.activeElement?.blur();document.body.classList.remove('table-keyboard-open');break;
- case 'uiSavePlayer':{
-     const p=Number(d.p);
-     const nameEl=document.getElementById('edit-player-name')||document.querySelector('.u-dialog [data-player-edit-name]')||document.querySelector('.u-dialog [data-p="'+p+'"]');
-     const avatarEl=document.getElementById('edit-player-avatar')||document.querySelector('.u-dialog [data-player-edit-avatar]');
-     if(Number.isInteger(p)&&p>=0&&p<S.names.length){
-       const nameVal=(nameEl?.value||'').trim();
-       if(nameVal) S.names[p]=nameVal.slice(0,10);
-       const avVal=avatarEl?.value;
-       if(avVal&&PLAYER_EMOJIS.includes(avVal)) S.avatars[p]=avVal;
-     }
-     uiModal=null;break;}
-case 'uiClose':uiModal=null;break;
+
  case 'uiA2HSHowto':uPopup('加入 iPhone／iPad 主畫面',a2hsSteps(),ub('完成','uiClose'));break;
    
   case 'uiContinue':uiContinue();break;
@@ -3643,7 +3632,6 @@ case 'uiSaveSeats':{
   uiModal=null;break;}
 case 'uiClose':uiModal=null;break;
    
-  case 'uiSeats':uPopup('調整座位','<div class="grid2">'+S.seat.map((p,i)=>'<label>'+WIND[i]+'位<select data-chg="seat" data-s="'+i+'">'+S.seat.map(q=>'<option value="'+q+'"'+(q===p?' selected':'')+'>'+nm(q)+'</option>').join('')+'</select></label>').join('')+'</div>',ub('完成','uiClose'));break;
  case 'uiWinner':if(uiCanResume())uiContinue();else{uiModal=null;entryStep='pick';setTab('calc');}break;
  case 'uiInstant':if(d.p!=null)inst.payer=inst.payee=+d.p;uPopup('即時籌碼／罰則',viewInstantControls(),ub('取消','uiClose'));break;
  case 'uiLedger':uiDebtPage=0;uLedger();break;
