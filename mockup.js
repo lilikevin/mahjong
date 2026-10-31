@@ -3288,7 +3288,7 @@ function up(p,n,a='uiPage'){
   n=Math.max(1,n);
   return n<=1?'':'<div class="u-pager">'+ub('‹',a,'data-d="-1"'+(p<=0?' disabled':''))
   +'<small>'+(p+1)+' / '+n+'</small>'
-  +ub('›',a,'data-d="1"'+(p>=n-1?' disabled':'')+'</div>';
++ub('›',a,'data-d="1"'+(p>=n-1?' disabled':''))+'</div>';
 }
 function uPagerSlot(p,n,a){
   return '<div class="u-pager-slot'+(n<=1?' empty':'')+'">'
