@@ -3284,8 +3284,17 @@ if(navigator.storage&&navigator.storage.persist) navigator.storage.persist();
 let uiWizard=null,uiBackup=null,uiModal=null,uiResume=null,uiPage=0,uiHistory=-1,uiDetail='fans',uiReview='fans',uiSetting='menu',uiFlagPage=0,uiQuickPage=0,uiGroupPage=0,uiGroupTile=null,uiGroups=[],uiDebtPage=0,uiTableQuery='';
 const uc=x=>JSON.parse(JSON.stringify(x));
 const ub=(n,a,attrs='',cls='')=>'<button type="button" data-act="'+a+'" class="'+cls+'" '+attrs+'>'+n+'</button>';
-function up(p,n,a='uiPage'){n=Math.max(1,n);return n<=1?'':'<div class="u-pager">'+ub('‹',a,'data-d="-1"'+(p<=0?' disabled':''))+'<small>'+(p+1)+' / '+n+'</small>'+ub('›',a,'data-d="1"'+(p>=n-1?' disabled':''))+'</div>';}
-function uPagerSlot(p,n,a){return '<div class="u-pager-slot'+(n<=1?' empty':'')+'">'+(n<=1?'<span>1 / 1</span>':up(p,n,a))+'</div>';}
+function up(p,n,a='uiPage'){
+  n=Math.max(1,n);
+  return n<=1?'':'<div class="u-pager">'+ub('‹',a,'data-d="-1"'+(p<=0?' disabled':''))
+  +'<small>'+(p+1)+' / '+n+'</small>'
+  +ub('›',a,'data-d="1"'+(p>=n-1?' disabled':'')+'</div>';
+}
+function uPagerSlot(p,n,a){
+  return '<div class="u-pager-slot'+(n<=1?' empty':'')+'">'
+  +(n<=1?'<span>1 / 1</span>':up(p,n,a))+'</div>';
+}
+
 function uBalance(a){return '<div class="prev">'+S.seat.map(p=>'<div><small>'+playerLabel(p)+'</small><b class="'+(a&&a[p]<0?'neg':'pos')+'">'+(a?money(a[p]):'—')+'</b></div>').join('')+'</div>';}
 function uiValidResume(x){if(!x||!['pick','method','payer','hand'].includes(x.entryStep))return null;return {entryStep:x.entryStep,mode:['pick','meld','jmeld','win','flowers','flags'].includes(x.mode)?x.mode:'pick',shapeDone:!!x.shapeDone,review:['fans','pay','adjust','image','quick'].includes(x.review)?x.review:'fans',page:Number.isInteger(x.page)&&x.page>=0?x.page:0,flagPage:Number.isInteger(x.flagPage)&&x.flagPage>=0?x.flagPage:0,quickPage:Number.isInteger(x.quickPage)&&x.quickPage>=0?x.quickPage:0};}
 function uiCurrentLocation(){return {entryStep,mode:E.mode,shapeDone:!!E.shapeDone,review:uiReview,page:uiPage,flagPage:uiFlagPage,quickPage:uiQuickPage};}
@@ -3476,7 +3485,14 @@ function uShowGroups(t){uiGroupTile=t;uiGroups=[];if(isHK()){if(allCounts()[t]!=
  function uResult(){if(entryStep!=='hand')return {body:uEntry(),footer:ub('返回牌桌（保留輸入）','tab','data-v="table"')};const r=analyze(),quick=isHK()&&!!E.quick,hasWild=isWild()&&jokerTotal()>0;let body='<p class="u-caption">'+playerLabel(E.winner)+' '+(E.self?'自摸':'食 '+nm(E.disc))+'</p>';
  const valid=quick||!!(r&&!r.error&&(!hasWild||r.complete));
  const actions='<div class="btnrow">'+ub('返回修改','editorEdit')+ub('一炮多響','addWinner',(!valid||quick||E.self)?' disabled':'')+ub('確認記錄','confirm',!valid?' disabled':'','primary')+'</div>';
-if(quick&&uiReview==='quick'){const n=Math.max(1,Math.ceil(quickFanIds().length/6));return {body:body+quickPanelHtml(),footer:uQuickPager(uiQuickPage,n)+'<div class="btnrow">'+ub('返回','uiReview','data-v="fans"')+ub('確認番數','uiReview','data-v="fans"','primary')+'</div>'};}
+if(quick&&uiReview==='quick'){
+  const n=Math.max(1,Math.ceil(Object.keys(RL()).filter(id=>id!=='zimo').length/6));
+  return {body:body+quickPanelHtml(),
+  footer:uPagerSlot(uiQuickPage,n,'uiQuickPage')
+  +'<div class="btnrow">'+ub('返回','uiReview','data-v="fans"')
+  +ub('確認番數','uiReview','data-v="fans"','primary')+'</div>'};
+}
+
                     if (!valid) {
   const hintHtml = uiInvalidCalcHint(r, hasWild, wildBusy);
 
