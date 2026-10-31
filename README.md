@@ -8,7 +8,7 @@
 
 在 iPhone 上可用 Safari 開啟網站，依開場提示透過「分享」→「加入主畫面」建立捷徑。瀏覽器分頁與主畫面 App 的本機資料可能分開保存；需要轉移資料時，請先在原處匯出備份，再於新處匯入。
 
-程式會在開啟及重新回到前景時檢查 `version.json`。發布新版本時，請同步更新 `mockup.js` 的 `APP_VERSION` 與 `version.json` 的版本及日期；使用者會看到更新提示，可選擇立即刷新或稍後更新。
+程式會在開啟及重新回到前景時檢查 `version.json`。發布新版本時，請同步更新 `mockup.js` 的 `APP_VERSION`、`version.json` 的版本及日期、`sw.js` 的快取名稱，以及入口 HTML 的 CSS／JavaScript／manifest 資源版本字串；使用者會看到更新提示，可選擇立即刷新或稍後更新。
 
 ## 功能
 
