@@ -621,7 +621,7 @@ function analyze(){
   return M.analyze(Object.assign({hand:E.hand.concat([E.win]),melds:E.melds,win:E.win,flowers:E.flowers,selfDraw:E.self,flags:Object.assign({},E.flags,{budaMode:mode,budaLoose:S.cfg.budaLoose})},ctxExtra()),OV());
 }
 
- function firstStepIssue() {
+function firstStepIssue() {
     const mode = S.cfg.budaLoose ? 'loose' : 'strict';
   M.BUDA_MODE = mode;
   if(self) self.BUDA_MODE = mode;
@@ -629,25 +629,12 @@ function analyze(){
   E.flags.budaLoose = !!S.cfg.budaLoose;
   const hk = isHK();
   const required = hk ? 14 : 17;
-
   const tiles = physicalEntries().map(x => x.t);
   const current = tiles.length;
-
-  // 所有模式都先檢查最低張數。
   if (current < required) {
-    return {
-      title: '牌數不足',
-      message:
-        '此玩法至少需要' + required +
-        '張，目前只有' + current +
-        '張，還差' + (required - current) +
-        '張。請補選牌後再繼續。'
-    };
+    return {title: '牌數不足',message:'此玩法至少需要'+required+'張，目前只有'+current+'張，還差'+(required-current)+'張。請補選牌後再繼續。'};
   }
-
-  // 有百搭牌：不做牌型預檢，保留後續原有流程。
   if (isWild() && jokerTotal() > 0) return null;
-
   // 廣東牌沿用現有分析器。
   // 暫時忽略尚未完成或之前留下的槓／食糊牌選擇。
   if (hk) {
