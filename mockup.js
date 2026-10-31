@@ -2548,6 +2548,65 @@ function layoutTiles(tiles,nSets){
   gs.push({k:'眼',tiles:[D.pair,D.pair]});
   return gs;
 }
+ function specialCardGroups(tiles,winTile,kind){
+  const counts=Array(34).fill(0);
+  tiles.forEach(t=>{if(t<34)counts[t]++;});
+  const groups=[];
+  const add=(label,tileList,cols)=>{
+    const win=tileList.indexOf(winTile);
+    groups.push({k:label,tiles:tileList.slice(),wild:tileList.map(()=>false),win,cols});
+  };
+  if(['shiliubuda','budafei','busanxf','budazalong'].includes(kind)){
+    const pair=counts.findIndex(n=>n===2);
+    const names=['萬子','筒子','索子','字牌'];
+    for(let suit=0;suit<4;suit++){
+      const start=suit===3?27:suit*9,end=suit===3?34:start+9;
+      const tilesInGroup=[];
+      for(let t=start;t<end;t++)for(let n=0;n<counts[t];n++)tilesInGroup.push(t);
+      if(tilesInGroup.length)add(names[suit]+(tilesInGroup.includes(pair)?'·眼':''),tilesInGroup,suit===3?4:null);
+    }
+    return groups;
+  }
+  if(kind==='shisanyao'){
+    const yao=[0,8,9,17,18,26,27,28,29,30,31,32,33];
+    const isYaoPair=rest=>{
+      let total=0,pairs=0;
+      for(let t=0;t<34;t++){
+        const n=rest[t];
+        if(yao.includes(t)){
+          if(n!==1&&n!==2)return false;
+          if(n===2)pairs++;
+          total+=n;
+        }else if(n)return false;
+      }
+      return total===14&&pairs===1;
+    };
+    let extra=null,base=null;
+    for(let t=0;t<34&&!extra;t++){
+      if(counts[t]>=3){
+        const rest=counts.slice();rest[t]-=3;
+        if(isYaoPair(rest)){extra={k:'加坎·刻子',tiles:[t,t,t]};base=rest;}
+      }
+      if(t<27&&t%9<=6&&counts[t]&&counts[t+1]&&counts[t+2]){
+        const rest=counts.slice();rest[t]--;rest[t+1]--;rest[t+2]--;
+        if(isYaoPair(rest)){extra={k:'加坎·順子',tiles:[t,t+1,t+2]};base=rest;}
+      }
+    }
+    if(base){
+      const names=['一九萬','一九筒','一九索','字牌'];
+      for(let suit=0;suit<4;suit++){
+        const start=suit===3?27:suit*9,end=suit===3?34:start+9;
+        const list=[];
+        for(let t=start;t<end;t++)for(let n=0;n<base[t];n++)list.push(t);
+        if(list.length)add(names[suit]+(list.some(t=>base[t]===2)?'·眼':''),list,suit===3?4:null);
+      }
+      const win=extra.tiles.indexOf(winTile);
+      groups.push(Object.assign(extra,{wild:extra.tiles.map(()=>false),win}));
+      return groups;
+    }
+  }
+  return null;
+}
 function cardGroups(res){
   const out=[]; const mk=(k,tiles,wild)=>({k,tiles,wild:wild||tiles.map(()=>false),win:-1});
   const mtiles=m=>m.t==='chow'?[m.tile,m.tile+1,m.tile+2]:Array(m.t==='kong'?4:3).fill(m.tile);
@@ -2796,6 +2855,7 @@ function cardGroups(res){
     '</div>'
   );
 }
+ 
  function jiuziShape(c){
   for(let su=0;su<3;su++){
     const base=[3,1,1,1,1,1,1,1,3]; let ok=true,extra=0,tot=0;
