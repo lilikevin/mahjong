@@ -93,6 +93,7 @@ function isShisan(cnt){
   return false;
 }
 
+
 function budaInfo(cnt, flags){
   const mode = (flags&&flags.budaMode) || (typeof M!=='undefined'&&M.BUDA_MODE) || (typeof self!=='undefined'&&self.BUDA_MODE) || 'strict';
   const minGap = mode==='loose' ? 2 : 3;
@@ -101,16 +102,15 @@ function budaInfo(cnt, flags){
   for(let su=0;su<3;su++){
     const ns=[];
     for(let n=1;n<=9;n++){ const c=cnt[su*9+n-1]; if(c>2) return null; if(c>=1){ ns.push(n); if(c===2) dbl++; tot+=c; } }
-    if(ns.length<1) return null;
-    if(mode==='strict' && ns.length!==3) return null;
-    for(let i=0;i<ns.length;i++) for(let j=i+1;j<ns.length;j++) if(ns[j]-ns[i] < minGap) return null;
+    if(ns.length<1) return null; // 要有萬筒條
+    if(mode==='strict' && ns.length!==3) return null; // 嚴格要每色3隻
+    for(let i=0;i<ns.length;i++) for(let j=i+1;j<ns.length;j++) if(ns[j]-ns[i] < minGap) return null; // 不能搭上
     sets.push(ns);
   }
   if(!(dbl===1&&tot===17)) return null;
   const keys=sets.map(a=>a.join(','));
   return {sets, isLong: keys.every(k=>['1,4,7','2,5,8','3,6,9'].includes(k)) && new Set(keys).size===3, isFeng: new Set(keys).size===1 };
 }
-
 function isBuda(cnt, flags){
   const mode = (flags&&flags.budaMode) || (typeof M!=='undefined'&&M.BUDA_MODE) || (typeof self!=='undefined'&&self.BUDA_MODE) || 'strict';
   const minGap = mode==='loose' ? 2 : 3;
