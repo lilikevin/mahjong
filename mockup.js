@@ -3312,8 +3312,8 @@ function uShowGroups(t){uiGroupTile=t;uiGroups=[];if(isHK()){if(allCounts()[t]!=
  function uResult(){if(entryStep!=='hand')return {body:uEntry(),footer:ub('返回牌桌（保留輸入）','tab','data-v="table"')};const r=analyze(),quick=isHK()&&!!E.quick,hasWild=isWild()&&jokerTotal()>0;let body='<p class="u-caption">'+playerLabel(E.winner)+' '+(E.self?'自摸':'食 '+nm(E.disc))+'</p>';
  const valid=quick||!!(r&&!r.error&&(!hasWild||r.complete));
  const actions='<div class="btnrow">'+ub('返回修改','editorEdit')+ub('一炮多響','addWinner',(!valid||quick||E.self)?' disabled':'')+ub('確認記錄','confirm',!valid?' disabled':'','primary')+'</div>';
- if(quick&&uiReview==='quick'){const n=Math.max(1,Math.ceil(Object.keys(RL()).filter(id=>id!=='zimo').length/6));return {body:body+quickPanelHtml(),footer:uPagerSlot(uiQuickPage,n,'uiQuickPage')+'<div class="btnrow">'+ub('返回','uiReview','data-v="fans"')+ub('確認番數','uiReview','data-v="fans"','primary')+'</div>'};}
-if (!valid) {
+if(quick&&uiReview==='quick'){const n=Math.max(1,Math.ceil(quickFanIds().length/6));return {body:body+quickPanelHtml(),footer:uQuickPager(uiQuickPage,n)+'<div class="btnrow">'+ub('返回','uiReview','data-v="fans"')+ub('確認番數','uiReview','data-v="fans"','primary')+'</div>'};}
+                    if (!valid) {
   const hintHtml = uiInvalidCalcHint(r, hasWild, wildBusy);
 
   const searchHtml = hasWild
@@ -3443,8 +3443,10 @@ case 'uiPlayer':uPopup(S.names[+d.p],'<div class="u-stack">'+(uiCanResume()?ub('
  case 'uiDetail':uiDetail=d.v;uiPage=0;break;
  case 'uiReview':uiReview=d.v;uiPage=0;break;
  case 'uiFlagPage':uiFlagPage=Math.max(0,uiFlagPage+(+d.d));break;
- case 'uiQuickPage':uiQuickPage=Math.max(0,uiQuickPage+(+d.d));break;
- case 'uiGroupPage':uiGroupPage=Math.max(0,uiGroupPage+(+d.d));uShowGroups(uiGroupTile);break;
+case 'uiQuickPage':{const count=Math.max(1,Math.ceil(quickFanIds().length/6)),page=Number(d.page);uiQuickPage=Number.isInteger(page)?Math.max(0,Math.min(page,count-1)):Math.max(0,Math.min(count-1,uiQuickPage+(+d.d)));break;}
+
+
+case 'uiGroupPage':uiGroupPage=Math.max(0,uiGroupPage+(+d.d));uShowGroups(uiGroupTile);break;
  case 'uiHKKong':uPopup('槓組',ub('取消槓','hkKong','data-t="'+d.t+'" data-v="none"')+ub('切換明／暗槓','hkKong','data-t="'+d.t+'" data-v="'+(E.hkKongs[d.t]==='open'?'closed':'open')+'"'),ub('完成','uiClose'));break;
  case 'uiGroup':{const g=uiGroups[+d.i];if(!g)break;if(isHK()){setHKKong(g.tile,g.open?'open':'closed');uiModal=null;break;}if(E.melds.length+E.wildGroups.length>=5){toast('最多五組明牌');break;}const c=allCounts(),marks=E.marks.slice();for(const t of g.physical){marks[t]++;if(marks[t]>c[t]){toast('未標記牌不足');return true;}}const lock=pending[0]?.ron?.winTile;if(lock!=null&&marks[lock]>=c[lock]){toast('共同放炮牌須留在手牌內');break;}E.marks=marks;if(g.t==='kong')E.kongOpen[g.tile]=g.open;(E.uGroups||(E.uGroups=[])).push({t:g.t,tile:g.tile,open:g.open});E.excl={};derive();uiModal=null;break;}
  case 'uiPrev':{const i=Math.max(0,['pick','meld','win','flowers','flags'].indexOf(E.mode==='jmeld'?'meld':E.mode));if(i)E.mode=['pick','meld','win','flowers','flags'][i-1];else entryStep='method';break;}
