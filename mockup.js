@@ -3481,14 +3481,11 @@ function editorHtml() {
   );
 }
  function fitEditor(){const b=document.querySelector('.editor-screen');if(!b)return;const vv=window.visualViewport,h=vv?.height||innerHeight,w=vv?.width||innerWidth,compact=h<720,cols=editorColumns(physicalEntries().length);b.style.setProperty('--editor-height',h+'px');b.style.top=(vv?.offsetTop||0)+'px';b.classList.toggle('editor-compact',compact);const measure=k=>b.querySelector(k)?.getBoundingClientRect().height||0,fixed=measure('.editor-head')+measure('.u-steps')+measure('.u-instruction')+measure('.editor-footer'),reserve=E.mode==='pick'?(compact?320:340):(compact?220:240),cell=Math.floor((Math.max(102,h-fixed-reserve)-12)/3),tw=Math.max(24,Math.min(56,Math.floor((Math.min(650,w-32)-(cols-1)*6)/cols),Math.floor(cell*.74))),th=Math.round(tw/.74);b.style.setProperty('--pile-frame-h',(th*3+12)+'px');b.style.setProperty('--pile-cols',cols);b.style.setProperty('--tile-w',tw+'px');b.style.setProperty('--tile-h',th+'px');b.style.setProperty('--face-size',Math.max(16,Math.min(26,tw*.48))+'px');b.style.setProperty('--suit-size',Math.max(10,tw*.23)+'px');}
+
 function uShowGroups(t){uiGroupTile=t;uiGroups=[];if(isHK()){if(allCounts()[t]!==4){toast('這款牌不足四張，不需標示槓；請確認門清狀態後繼續。');return;}for(const open of [true,false])uiGroups.push({t:'kong',tile:t,open,physical:Array(4).fill(t)});}else{const c=allCounts().map((n,tile)=>n-(E.marks[tile]||0));if(t<27)for(let n=Math.max(0,t%9-2);n<=Math.min(6,t%9);n++){const a=Math.floor(t/9)*9+n;if([a,a+1,a+2].every(tile=>c[tile]>0))uiGroups.push({t:'chow',tile:a,open:true,physical:[a,a+1,a+2]});}if(c[t]>=3)uiGroups.push({t:'pung',tile:t,open:true,physical:Array(3).fill(t)});if(c[t]>=4)for(const open of [true,false])uiGroups.push({t:'kong',tile:t,open,physical:Array(4).fill(t)});}const n=Math.max(1,Math.ceil(uiGroups.length/4));uiGroupPage=Math.max(0,Math.min(uiGroupPage,n-1));const groupsHtml=uiGroups.slice(uiGroupPage*4,uiGroupPage*4+4).map((g,i)=>{const label=g.t==='chow'?'上':g.t==='pung'?'碰':g.open?'明槓':'暗槓';const tilesHtml=g.physical.map((tile,j)=>mt(tile,{back:g.open===false&&(j===0||j===3)})).join('');return ub('<span>'+label+'</span><div class="u-minirow">'+tilesHtml+'</div>','uiGroup','data-i="'+(uiGroupPage*4+i)+'"','u-group');}).join('');const emptyHtml=!uiGroups.length?'<p>這張牌目前沒有可標示的明牌組合；沒有明牌可直接下一步。</p>':'';uPopup(isHK()?'選擇槓的類型':'選擇明牌組合','<div class="grid2">'+groupsHtml+'</div>'+emptyHtml,up(uiGroupPage,n,'uiGroupPage')+ub('取消','uiClose'));}
- function uResult(){
- if(entryStep!=='hand')return {body:uEntry(),footer:ub('返回牌桌（保留輸入）','tab','data-v="table"')};
- const r=analyze(),quick=isHK()&&!!E.quick,hasWild=isWild()&&jokerTotal()>0;
- let body='<p class="u-caption">'+playerLabel(E.winner)+' '+(E.self?'自摸':'食 '+nm(E.disc))+'</p>';
+ function uResult(){if(entryStep!=='hand')return {body:uEntry(),footer:ub('返回牌桌（保留輸入）','tab','data-v="table"')};const r=analyze(),quick=isHK()&&!!E.quick,hasWild=isWild()&&jokerTotal()>0;let body='<p class="u-caption">'+playerLabel(E.winner)+' '+(E.self?'自摸':'食 '+nm(E.disc))+'</p>';
  const valid=quick||!!(r&&!r.error&&(!hasWild||r.complete));
  const actions='<div class="btnrow">'+ub('返回修改','editorEdit')+ub('一炮多響','addWinner',(!valid||quick||E.self)?' disabled':'')+ub('確認記錄','confirm',!valid?' disabled':'','primary')+'</div>';
- // 快速記番 - 用 < 1/5 > 同番表一樣
  if(quick&&uiReview==='quick'){
   const n=Math.max(1,Math.ceil(Object.keys(RL()).filter(id=>id!=='zimo').length/6));
   return {body:body+quickPanelHtml(),footer:uPagerSlot(uiQuickPage,n,'uiQuickPage')+'<div class="btnrow">'+ub('返回','uiReview','data-v="fans"')+ub('確認番數','uiReview','data-v="fans"','primary')+'</div>'};
@@ -3496,38 +3493,20 @@ function uShowGroups(t){uiGroupTile=t;uiGroups=[];if(isHK()){if(allCounts()[t]!=
  if(!valid){
   return {body:body+'<p class="warn">'+esc(r?.error||'請先完成計番')+'</p>'+(hasWild?ub(wildBusy?'取消搜尋':'搜尋最高番',wildBusy?'wildStop':'wildRun','','primary')+'<p id="wild-progress">'+(wildBusy?'搜尋中，完成後才可記錄。':'')+'</p>':''),footer:uPagerSlot(0,1)+actions};
  }
- // 正常計番 - 同樣 < 1/5 >
- const items=curItems(r),raw=Math.max(0,items.reduce((n,x)=>n+x.total,0)),total=isHK()?Math.min(raw,hkCap()):raw;
-  const hintHtml = uiInvalidCalcHint(r, hasWild, wildBusy);
-
-  const searchHtml = hasWild
-    ? ub(
-        wildBusy ? '取消搜尋' : '搜尋最高番',
-        wildBusy ? 'wildStop' : 'wildRun',
-        '',
-        'primary'
-      ) +
-      '<p id="wild-progress" aria-live="polite">' +
-        (wildBusy ? '搜尋中，完成後才可記錄。' : '') +
-      '</p>'
-    : '';
-
-  return {
-    body: body + hintHtml + searchHtml,
-    footer: uPagerSlot(0, 1) + actions
-  };
-}
-                    
-                    const items=curItems(r),raw=Math.max(0,items.reduce((n,x)=>n+x.total,0)),total=isHK()?Math.min(raw,hkCap()):raw,h=document.querySelector('.u-content')?.clientHeight||Math.max(300,(window.visualViewport?.height||innerHeight)-165),w=document.querySelector('.u-content')?.clientWidth||innerWidth,columns=w>=520?3:2,rows=Math.max(2,Math.min(6,Math.floor((h-155)/58))),pageSize=rows*columns,n=Math.max(1,Math.ceil(items.length/pageSize));if(uiReview==='fans')uiPage=Math.max(0,Math.min(uiPage,n-1));let summary;
-                    if(isHK())summary='合計 <b>'+total+'</b> 番';else{const groups=[];payRows(total).forEach(x=>{let g=groups.find(g=>g.fan===x.fan);if(!g){g={fan:x.fan,amount:x.amount,names:[]};groups.push(g);}g.names.push(nm(x.payer));});summary=groups.length?groups.map(g=>'<span>'+(E.self&&groups.length===1?'每家':g.names.join('、'))+'應付 <b>'+g.fan+'</b> 番 · <b>$'+g.amount+'</b></span>').join('<br>'):'合計 <b>'+total+'</b> 番';if(wildMult()>1)summary+='<small>已按本場規則乘 ×'+wildMult()+'</small>';}
- body+='<div class="u-total">'+summary+'</div><div class="u-review-tabs">'+[['fans','番種'],['pay','收付'],['adjust','特別改動'],['image','牌型圖']].map(([v,n])=>ub(n,'uiReview','data-v="'+v+'"',uiReview===v?'on':'')).join('')+'</div>';
-if(uiReview==='fans'){const page=items.slice(uiPage*pageSize,uiPage*pageSize+pageSize);body+='<div class="u-result-fans" style="display:grid;grid-template-columns:repeat('+columns+',minmax(0,1fr));grid-template-rows:repeat('+rows+',minmax(0,1fr));gap:6px;flex:1;min-height:0;overflow:auto;align-content:start">'+page.map(f=>'<div class="fan" style="min-width:0;min-height:52px;margin:0;padding:6px;border:1px solid var(--bd);border-radius:9px;background:var(--card);gap:5px"><label style="flex:1;min-width:0;font-size:13px;line-height:1.3;white-space:normal;overflow-wrap:anywhere">'+(f.id==='di'?'🔒 ':f.id==='adjust'?'✎ ':'<input type="checkbox" data-chg="excl" data-id="'+f.id+'" checked>')+esc(f.id==='di'?'底':f.name)+(f.n>1?' ×'+f.n:'')+'</label><b style="flex:none;font-size:15px">'+f.total+'</b></div>').join('')+Array(pageSize-page.length).fill('<div aria-hidden="true"></div>').join('')+'</div>';}
-                    if(uiReview==='pay'){const ws=pending.concat(hasCurrentData()?[collectCurrent()]:[]);if(isHK())body+=uBalance(settleHK(ws))+'<p>本局已收付預覽</p>';else{const out=applyHand(S.ledger,mkTxns(ws,dealerPid(),S.streak),true),b=ledgerFigures(S.ledger).net,a=ledgerFigures(out.ledger).net;body+=uBalance(out.cash.map((v,p)=>v+a[p]-b[p]))+'<p>本局淨變動（含未結拉數）</p>';}}
+ const items=curItems(r),raw=Math.max(0,items.reduce((n,x)=>n+x.total,0)),total=isHK()?Math.min(raw,hkCap()):raw,h=document.querySelector('.u-content')?.clientHeight||Math.max(300,(window.visualViewport?.height||innerHeight)-165),w=document.querySelector('.u-content')?.clientWidth||innerWidth,columns=w>=520?3:2,rows=Math.max(2,Math.min(6,Math.floor((h-155)/58))),pageSize=rows*columns,n=Math.max(1,Math.ceil(items.length/pageSize));if(uiReview==='fans')uiPage=Math.max(0,Math.min(uiPage,n-1));let summary;
+ if(isHK())summary='合計 <b>'+total+'</b> 番';else{const groups=[];payRows(total).forEach(x=>{let g=groups.find(g=>g.fan===x.fan);if(!g){g={fan:x.fan,amount:x.amount,names:[]};groups.push(g);}g.names.push(nm(x.payer));});summary=groups.length?groups.map(g=>'<span>'+(E.self&&groups.length===1?'每家':g.names.join('、'))+'應付 <b>'+g.fan+'</b> 番 · <b>$'+g.amount+'</b></span>').join('<br>'):'合計 <b>'+total+'</b> 番';if(wildMult()>1)summary+='<small>已按本場規則乘 ×'+wildMult()+'</small>';}
+ body+='<div class="u-total">'+summary+'</div><div class="u-review-tabs">'+[['fans','番種'],['pay','收付預覽'],['adjust','特別改動'],['image','牌型圖']].map(([v,n])=>ub(n,'uiReview','data-v="'+v+'"',uiReview===v?'on':'')).join('')+'</div>';
+ if(uiReview==='fans')body+='<div class="u-payment-prompt"><span>記錄前核對各玩家收付與未結拉數變化</span>'+ub('查看收付預覽','uiReview','data-v="pay"','primary')+'</div>';
+ if(uiReview==='fans'){const page=items.slice(uiPage*pageSize,uiPage*pageSize+pageSize);body+='<div class="u-result-fans" style="display:grid;grid-template-columns:repeat('+columns+',minmax(0,1fr));grid-template-rows:repeat('+rows+',minmax(0,1fr));gap:6px;flex:1;min-height:0;overflow:auto;align-content:start">'+page.map(f=>'<div class="fan" style="min-width:0;min-height:52px;margin:0;padding:6px;border:1px solid var(--bd);border-radius:9px;background:var(--card);gap:5px"><label style="flex:1;min-width:0;font-size:13px;line-height:1.3;white-space:normal;overflow-wrap:anywhere">'+(f.id==='di'?'🔒 ':f.id==='adjust'?'✎ ':'<input type="checkbox" data-chg="excl" data-id="'+f.id+'" checked>')+esc(f.id==='di'?'底':f.name)+(f.n>1?' ×'+f.n:'')+'</label><b style="flex:none;font-size:15px">'+f.total+'</b></div>').join('')+Array(pageSize-page.length).fill('<div aria-hidden="true"></div>').join('')+'</div>';}
+ if(uiReview==='pay'){const ws=pending.concat(hasCurrentData()?[collectCurrent()]:[]);if(isHK())body+=uBalance(settleHK(ws))+'<p>本局已收付預覽</p>';else{const out=applyHand(S.ledger,mkTxns(ws,dealerPid(),S.streak),true),b=ledgerFigures(S.ledger).net,a=ledgerFigures(out.ledger).net;body+=uBalance(out.cash.map((v,p)=>v+a[p]-b[p]))+'<p>本局淨變動（含未結拉數）</p>';}}
  if(uiReview==='adjust')body+='<div class="grid2">'+ub('手動調整','uiAdjust')+ub('補加番種','uiExtra')+ub('恢復番種','uiExcluded')+(baoVisible()?ub('包牌','uiBao'):'')+(quick?ub('選番種','uiReview','data-v="quick"'):'')+'</div>';
- if(uiReview==='image')body+=shareCard(r,total,raw)||'<p>快速記番沒有牌型圖。</p>';
+ if(uiReview==='image')body+='<div class="u-image-review">'+(shareCard(r,total,raw)||'<p>快速記番沒有牌型圖。</p>')+'</div>';
  if(hasWild)body+=ub(wildBusy?'取消搜尋':'重新搜尋最高番',wildBusy?'wildStop':'wildRun');
- return {body,footer:uPagerSlot(uiReview==='fans'?uiPage:0,uiReview==='fans'?n:1)+actions};}
-function uHistory(){finalizeFinancialSnapshots();if(!S.history.length)return {body:'<p>暫無紀錄。</p>',footer:''};uiHistory=Math.max(0,Math.min(uiHistory<0?S.history.length-1:uiHistory,S.history.length-1));const r=S.history[uiHistory],f=historyFinancials(uiHistory),ws=r.winners||[],fans=ws.flatMap(w=>(w.fans||[]).map(x=>({...x,name:(ws.length>1?S.names[w.p]+' ':'')+(x.id==='di'?'底':x.name)})));let body='<h3>'+esc(recordLabel(r,uiHistory))+'</h3><small>'+WIND[r.wind||0]+'風圈 · 莊 '+historyPlayerName(r.dealer)+'</small><p>本局淨變動</p>'+uBalance(f.complete?f.total:null)+(!f.complete?'<p class="warn">缺少當時拉數快照。</p>':'')+ws.map(w=>'<p>'+historyPlayerName(w.p)+' — '+histWinLine(r,w).head+histWinLine(r,w).extra+'</p>').join('')+'<div class="btnrow">'+ub('番種','uiDetail','data-v="fans"')+ub('已收付','uiDetail','data-v="cash"')+(!isHK()?ub('拉數','uiDetail','data-v="ledger"'):'')+'</div>',n=1;
+ return {body,footer:uPagerSlot(uiReview==='fans'?uiPage:0,uiReview==='fans'?n:1,'uiPage')+actions};
+}
+
+
+ function uHistory(){finalizeFinancialSnapshots();if(!S.history.length)return {body:'<p>暫無紀錄。</p>',footer:''};uiHistory=Math.max(0,Math.min(uiHistory<0?S.history.length-1:uiHistory,S.history.length-1));const r=S.history[uiHistory],f=historyFinancials(uiHistory),ws=r.winners||[],fans=ws.flatMap(w=>(w.fans||[]).map(x=>({...x,name:(ws.length>1?S.names[w.p]+' ':'')+(x.id==='di'?'底':x.name)})));let body='<h3>'+esc(recordLabel(r,uiHistory))+'</h3><small>'+WIND[r.wind||0]+'風圈 · 莊 '+historyPlayerName(r.dealer)+'</small><p>本局淨變動</p>'+uBalance(f.complete?f.total:null)+(!f.complete?'<p class="warn">缺少當時拉數快照。</p>':'')+ws.map(w=>'<p>'+historyPlayerName(w.p)+' — '+histWinLine(r,w).head+histWinLine(r,w).extra+'</p>').join('')+'<div class="btnrow">'+ub('番種','uiDetail','data-v="fans"')+ub('已收付','uiDetail','data-v="cash"')+(!isHK()?ub('拉數','uiDetail','data-v="ledger"'):'')+'</div>',n=1;
  if(uiDetail==='fans'){n=Math.max(1,Math.ceil(fans.length/6));uiPage=Math.min(uiPage,n-1);body+='<div class="grid2">'+fans.slice(uiPage*6,uiPage*6+6).map(x=>'<div class="card u-money"><span>'+esc(x.name)+'</span><b>'+esc(x.total)+'</b></div>').join('')+'</div>';}
  if(uiDetail==='cash')body+=uBalance(f.cash)+'<small>只顯示當筆已收付。</small>';
  if(uiDetail==='ledger'){const a=historyAfterLedger(uiHistory);if(a){n=Math.max(1,Math.ceil(a.length/2));uiPage=Math.min(uiPage,n-1);body+=a.slice(uiPage*2,uiPage*2+2).map(x=>'<div class="card">'+historyPlayerName(x.from)+' 欠 '+historyPlayerName(x.to)+' $'+x.amt+'（拉'+x.k+'口）'+ledgerDetailHtml(uiHistory,x)+'</div>').join('')+(!a.length?'<p>無未結拉數。</p>':'');}else body+='<p>資料不足。</p>';}
