@@ -630,6 +630,11 @@ function analyze(){
 }
 
  function firstStepIssue() {
+    const mode = S.cfg.budaLoose ? 'loose' : 'strict';
+  M.BUDA_MODE = mode;
+  if(self) self.BUDA_MODE = mode;
+  E.flags.budaMode = mode;
+  E.flags.budaLoose = !!S.cfg.budaLoose;
   const hk = isHK();
   const required = hk ? 14 : 17;
 
