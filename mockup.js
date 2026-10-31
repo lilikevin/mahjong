@@ -1,7 +1,7 @@
 (function(){
 'use strict';
 if(!window.MJ){const a=document.getElementById('app');if(a)a.textContent='計番引擎未能載入，請確認 engine.js 已上傳。';return;}
-const APP_VERSION='2.0.11';
+const APP_VERSION='2.0.12';
 const DEV_IG='kevinli999';
 let M=window.MJ;
 const KEY='mj_v2_full_merge_1';
@@ -403,7 +403,7 @@ function injectCss(){
   try{
     if(document.getElementById('mj-static')) return;
     const a=document.createElement('style'); a.id='mj-static'; a.textContent=STATIC_CSS; document.head.appendChild(a);
-    const b=document.createElement('style'); b.id='mj-dyn'; b.textContent=DYN_CSS; document.head.appendChild(b);const c=document.createElement('link');c.rel='stylesheet';c.href='mockup.css?v=2.0.11';document.head.appendChild(c);
+    const b=document.createElement('style'); b.id='mj-dyn'; b.textContent=DYN_CSS; document.head.appendChild(b);const c=document.createElement('link');c.rel='stylesheet';c.href='mockup.css?v=2.0.12';document.head.appendChild(c);
   }catch(e){}
 }
 function applyTheme(){
@@ -3098,7 +3098,7 @@ function hkWinPicker(){
 }
 
 let tStart=null, lastTouchAct=0;
-document.addEventListener('touchstart',e=>{ if(e.touches.length>1){ tStart=null; return; } const t=e.touches[0]; tStart={x:t.clientX,y:t.clientY}; },{passive:true});
+document.addEventListener('touchstart',e=>{ lastTouchAct=0; if(e.touches.length>1){ tStart=null; return; } const t=e.touches[0]; tStart={x:t.clientX,y:t.clientY}; },{passive:true});
 document.addEventListener('touchend',e=>{
   if(!tStart) return; const t=e.changedTouches[0];
   const moved=Math.abs(t.clientX-tStart.x)+Math.abs(t.clientY-tStart.y); tStart=null;
