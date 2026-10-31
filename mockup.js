@@ -3518,7 +3518,7 @@ function uLedger(){const n=Math.max(1,Math.ceil(S.ledger.length/3));uiDebtPage=M
 function render(){if(window.__UI_TEST__)return;derive();applyTheme();document.body.classList.toggle('editor-open',!uiWizard&&editorActive());let html;
  if(uiWizard)html=uWizardView();else if(!S.game||tab==='chooser')html=uFrame('開始新牌局',uChooser());else if(editorActive())html=editorHtml();else{let title='牌桌',v;if(tab==='calc'){title='記錄食糊';v=uResult();}else if(['history','settle'].includes(tab)){title='歷史與結算';v=tab==='history'?uHistory():uSettle();v.body='<div class="btnrow">'+ub('歷史','tab','data-v="history"',tab==='history'?'on':'')+ub('結算','tab','data-v="settle"',tab==='settle'?'on':'')+'</div>'+v.body;}else if(['settings','players'].includes(tab)){title='高級設置';v=uSettings();}else v={body:uTable(),footer:uTableFooter()};html=uFrame(title,v.body,v.footer);}
  if(uiModal?.title==='即時籌碼／罰則')uiModal.body=viewInstantControls();document.getElementById('app').innerHTML=html+uDialog()+(editRec?editModalHtml():'')+(storyImg?'<div class="u-backdrop"><div class="u-dialog"><img style="max-width:100%;max-height:75dvh;object-fit:contain" src="'+storyImg+'">'+ub('關閉','closeStory')+'</div></div>':'');if(editorActive()&&!uiWizard)fitEditor();}
-
+ 
 function uiAction(a,d){
  if(a==='close-panel'||a==='close')a='uiClose';
  if(tab==='calc'&&((a==='tab'&&d.v!=='calc')||['editorBack','uiBack','toChooser','newGame'].includes(a)))uiResume=uiCurrentLocation();
