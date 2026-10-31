@@ -2824,7 +2824,7 @@ function shareTiles(g){
       (
         E.self
           ? '自摸'
-          : '出銃' + (E.disc != null ? '(' + nm(E.disc) + ')' : '')
+          : '食糊（出銃者' + (E.disc != null ? ' ' + nm(E.disc) + ')' : '')
       );
   }
 
