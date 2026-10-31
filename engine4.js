@@ -92,21 +92,45 @@ function isShisan(cnt){
   }
   return false;
 }
-function budaInfo(cnt){
+
+function budaInfo(cnt, flags){
+  const mode = (flags&&flags.budaMode) || (typeof M!=='undefined'&&M.BUDA_MODE) || (typeof self!=='undefined'&&self.BUDA_MODE) || 'strict';
+  const isLoose = mode==='loose';
+  const minGap = isLoose ? 2 : 3; // strict=147規則>=3, loose=不連張>=2
+  const needThree = !isLoose; // strict要每色3隻, loose只要有萬筒條
+
   let dbl=0,tot=0; const sets=[];
-  for(let t=27;t<34;t++){ if(cnt[t]<1||cnt[t]>2) return null; if(cnt[t]===2) dbl++; tot+=cnt[t]; }
+  for(let t=27;t<34;t++){ 
+    if(cnt[t]<1||cnt[t]>2) return null; 
+    if(cnt[t]===2) dbl++; 
+    tot+=cnt[t]; 
+  }
   for(let su=0;su<3;su++){
     const ns=[];
-    for(let n=1;n<=9;n++){ const c=cnt[su*9+n-1]; if(c>2) return null; if(c>=1){ ns.push(n); if(c===2) dbl++; tot+=c; } }
-    if(ns.length!==3) return null;
-    for(let i=0;i<3;i++) for(let j=i+1;j<3;j++) if(ns[j]-ns[i]<3) return null;
+    for(let n=1;n<=9;n++){ 
+      const c=cnt[su*9+n-1]; 
+      if(c>2) return null; 
+      if(c>=1){ ns.push(n); if(c===2) dbl++; tot+=c; } 
+    }
+    if(needThree){
+      if(ns.length!==3) return null;
+    }else{
+      if(ns.length<1) return null; // 要有萬筒條
+    }
+    for(let i=0;i<ns.length;i++) 
+      for(let j=i+1;j<ns.length;j++) 
+        if(ns[j]-ns[i] < minGap) return null;
     sets.push(ns);
   }
   if(!(dbl===1&&tot===17)) return null;
-  const keys=sets.map(a=>a.join(','));
-  const isLong=keys.every(k=>['1,4,7','2,5,8','3,6,9'].indexOf(k)>=0)&&new Set(keys).size===3;
-  return {isLong,isFeng:new Set(keys).size===1};
+  const key=a=>a.join(',');
+  const dragon=['1,4,7','2,5,8','3,6,9'];
+  const keys=sets.map(key);
+  const isLong=keys.every(k=>dragon.indexOf(k)>=0)&&new Set(keys).size===3;
+  const isFeng=new Set(keys).size===1;
+  return {sets,isLong,isFeng};
 }
+ 
 function placements(D,w){
   const out=[];
   if(D.pair===w) out.push({kind:'pair',idx:-1});
