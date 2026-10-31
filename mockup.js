@@ -3690,11 +3690,14 @@ function uiChange(k,el){const d=el.dataset,v=el.value;if(k==='uiName'){if(v.trim
 
 let _hasDraft = loadDraft();
 if(window.__UI_TEST__){window.__UI_CORE__={get:()=>S,set:x=>{S=norm(x);pickM();},entry:()=>E,setEntry:x=>{E=Object.assign(newEntry(),x);derive();},act,change:uiChange,mkTxns,applyHand,analyze,curItems,historyFinancials,validateCurrentEntry,finalizeFinancialSnapshots,uBlankValues,uApplySource,uOrigin,uImportPayload,uEntry,uResult,uWizardView,editorHtml,uTableLayout,uTableView,uTableFooter,modal:()=>uiModal,wizard:()=>uiWizard,resume:()=>uiResume,clearResume:()=>uiResume=null,location:()=>({tab,...uiCurrentLocation()}),capture:uiCaptureResume,canResume:uiCanResume,saveDraft,loadDraft,applyDraft};}else{if(_hasDraft){setTab('table');const who=Number.isInteger(draftCache.E.winner)?esc(S.names[draftCache.E.winner]):'未選擇玩家';const steps={pick:'輸入手牌',meld:'確認槓／明牌',jmeld:'確認百搭明牌',win:'確認食糊牌',flowers:'花牌',flags:'特殊情況'};uPopup('找到未完成的輸入','<div class="u-stack"><p>玩家：'+who+'</p><p>輸入進度：'+esc(steps[draftCache.E.mode]||'未完成輸入')+'</p><p>是否繼續剛才的輸入？返回牌桌仍會保留草稿。</p>'+ub('繼續輸入','uiRestoreDraft','','primary')+ub('返回牌桌，保留草稿','uiClose')+'</div>');}render();}
-
-
+if(!window.__UI_TEST__){
+  setTimeout(()=>checkUpdate(false),800);
+}
 
 window.addEventListener('pagehide',()=>saveDraft());
-document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')saveDraft();});
+document.addEventListener('visibilitychange',()=>{
+  if(document.visibilityState==='hidden')saveDraft();
+  else if(!window.__UI_TEST__&&Date.now()-lastUpdateCheck>15*60*1000)checkUpdate(false);
+});
 
 })();
-
