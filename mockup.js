@@ -2646,8 +2646,22 @@ function cardGroups(res){
   if(!placed&&winTile!=null){ for(const g of cg){ const i=g.tiles.indexOf(winTile); if(i>=0){ g.win=i; break; } } }
   return out.concat(cg);
 }
- function shareTiles(g){const mk=(t,i)=>cardTile(t,{wild:g.wild[i],win:g.win===i}),n=g.tiles.length,cols=Math.min(n,g.cols||7);if(n<=cols)return g.tiles.map(mk).join('');const rows=Math.ceil(n/cols),per=Math.ceil(n/rows);let h='<div style="display:flex;flex-direction:column;gap:4px;align-items:center">';for(let r=0;r<rows;r++){const a=r*per;h+='<div style="display:flex;gap:1px">'+g.tiles.slice(a,a+per).map((t,i)=>mk(t,a+i)).join('')+'</div>';}return h+'</div>';}
-
+function shareTiles(g){
+  const mk=(t,i)=>cardTile(t,{wild:g.wild[i],win:g.win===i});
+  const n=g.tiles.length;
+  // 普通牌型：強制 2行 每行3個
+  const isNormal = !isHK() && n>=4 && n<=6;
+  const cols = isNormal ? 3 : 7;
+  if(n<=cols) return g.tiles.map(mk).join('');
+  const rows=Math.ceil(n/cols), per=Math.ceil(n/rows);
+  let h='<div style="display:flex;flex-direction:column;gap:4px;align-items:center">';
+  for(let r=0;r<rows;r++){
+    const a=r*per;
+    h+='<div style="display:flex;gap:1px">'+g.tiles.slice(a,a+per).map((t,i)=>mk(t,a+i)).join('')+'</div>';
+  }
+  return h+'</div>';
+}
+ 
  function shareCard(res, total, raw) {
   if (!res || res.error) return '';
   if (isWild() && !res.complete) return '';
