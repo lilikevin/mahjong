@@ -30,7 +30,23 @@ function buildRules(over){
   return R;
 }
 function valueOf(R,it){ const r=R[it.id]; if(!r) return 0; return r.fan*(it.n===undefined?1:it.n); }
-function decompose(cnt,nSets){ return MJCORE.decompose(cnt,nSets); }
+function decompose(cnt,nSets){
+  const res=[];
+  for(let p=0;p<34;p++){
+    if(cnt[p]<2) continue;
+    cnt[p]-=2;
+    const sets=[];
+    (function rec(){
+      let i=0; while(i<34&&cnt[i]===0) i++;
+      if(i===34){ if(sets.length===nSets) res.push({pair:p,sets:sets.map(s=>({t:s.t,tile:s.tile}))}); return; }
+      if(sets.length>=nSets) return;
+      if(cnt[i]>=3){ cnt[i]-=3; sets.push({t:'pung',tile:i}); rec(); sets.pop(); cnt[i]+=3; }
+      if(i<27&&numOf(i)<=7&&cnt[i+1]>0&&cnt[i+2]>0){ cnt[i]--;cnt[i+1]--;cnt[i+2]--; sets.push({t:'chow',tile:i}); rec(); sets.pop(); cnt[i]++;cnt[i+1]++;cnt[i+2]++; }
+    })();
+    cnt[p]+=2;
+  }
+  return res;
+}
 function isShisan(cnt){
   if(!YAO.every(t=>cnt[t]>=1)) return false;
   let tot=0,dbl=0;
@@ -68,42 +84,8 @@ function stateItems(ctx,items,concealedAll){
     if(nf===8) push('dahuahu');
   } else if(concealedAll) push('menqing');
 }
-function evalBasic(ctx,sets,P,pl){
-  const R=ctx.R, items=[]; const push=(id,n)=>{ n=n===undefined?1:n; if(n>0&&R[id]) items.push({id,n,closed:false}); };
-  const chows=sets.filter(s=>s.t==='chow'), trips=sets.filter(s=>s.t!=='chow'), kongs=sets.filter(s=>s.t==='kong');
-  const tilesAll=[]; sets.forEach(s=>{ if(s.t==='chow'){ tilesAll.push(s.tile,s.tile+1,s.tile+2); } else tilesAll.push(s.tile,s.tile,s.tile); }); tilesAll.push(P,P);
-  const concealedAll=(ctx.concealed!=null)?!!ctx.concealed:sets.every(s=>!s.open&&s.t!=='kong');
-  stateItems(ctx,items,concealedAll);
-  if(chows.length===4) push('pinghu');
-  if(chows.length===0) push('duidui');
-  const dr=trips.filter(s=>s.tile>=31).length;
-  push('sanyuan',dr);
-  if(dr===3) push('dasanyuan'); else if(dr===2&&P>=31) push('xiaosanyuan');
-  let fp=0;
-  trips.forEach(s=>{ if(s.tile>=27&&s.tile<=30){ if(ctx.seatWind!=null&&s.tile===27+ctx.seatWind) fp++; if(ctx.roundWind!=null&&s.tile===27+ctx.roundWind) fp++; } });
-  push('fengpai',fp);
-  const wt=trips.filter(s=>s.tile>=27&&s.tile<=30).length;
-  if(wt===4) push('daxixi'); else if(wt===3&&P>=27&&P<=30) push('xiaosixi');
-  const hasHon=tilesAll.some(isHon);
-  const suits=new Set(tilesAll.filter(t=>!isHon(t)).map(suitOf));
-  if(suits.size===1&&hasHon) push('hunyise');
-  else if(suits.size===1&&!hasHon) push('qingyise');
-  if(suits.size===0) push('quanfanzi');
-  if(tilesAll.every(t=>isHon(t)||numOf(t)===1||numOf(t)===9)) push('huayao');
-  if(tilesAll.every(t=>!isHon(t)&&(numOf(t)===1||numOf(t)===9))) push('qingyaojiu');
-  if(kongs.length===4) push('shibaluohan');
-  const ac=trips.filter(s=>!s.ronPung&&s.t!=='kong').length;
-  if(trips.length===4&&kongs.length===0&&ac===4&&concealedAll) push('kankan');
-  // 1.5 SUP: 清么九/全番子 互斥 花么，十八羅漢 互斥 對對
-  const has = id=>items.some(x=>x.id===id);
-  if(has('qingyaojiu')||has('quanfanzi')){
-    for(let i=items.length-1;i>=0;i--) if(items[i].id==='huayao') items.splice(i,1);
-  }
-  if(has('shibaluohan')){
-    for(let i=items.length-1;i>=0;i--) if(items[i].id==='duidui') items.splice(i,1);
-  }
-  return items;
-}
+
+function evalBasic(ctx,sets,P,pl){const R=ctx.R,items=[];const push=(id,n)=>{n=n===undefined?1:n;if(n>0&&R[id])items.push({id,n,closed:false});};const chows=sets.filter(s=>s.t==='chow'),trips=sets.filter(s=>s.t!=='chow'),kongs=sets.filter(s=>s.t==='kong');const tilesAll=[];sets.forEach(s=>{if(s.t==='chow'){tilesAll.push(s.tile,s.tile+1,s.tile+2);}else tilesAll.push(s.tile,s.tile,s.tile);});tilesAll.push(P,P);const concealedAll=(ctx.concealed!=null)?!!ctx.concealed:sets.every(s=>!s.open&&s.t!=='kong');stateItems(ctx,items,concealedAll);if(chows.length===4)push('pinghu');if(chows.length===0)push('duidui');const dr=trips.filter(s=>s.tile>=31).length;push('sanyuan',dr);if(dr===3)push('dasanyuan');else if(dr===2&&P>=31)push('xiaosanyuan');let fp=0;trips.forEach(s=>{if(s.tile>=27&&s.tile<=30){if(ctx.seatWind!=null&&s.tile===27+ctx.seatWind)fp++;if(ctx.roundWind!=null&&s.tile===27+ctx.roundWind)fp++;}});push('fengpai',fp);const wt=trips.filter(s=>s.tile>=27&&s.tile<=30).length;if(wt===4)push('daxixi');else if(wt===3&&P>=27&&P<=30)push('xiaosixi');const hasHon=tilesAll.some(isHon),suits=new Set(tilesAll.filter(t=>!isHon(t)).map(suitOf));if(suits.size===1&&hasHon)push('hunyise');else if(suits.size===1&&!hasHon)push('qingyise');if(suits.size===0)push('quanfanzi');if(tilesAll.every(t=>isHon(t)||numOf(t)===1||numOf(t)===9))push('huayao');if(tilesAll.every(t=>!isHon(t)&&(numOf(t)===1||numOf(t)===9)))push('qingyaojiu');if(kongs.length===4)push('shibaluohan');const ac=trips.filter(s=>!s.ronPung&&s.t!=='kong').length;if(trips.length===4&&kongs.length===0&&ac===4&&concealedAll)push('kankan');return items.some(x=>x.id==='kankan')?items.filter(x=>x.id!=='duidui'):items;} 
 function basic(inp){
   const ctx={R:buildRules(null),flowers:inp.flowers,selfDraw:!!inp.selfDraw,flags:inp.flags||{},seatWind:inp.seatWind,useFlowers:!!inp.useFlowers};
   const items=[]; stateItems(ctx,items,!!inp.concealed);

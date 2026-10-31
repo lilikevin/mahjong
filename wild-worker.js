@@ -1,80 +1,33 @@
-/* Local scoring only: no AI or cloud service is called. */
-importScripts('mj-core.js','engine_wild.js');
-let ready,ENGINE;
-async function loadEngines(){
- for(const file of ['engine.js','engine2.js','engine4.js']){
-  const r=await fetch(file);if(!r.ok)throw Error('無法讀取 '+file);
-  let src=await r.text();
-  const anchor='base.getWaits=function(){';
-  if(!src.includes(anchor))throw Error(file+' 結構不同，請提供最新版引擎以便整合');
-  src=src.replace(anchor,anchor+' if(typeof globalThis.MJ_WILD_WAITS==="number") return globalThis.MJ_WILD_WAITS;');
-  (0,eval)(src);
- }
-}
-function completed(c,n,special){
- if(ENGINE.decompose(c.slice(),n).length)return true;
- if(!special)return false;
- const hand=[];c.forEach((v,t)=>{for(let i=0;i<v;i++)hand.push(t);});
- const r=ENGINE.analyze({hand,melds:[],win:hand[0],selfDraw:true,flowers:[],flags:{}},{});
- return !!(r&&!r.error&&r.items);
-}
-function exists(fixed,k,n,base,special){
- for(const c of MJW.targets(fixed,k,n,base,special))if(completed(c,n,special))return true;
- return false;
-}
-function waitCount(inp,mc){
- const f=inp.hand.filter(t=>t!==34);let k=inp.hand.length-f.length;
- if(inp.win===34)k--;else f.splice(f.indexOf(inp.win),1);
- const physical=MJW.count(f.concat(inp.groups.flatMap(g=>g.physical.filter(t=>t!==34))));
- let n=0;
- for(let t=0;t<34;t++)if(physical[t]<4&&exists(f.concat([t]),k,5-inp.groups.length,mc.base,inp.groups.length===0))n++;
- const usedJokers=k+inp.groups.reduce((a,g)=>a+g.physical.filter(t=>t===34).length,0);
- if(usedJokers<inp.limit&&exists(f,k+1,5-inp.groups.length,mc.base,inp.groups.length===0))n++;
- return n;
-}
-onmessage=async e=>{
+/* Exact candidate enumeration; cancellation terminates the worker. */
+'use strict';
+importScripts('mj-core.js','engine.js','engine2.js','engine4.js','engine_wild.js');
+onmessage=function(event){
  try{
-  if(!ready)ready=loadEngines();await ready;
-  const {inp,over,excluded}=e.data;
-  const baseEngine=inp.preset===4?globalThis.MJ4:inp.preset===2?globalThis.MJ2:inp.preset===3?globalThis.MJ3:globalThis.MJ;
-  if(!baseEngine)throw Error('未能載入所選番表');
-  ENGINE=(inp.preset!==4&&globalThis.MJRULES)?globalThis.MJRULES.wrap(baseEngine):baseEngine;
-  const raw=inp.hand.concat(inp.groups.flatMap(g=>g.physical));
-  if(raw.some(t=>!Number.isInteger(t)||t<0||t>34))throw Error('無效牌');
-  if(raw.filter(t=>t===34).length>inp.limit)throw Error('百搭數超過開局設定');
-  if(!inp.wildMeld&&inp.groups.some(g=>g.physical.includes(34)))throw Error('目前規則:百搭不能用於上、碰、槓');
-  if(MJW.count(raw.filter(t=>t<34)).some(v=>v>4))throw Error('同款真牌多於四張');
-  const n=5-inp.groups.length;
-  if(n<0||inp.hand.length!==3*n+2)throw Error('手牌連食糊牌應有 '+(3*n+2)+' 張');
-  if(!inp.hand.includes(inp.win))throw Error('請指定手牌中的食糊牌');
-  if(!inp.selfDraw&&inp.win===34)throw Error('百搭不可由他家打出食糊，請改選實際食糊牌或自摸');
-  const fixed=inp.hand.filter(t=>t!==34),k=inp.hand.length-fixed.length,fc=MJW.count(fixed);
-  const effectiveOver=JSON.parse(JSON.stringify(over||{}));
-  (excluded||[]).forEach(id=>{effectiveOver[id]={fan:0,fanC:0};});
-  const R=ENGINE.buildRules(effectiveOver);
-  let best=null,count=0,last=Date.now();
-  for(const mc of MJW.meldChoices(inp.groups)){
-   globalThis.MJ_WILD_WAITS=2;
-   const waits=waitCount(inp,mc);
-   globalThis.MJ_WILD_WAITS=waits;
-   for(const target of MJW.targets(fixed,k,n,mc.base,inp.groups.length===0)){
-    const hand=[];target.forEach((v,t)=>{for(let i=0;i<v;i++)hand.push(t);});
-    const wins=inp.win===34?target.map((v,t)=>v>fc[t]?t:-1).filter(t=>t>=0):[inp.win];
-    for(const win of wins){
-     const r=ENGINE.analyze({hand,melds:mc.melds,win,selfDraw:inp.selfDraw,flags:inp.flags,flowers:inp.flowers,seatWind:inp.seatWind,roundWind:inp.roundWind,kongKeep:inp.kongKeep},effectiveOver);
-     count++;
-     if(r&&!r.error&&r.items){
-      const total=r.items.reduce((a,x)=>a+ENGINE.valueOf(R,x),0);
-      if(!best||total>best.total){
-       const replacements=[];target.forEach((v,t)=>{for(let j=fc[t];j<v;j++)replacements.push(t);});
-       const assigned=mc.melds.map((m,i)=>{const c=MJW.count(MJW.meldTiles(m));inp.groups[i].physical.filter(t=>t!==34).forEach(t=>c[t]--);const out=[];c.forEach((v,t)=>{for(let j=0;j<v;j++)out.push(t);});return out;});
-       best={items:r.items,total,replacements,assigned,win,waits};
-      }
-     }
-     if(Date.now()-last>400){postMessage({progress:count,best:best?best.total:null});last=Date.now();}
-    }
+ const {inp,over={},excluded=[]}=event.data||{};
+ if(!inp||!Array.isArray(inp.hand)||!Array.isArray(inp.groups))throw Error('百搭輸入資料不完整');
+ const engines={1:self.MJ,2:self.MJ2,3:self.MJ3,4:self.MJ4},base=engines[inp.preset||3];if(!base)throw Error('番表未載入');
+ const M=inp.preset!==4&&self.MJRULES?self.MJRULES.wrap(base):base,R=M.buildRules(over),excludedSet=new Set(excluded);
+ const all=inp.hand.concat(...inp.groups.map(g=>g.physical));
+ if(all.some(t=>!Number.isInteger(t)||t<0||t>34))throw Error('牌張編號無效');
+ if(all.filter(t=>t===34).length>inp.limit)throw Error('百搭超過本場上限');
+ if(!inp.wildMeld&&inp.groups.some(g=>g.physical.includes(34)))throw Error('本場不允許百搭用於明牌');
+ if(inp.win===34&&!inp.selfDraw)throw Error('百搭不能作為出銃牌');
+ if(inp.win==null)throw Error('請選食糊牌');
+ const fixed=inp.hand.filter(t=>t!==34),wilds=inp.hand.length-fixed.length,fixedCounts=Array(34).fill(0);fixed.forEach(t=>fixedCounts[t]++);
+ let best=null,count=0,groupCount=0;
+ for(const choice of self.MJW.meldChoices(inp.groups)){
+  groupCount++;
+  for(const counts of self.MJW.targets(fixed,wilds,5-choice.melds.length,choice.base,true)){
+   const hand=[],replacements=[];for(let t=0;t<34;t++)for(let n=0;n<counts[t];n++){hand.push(t);if(n>=fixedCounts[t])replacements.push(t);}
+   const wins=inp.win===34?Array.from(new Set(replacements)):[inp.win];
+   for(const win of wins){if(!hand.includes(win))continue;const context={...inp,hand,melds:choice.melds,win};const r=M.analyze(context,over);count++;
+    if(r&&!r.error&&r.items){const items=r.items.filter(x=>!excludedSet.has(x.id)),total=items.reduce((n,x)=>n+M.valueOf(R,x),0);if(!best||total>best.total)best={...r,items,total,count,win,replacements:replacements.slice(),assigned:hand.slice(),complete:true};}
+    if(count%100===0)postMessage({progress:count,best:best?best.total:null});
    }
   }
-  postMessage({done:true,result:best?{...best,count,complete:true}:{error:'未能在目前限制下組成食糊牌形',count}});
- }catch(err){postMessage({done:true,result:{error:String(err.message||err)}});}
+ }
+ if(!groupCount)throw Error('明牌未能組成合法組合');
+ if(!best)throw Error('百搭未能組成食糊牌型');best.count=count;
+ postMessage({done:true,result:best});
+ }catch(e){postMessage({done:true,result:{error:e.message||String(e),complete:false}});}
 };

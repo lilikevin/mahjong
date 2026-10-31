@@ -8,7 +8,23 @@ const isHon=i=>i>=27;
 const FLOWERS=['春','夏','秋','冬','梅','蘭','菊','竹'];
 const YAO=[0,8,9,17,18,26,27,28,29,30,31,32,33];
 
-function decompose(cnt,nSets){ return MJCORE.decompose(cnt,nSets); }
+function decompose(cnt,nSets){
+  const res=[];
+  for(let p=0;p<34;p++){
+    if(cnt[p]<2) continue;
+    cnt[p]-=2;
+    const sets=[];
+    (function rec(){
+      let i=0; while(i<34&&cnt[i]===0) i++;
+      if(i===34){ if(sets.length===nSets) res.push({pair:p,sets:sets.map(s=>({t:s.t,tile:s.tile}))}); return; }
+      if(sets.length>=nSets) return;
+      if(cnt[i]>=3){ cnt[i]-=3; sets.push({t:'pung',tile:i}); rec(); sets.pop(); cnt[i]+=3; }
+      if(i<27&&numOf(i)<=7&&cnt[i+1]>0&&cnt[i+2]>0){ cnt[i]--;cnt[i+1]--;cnt[i+2]--; sets.push({t:'chow',tile:i}); rec(); sets.pop(); cnt[i]++;cnt[i+1]++;cnt[i+2]++; }
+    })();
+    cnt[p]+=2;
+  }
+  return res;
+}
 function isLik(cnt){ let t=0,p=0; for(const c of cnt){ if(c===0) continue; if(c===3) t++; else if(c===2) p++; else return false; } return t===1&&p===7; }
 function isShisan(cnt){
   const isY=t=>YAO.indexOf(t)>=0;

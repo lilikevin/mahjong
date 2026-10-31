@@ -1,77 +1,28 @@
-<!DOCTYPE html>
-<html lang="zh-Hant"><head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="mobile-web-app-capable" content="yes">
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0f2a1f">
+  <title>麻雀計番</title>
+  <link rel="stylesheet" href="mockup.css?v=2.0.0-test.23">
+  <script defer src="mj-core.js"></script>
+  <script defer src="engine.js"></script>
+  <script defer src="engine2.js"></script>
+  <script defer src="engine4.js"></script>
+  <script defer src="engine_hk.js"></script>
+  <script defer src="engine_wild.js"></script>
+  <script defer src="mockup.js?v=2.0.0-test.23"></script>
+  <link rel="manifest" href="manifest.json?v=2">
+<link rel="icon" type="image/png" href="icon-192.png?v=2">
+<link rel="apple-touch-icon" href="icon-192.png?v=2">
 <meta name="apple-mobile-web-app-title" content="麻雀計番">
-<meta name="theme-color" content="#0b5d3b">
-<meta name="description" content="港式台牌、通用百搭、廣東牌麻雀計番與拉數記帳,可離線使用。">
-<meta property="og:type" content="website">
-<meta property="og:title" content="麻雀計番">
-<meta property="og:description" content="港式台牌、通用百搭、廣東牌麻雀計番與拉數記帳,可離線使用。">
-<meta property="og:url" content="https://lilikevin.github.io/mahjong/">
-<meta property="og:image" content="https://lilikevin.github.io/mahjong/icon-512.png">
-<meta name="twitter:card" content="summary">
-<link rel="manifest" href="manifest.json">
-<link rel="apple-touch-icon" href="icon-192.png">
-<title>麻雀計番</title>
-<style>
-html,body{touch-action:manipulation;-ms-touch-action:manipulation;overscroll-behavior-y:contain}
-*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
-html{-webkit-text-size-adjust:100%}
-body{margin:0;font-family:-apple-system,"PingFang HK","Noto Sans TC",sans-serif;background:#0f2a1f;color:#eef5ef;font-size:15px}
-button,nav,.pal,.zone,.steps{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
-.body{padding:12px 12px 90px;max-width:620px;margin:auto}
-h3{margin:18px 0 8px;font-size:15px;color:#9fe0b8}h3 small{color:#9db;font-weight:normal}
-button,select,input{font:inherit}
-button{background:#1d4a38;color:#eef5ef;border:1px solid #2f6a52;border-radius:8px;padding:8px 10px}
-button.on{background:#e6b422;color:#222;border-color:#e6b422}
-button.primary{background:#e6b422;color:#222;border-color:#e6b422;font-weight:600}
-button.danger{background:#7a2b2b}
-select,input,input[type=number]{font-size:16px!important;width:100%;background:#16382b;color:#eef5ef;border:1px solid #2f6a52;border-radius:8px;padding:8px}
-input[type=checkbox]{width:auto}
-label{display:block;font-size:13px;color:#b9d6c4}
-.grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-.seg{display:flex;gap:6px;margin:6px 0}.seg button{flex:1;padding:8px 2px;line-height:1.2}.seg small{display:block;font-size:11px;opacity:.7}
-.steps{display:flex;gap:6px;margin:6px 0}.steps button{flex:1;padding:10px 2px;line-height:1.25;font-weight:600}.steps small{display:block;font-size:11px;font-weight:normal;opacity:.75}
-.btnrow{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}.btnrow button{flex:1;min-width:110px}
-.card{background:#16382b;border:1px solid #2f6a52;border-radius:12px;padding:10px;margin:8px 0}
-.cross{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin:10px 0}
-.seat{text-align:center;margin:0}.seat.dealer{border-color:#e6b422;box-shadow:0 0 0 1px #e6b422}
-.sw{font-size:22px;color:#e6b422}.pn{font-size:17px;font-weight:600;text-decoration:underline dotted}.mini{font-size:12px;color:#9db}
-.center{display:flex;align-items:center;justify-content:center;text-align:center;color:#6a9;font-size:13px}
-.bal{font-size:20px;font-weight:700}.pos{color:#7ee08f}.neg{color:#ff8b8b}
-.status{background:#16382b;border-radius:10px;padding:10px;text-align:center;color:#e6b422}
-.hint{font-size:12px;color:#8fb09c;margin:6px 0}.hint a{color:#e6b422;margin-right:8px}
-.note{background:#2a4a38;padding:8px;border-radius:8px;font-size:13px}
-.warn{background:#5a2d2d;padding:8px;border-radius:8px;font-size:13px}.ok{background:#1e4a30;padding:8px;border-radius:8px;font-size:13px}
-.pal .row,.extras,.flowers,.flags{display:flex;flex-wrap:wrap;gap:4px;margin:4px 0}
-.t{min-width:34px;padding:10px 2px;font-size:14px;background:#f7f3e3;color:#222;border:1px solid #bbb;flex:1 0 9%}
-.t.s0{color:#a0201a}.t.s1{color:#1c4fa0}.t.s2{color:#1a7a3a}.t.s3{color:#222}
-.zone{min-height:56px;display:flex;flex-wrap:wrap;gap:4px;align-items:center;background:#102e22;border:2px dashed #2f6a52;border-radius:10px;padding:8px}
-.zone .t{flex:0 0 auto;min-width:40px}
-.winzone{border-color:#e6b422;background:#2b2a12}.t.win{outline:3px solid #e6b422;background:#fff3b0}
-.meld{background:#2a4a38;border-radius:8px;padding:6px 8px;font-size:13px}.meld b{padding:0 6px;cursor:pointer}
-.flowers .fl{flex:1;padding:8px 0}
-.flags label{background:#16382b;padding:6px 8px;border-radius:8px;color:#eef5ef}.flags input{margin-right:4px}
-.fans .fan{display:flex;justify-content:space-between;padding:7px 4px;border-bottom:1px solid #254a3a}
-.fan label{color:#eef5ef;font-size:15px}.fan span{color:#e6b422;font-weight:700}
-.total{font-size:20px;text-align:right;margin:10px 0}.total b{color:#e6b422;font-size:28px}
-.addfan{margin:8px 0}
-.prev{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;text-align:center;background:#102e22;border-radius:10px;padding:8px}
-.prev small{display:block;color:#9db;font-size:11px}.prev b{font-size:16px}
-.rec .rh{margin-bottom:6px}.rec small{color:#9db}.rw{margin:4px 0}
-table{width:100%;border-collapse:collapse}th,td{padding:8px;border-bottom:1px solid #254a3a;text-align:left}
-.tr{padding:10px;background:#16382b;border-radius:10px;margin:6px 0;font-size:16px}
-.stepper{display:flex;align-items:center;gap:8px;color:#b9d6c4}.stepper b{font-size:18px;min-width:20px;text-align:center}
-.frow{display:grid;grid-template-columns:1fr 70px 70px;gap:6px;padding:4px 0;align-items:center}.frow.man{background:#1a2e26}
-.frow input{padding:5px}
-nav{position:fixed;bottom:0;left:0;right:0;display:flex;background:#0b1f16;border-top:1px solid #2f6a52;padding:6px 6px calc(6px + env(safe-area-inset-bottom));z-index:5}
-nav button{flex:1;border:0;background:transparent;padding:10px 0;font-size:15px}nav button.on{background:#e6b422}
-#toast{position:fixed;left:50%;bottom:90px;transform:translateX(-50%);background:#000c;color:#fff;padding:8px 16px;border-radius:20px;opacity:0;transition:.2s;pointer-events:none;z-index:9}
-#toast.show{opacity:1}
-</style></head>
-<body><div id="app"></div><div id="toast"></div>
-<script src="mj-core.js"></script><script src="engine.js"></script><script src="engine2.js"></script><script src="engine_hk.js"></script><script src="app.js"></script>
-</body></html>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+</head>
+<body>
+  <div id="app"></div>
+  <div id="toast" role="status" aria-live="polite"></div>
+  <noscript>請啟用 JavaScript 以使用麻雀計番。</noscript>
+</body>
+</html>
