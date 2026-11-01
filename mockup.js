@@ -1,7 +1,7 @@
 (function(){
 'use strict';
 if(!window.MJ){const a=document.getElementById('app');if(a)a.textContent='計番引擎未能載入，請確認 engine.js 已上傳。';return;}
-const APP_VERSION='2.0.18';
+const APP_VERSION='2.0.19';
 const DEV_IG='kevinli999';
 let M=window.MJ;
 const KEY='mj_v2_full_merge_1';
@@ -161,7 +161,7 @@ function pickM(){
   M=(p!==4&&window.MJRULES)?window.MJRULES.wrap(b):b;
 }
 pickM();
-if(!window.MJ4){ try{ const sc=document.createElement('script'); sc.src='engine4.js'; sc.onload=()=>{ pickM(); render(); }; document.head.appendChild(sc); }catch(e){} }
+if(!window.MJ4){ try{ const sc=document.createElement('script'); sc.src='engine4.js?v='+APP_VERSION; sc.onload=()=>{ pickM(); render(); }; document.head.appendChild(sc); }catch(e){} }
 let lastSaveWarn=0;
 const save=()=>{ if(uiWizard)return;finalizeFinancialSnapshots(); try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){ const t=Date.now(); if(t-lastSaveWarn>8000){ lastSaveWarn=t; toast('儲存失敗(記憶體可能已滿)。請到「設定」匯出備份'); } } try{ saveDraft(); }catch(e){} };
 const newEntry=()=>({shapeDone:false,hkKongs:{},winner:null,self:true,disc:null,hkWin:null,all:[],wildGroups:[],jsel:{},adjust:0,pickRep:null,marks:Array(34).fill(0),kongOpen:{},melds:[],hand:[],win:null,partBad:false,mode:'pick',flowers:Array(8).fill(false),flags:{},excl:{},extra:[],bao:null});
@@ -403,7 +403,7 @@ function injectCss(){
   try{
     if(document.getElementById('mj-static')) return;
     const a=document.createElement('style'); a.id='mj-static'; a.textContent=STATIC_CSS; document.head.appendChild(a);
-    const b=document.createElement('style'); b.id='mj-dyn'; b.textContent=DYN_CSS; document.head.appendChild(b);const c=document.createElement('link');c.rel='stylesheet';c.href='mockup.css?v=2.0.0-test.4';document.head.appendChild(c);
+    const b=document.createElement('style'); b.id='mj-dyn'; b.textContent=DYN_CSS; document.head.appendChild(b);const c=document.createElement('link');c.rel='stylesheet';c.href='mockup.css?v='+APP_VERSION;document.head.appendChild(c);
   }catch(e){}
 }
 function applyTheme(){
@@ -454,7 +454,7 @@ async function doUpgrade(){
   try{
     if('serviceWorker' in navigator){ const rs=await navigator.serviceWorker.getRegistrations(); await Promise.all(rs.map(r=>r.unregister())); }
     if(window.caches){ const ks=await caches.keys(); await Promise.all(ks.map(k=>caches.delete(k))); }
-    await Promise.all(['./','index.html','app.js','engine.js','engine2.js','mj-core.js','engine_hk.js','engine4.js','engine_wild.js','wild-worker.js','manifest.json','sw.js','version.json','icon-192.png','icon-512.png'].map(f=>fetch(f,{cache:'reload'}).catch(()=>{})));
+    await Promise.all(['./','index.html','mockup.html','mockup.js?v='+APP_VERSION,'mockup.css?v='+APP_VERSION,'engine.js?v='+APP_VERSION,'engine2.js?v='+APP_VERSION,'mj-core.js?v='+APP_VERSION,'engine_hk.js?v='+APP_VERSION,'engine4.js?v='+APP_VERSION,'engine_wild.js?v='+APP_VERSION,'wild-worker.js?v='+APP_VERSION,'manifest.json?v='+APP_VERSION,'sw.js','version.json','icon-192.png?v='+APP_VERSION,'icon-512.png?v='+APP_VERSION].map(f=>fetch(f,{cache:'reload'}).catch(()=>{})));
   }catch(e){}
   location.reload();
 }
@@ -2982,7 +2982,7 @@ function wildStart(){
  if(!E.self&&E.win===34){toast('他家打出的百搭不可食糊');return;}
  const inp=wildInput();wildKey=wildSignature();wildBusy=true;
  try{
-  const job=wildJob=new Worker('wild-worker.js');
+  const job=wildJob=new Worker('wild-worker.js?v='+APP_VERSION);
   job.onmessage=e=>{if(wildJob!==job)return;const d=e.data;if(d.progress!=null){wildProgress=d.progress;const el=document.getElementById('wild-progress');if(el)el.textContent='已評估 '+wildProgress+' 種代入及食糊牌組合'+(d.best!=null?',目前最高 '+d.best+' 番':'');return;}
    if(d.done){wildDone=d.result;wildBusy=false;job.terminate();wildJob=null;render();}};
   job.onerror=e=>{if(wildJob!==job)return;wildDone={error:e.message||'無法載入背景計番,請檢查已上傳 wild-worker.js、engine_wild.js、engine4.js'};wildStop();render();};
@@ -3769,6 +3769,7 @@ let _hasDraft = loadDraft();
 if(window.__UI_TEST__){window.__UI_CORE__={get:()=>S,set:x=>{S=norm(x);pickM();},entry:()=>E,setEntry:x=>{E=Object.assign(newEntry(),x);derive();},act,change:uiChange,mkTxns,applyHand,analyze,curItems,historyFinancials,validateCurrentEntry,finalizeFinancialSnapshots,uBlankValues,uApplySource,uOrigin,uImportPayload,uEntry,uResult,uWizardView,editorHtml,uTableLayout,uTableView,uTableFooter,modal:()=>uiModal,wizard:()=>uiWizard,resume:()=>uiResume,clearResume:()=>uiResume=null,location:()=>({tab,...uiCurrentLocation()}),capture:uiCaptureResume,canResume:uiCanResume,saveDraft,loadDraft,applyDraft};}else{if(_hasDraft){setTab('table');const who=Number.isInteger(draftCache.E.winner)?esc(S.names[draftCache.E.winner]):'未選擇玩家';const steps={pick:'輸入手牌',meld:'確認槓／明牌',jmeld:'確認百搭明牌',win:'確認食糊牌',flowers:'花牌',flags:'特殊情況'};uPopup('找到未完成的輸入','<div class="u-stack"><p>玩家：'+who+'</p><p>輸入進度：'+esc(steps[draftCache.E.mode]||'未完成輸入')+'</p><p>是否繼續剛才的輸入？返回牌桌仍會保留草稿。</p>'+ub('繼續輸入','uiRestoreDraft','','primary')+ub('返回牌桌，保留草稿','uiClose')+'</div>');}render();}
 if(!window.__UI_TEST__){
   setTimeout(()=>checkUpdate(false),800);
+  if('serviceWorker' in navigator) window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(e=>console.warn('Service Worker registration failed',e)));
 }
 
 ['dblclick'].forEach(ev=>document.addEventListener(ev,e=>e.preventDefault()));

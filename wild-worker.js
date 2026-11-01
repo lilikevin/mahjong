@@ -1,6 +1,6 @@
 /* Exact candidate enumeration; cancellation terminates the worker. */
 'use strict';
-importScripts('mj-core.js','engine.js','engine2.js','engine4.js','engine_wild.js');
+importScripts('mj-core.js?v=2.0.19','engine.js?v=2.0.19','engine2.js?v=2.0.19','engine4.js?v=2.0.19','engine_wild.js?v=2.0.19');
 onmessage=function(event){
  try{
  const {inp,over={},excluded=[]}=event.data||{};
