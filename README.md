@@ -1,6 +1,6 @@
 # 麻雀計番
 
-麻雀計番是一款提供繁體中文介面的手機優先網頁應用程式，支援港式台牌、港式台牌百搭及廣東牌的計番與牌局結算。程式版本：2.0.19。
+麻雀計番是一款提供繁體中文介面的手機優先網頁應用程式，支援港式台牌、港式台牌百搭及廣東牌的計番與牌局結算。程式版本：2.0.20。
 
 ## 開始使用
 
@@ -8,7 +8,7 @@
 
 在 iPhone 上可用 Safari 開啟網站，依照首次開啟時的提示，透過「分享」→「加入主畫面」建立捷徑。瀏覽器分頁與主畫面 App 的本機資料可能分開保存；需要轉移資料時，請先在原處匯出備份，再於新處匯入。
 
-程式會在開啟及重新回到前景時檢查 `version.json`，並使用 Service Worker 快取主要程式資源以支援離線開啟。發布新版本時，請同步更新 `mockup.js` 的 `APP_VERSION`、`version.json` 的版本及日期、`sw.js` 的快取名稱與資源版本字串、`wild-worker.js` 的引擎版本字串，以及入口 HTML 的 CSS／JavaScript／manifest 資源版本字串；使用者會看到更新提示，可選擇立即刷新或稍後更新。
+程式會在開啟及重新回到前景時檢查 `version.json`，並使用 Service Worker 快取主要程式資源以支援離線開啟。發布新版本時，請同步更新 `app.js` 的 `APP_VERSION`、`version.json` 的版本及日期、`sw.js` 的快取名稱與資源版本字串、`wild-worker.js` 的引擎版本字串，以及入口 HTML 的 CSS／JavaScript／manifest 資源版本字串；使用者會看到更新提示，可選擇立即刷新或稍後更新。
 
 ## 功能
 
@@ -30,7 +30,9 @@
 | 檔案 | 用途 |
 | --- | --- |
 | `index.html` | 網站入口 |
-| `mockup.js`、`mockup.css` | 主要介面與互動程式 |
+| `app.js`、`app.css` | 主要介面與互動程式 |
+| `app.html` | 次要入口頁 |
+| `legacy-app-v1.js` | 舊版 1.x 程式，保留作相容參考，不是目前入口 |
 | `mj-core.js`、`engine*.js` | 共用牌型分析及各番表／玩法引擎 |
 | `wild-worker.js` | 百搭牌型背景搜尋 |
 | `manifest.json`、`icon-*.png` | 主畫面捷徑及圖示資源 |
@@ -38,7 +40,7 @@
 | `sw.js` | Service Worker 快取設定 |
 | `t_sup_check.js` | 檢查番表不複合規則引用的 Node.js 小工具 |
 
-`mockup.html` 是另一個可用的入口頁。部署時建議以 `index.html` 作為首頁，並將本 repository 的檔案一併發布。
+部署時建議以 `index.html` 作為首頁，並將本 repository 的檔案一併發布。
 
 
 
