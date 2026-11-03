@@ -1,7 +1,7 @@
 (function(){
 'use strict';
 if(!window.MJ){const a=document.getElementById('app');if(a)a.textContent='計番引擎未能載入，請確認 engine.js 已上傳。';return;}
-const APP_VERSION='2.0.20';
+const APP_VERSION='2.0.21';
 const DEV_IG='kevinli999';
 let M=window.MJ;
 const KEY='mj_v2_full_merge_1';
@@ -2694,9 +2694,9 @@ function shareTiles(g){
 
   if (isHK()) {
     groupsHtml =
-      '<div class="u-share-groups" style="display:grid;gap:4px;align-items:stretch;margin-top:4px">' +
+      '<div class="u-share-groups' + (gs.length === 1 ? ' single' : '') + '" style="display:grid;gap:4px;align-items:stretch;margin-top:4px">' +
       gs.map((g, i) =>
-        '<div class="u-share-set" style="--group-cols:' + Math.max(1, g.cols || g.tiles.length) + ';min-width:0;container-type:inline-size;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;padding:3px 1px 2px;border-radius:7px;background:rgba(255,255,255,.07)">' +
+        '<div class="u-share-set" style="--group-cols:' + Math.min(7, Math.max(1, g.cols || g.tiles.length)) + ';min-width:0;container-type:inline-size;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;padding:3px 1px 2px;border-radius:7px;background:rgba(255,255,255,.07)">' +
           '<div style="display:flex;justify-content:center;align-items:center;gap:1px;max-width:100%;padding:1px 0 3px">' +
             shareTiles(g) +
           '</div>' +
@@ -2781,7 +2781,7 @@ function shareTiles(g){
           'height:16px;' +
         '}' +
       '</style>' +
-      '<div class="u-share-groups" style="' +
+      '<div class="u-share-groups' + (gs.length === 1 ? ' single' : '') + '" style="' +
         'display:grid;' +
         'gap:4px;' +
         'align-items:stretch;' +

@@ -1,10 +1,10 @@
-const C='mj-v20-v2.0.20';
+const C='mj-v20-v2.0.21';
 const A=[
-  './','index.html','app.html','app.js?v=2.0.20','app.css?v=2.0.20',
-  'mj-core.js?v=2.0.20','engine.js?v=2.0.20','engine2.js?v=2.0.20',
-  'engine4.js?v=2.0.20','engine_hk.js?v=2.0.20','engine_wild.js?v=2.0.20',
-  'wild-worker.js?v=2.0.20','manifest.json?v=2.0.20','version.json','sw.js',
-  'icon-192.png?v=2.0.20','icon-512.png?v=2.0.20'
+  './','index.html','app.html','app.js?v=2.0.21','app.css?v=2.0.21',
+  'mj-core.js?v=2.0.21','engine.js?v=2.0.21','engine2.js?v=2.0.21',
+  'engine4.js?v=2.0.21','engine_hk.js?v=2.0.21','engine_wild.js?v=2.0.21',
+  'wild-worker.js?v=2.0.21','manifest.json?v=2.0.21','version.json','sw.js',
+  'icon-192.png?v=2.0.21','icon-512.png?v=2.0.21'
 ];
 self.addEventListener('install',e=>e.waitUntil(caches.open(C).then(c=>c.addAll(A)).then(()=>self.skipWaiting())));
 self.addEventListener('activate',e=>e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>k.startsWith('mj-')&&k!==C).map(k=>caches.delete(k)))).then(()=>self.clients.claim())));

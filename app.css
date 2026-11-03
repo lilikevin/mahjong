@@ -64,5 +64,9 @@ html{padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-i
 .u-image-review #shareCard>div[style*="flex-wrap:wrap"][style*="font-size:clamp"]{font-size:clamp(9px,2.4vw,11px)!important;line-height:1.2!important;margin-top:3px!important}
 .u-image-review #shareCard .u-share-set>small{font-size:9px!important}
 #shareCard .u-share-groups{grid-template-columns:repeat(3,minmax(0,1fr))}
+#shareCard .u-share-groups.single{grid-template-columns:minmax(0,1fr)}
+#shareCard .u-share-groups.single .u-share-set{width:100%}
+#shareCard .u-share-groups.single .u-share-set .mt{width:min(40px,calc((100cqw - 6px)/var(--group-cols)))!important}
+.u-image-review #shareCard .u-share-groups.single .u-share-set .mt{width:min(40px,calc((100cqw - 6px)/var(--group-cols)))!important}
 #shareCard .u-share-label{font-size:8px!important;white-space:nowrap}
 input[aria-invalid="true"]{outline:2px solid var(--negative);outline-offset:1px}
