@@ -1,7 +1,7 @@
 (function(){
 'use strict';
 if(!window.MJ){const a=document.getElementById('app');if(a)a.textContent='計番引擎未能載入，請確認 engine.js 已上傳。';return;}
-const APP_VERSION='2.0.21';
+const APP_VERSION='2.0.22';
 const DEV_IG='kevinli999';
 let M=window.MJ;
 const KEY='mj_v2_full_merge_1';
@@ -815,7 +815,7 @@ function curItems(res){
     const c=x.closed&&f.fanC!=null; const total=M.valueOf(r,{id:x.id,n:x.n,closed:x.closed});
     return {id:x.id,name:f.name+(f.fanC!=null?(c?'(暗)':'(明)'):''),n:x.n,unit:(x.n?total/x.n:0),total};
   });
-  if(E.adjust) mapped.push({id:'adjust',name:'手動調整番數(beta)',n:1,unit:E.adjust,total:E.adjust});
+  if(E.adjust) mapped.unshift({id:'adjust',name:'手動調整番數',n:1,unit:E.adjust,total:E.adjust});
   return mapped;
 }
 function tileBtn(t){ const lk=(pending.length&&pending[0].ron)?pending[0].ron.winTile:null; return '<button class="t s'+M.suitOf(t)+(t===overTile?' overbox':'')+(lk!=null&&t===lk&&!E.all.includes(lk)?' lockhi':'')+'" data-act="tile" data-t="'+t+'">'+tileName(t)+'</button>'; }
@@ -3560,7 +3560,7 @@ function uShowGroups(t){uiGroupTile=t;uiGroups=[];if(isHK()){if(allCounts()[t]!=
 }
 
 
- function uHistory(){finalizeFinancialSnapshots();if(!S.history.length)return {body:'<p>暫無紀錄。</p>',footer:''};uiHistory=Math.max(0,Math.min(uiHistory<0?S.history.length-1:uiHistory,S.history.length-1));const r=S.history[uiHistory],f=historyFinancials(uiHistory),ws=r.winners||[],fans=ws.flatMap(w=>(w.fans||[]).map(x=>({...x,name:(ws.length>1?S.names[w.p]+' ':'')+(x.id==='di'?'底':x.name)})));let body='<h3>'+esc(recordLabel(r,uiHistory))+'</h3><small>'+WIND[r.wind||0]+'風圈 · 莊 '+historyPlayerName(r.dealer)+'</small><p>本局淨變動</p>'+uBalance(f.complete?f.total:null)+(!f.complete?'<p class="warn">缺少當時拉數快照。</p>':'')+ws.map(w=>'<p>'+historyPlayerName(w.p)+' — '+histWinLine(r,w).head+histWinLine(r,w).extra+'</p>').join('')+'<div class="btnrow">'+ub('番種','uiDetail','data-v="fans"')+ub('已收付','uiDetail','data-v="cash"')+(!isHK()?ub('拉數','uiDetail','data-v="ledger"'):'')+'</div>',n=1;
+ function uHistory(){finalizeFinancialSnapshots();if(!S.history.length)return {body:'<p>暫無紀錄。</p>',footer:''};uiHistory=Math.max(0,Math.min(uiHistory<0?S.history.length-1:uiHistory,S.history.length-1));const r=S.history[uiHistory],f=historyFinancials(uiHistory),ws=r.winners||[],fans=ws.flatMap(w=>(w.fans||[]).map(x=>({...x,name:(ws.length>1?S.names[w.p]+' ':'')+(x.id==='di'?'底':x.name)}))).sort((a,b)=>(a.id==='adjust'?-1:0)-(b.id==='adjust'?-1:0));let body='<h3>'+esc(recordLabel(r,uiHistory))+'</h3><small>'+WIND[r.wind||0]+'風圈 · 莊 '+historyPlayerName(r.dealer)+'</small><p>本局淨變動</p>'+uBalance(f.complete?f.total:null)+(!f.complete?'<p class="warn">缺少當時拉數快照。</p>':'')+ws.map(w=>'<p>'+historyPlayerName(w.p)+' — '+histWinLine(r,w).head+histWinLine(r,w).extra+'</p>').join('')+'<div class="btnrow">'+ub('番種','uiDetail','data-v="fans"')+ub('已收付','uiDetail','data-v="cash"')+(!isHK()?ub('拉數','uiDetail','data-v="ledger"'):'')+'</div>',n=1;
  if(uiDetail==='fans'){n=Math.max(1,Math.ceil(fans.length/6));uiPage=Math.min(uiPage,n-1);body+='<div class="grid2">'+fans.slice(uiPage*6,uiPage*6+6).map(x=>'<div class="card u-money"><span>'+esc(x.name)+'</span><b>'+esc(x.total)+'</b></div>').join('')+'</div>';}
  if(uiDetail==='cash')body+=uBalance(f.cash)+'<small>只顯示當筆已收付。</small>';
  if(uiDetail==='ledger'){const a=historyAfterLedger(uiHistory);if(a){n=Math.max(1,Math.ceil(a.length/2));uiPage=Math.min(uiPage,n-1);body+=a.slice(uiPage*2,uiPage*2+2).map(x=>'<div class="card">'+historyPlayerName(x.from)+' 欠 '+historyPlayerName(x.to)+' $'+x.amt+'（拉'+x.k+'口）'+ledgerDetailHtml(uiHistory,x)+'</div>').join('')+(!a.length?'<p>無未結拉數。</p>':'');}else body+='<p>資料不足。</p>';}

@@ -76,9 +76,9 @@ function stateItems(ctx,items,concealedAll){
   if(ctx.selfDraw) push('zimo');
   ['qiangkong','kongshang','haidi','gsg','tianhu','dihu'].forEach(k=>{ if(f[k]) push(k); });
   const fl=ctx.flowers||Array(8).fill(false), nf=fl.filter(Boolean).length;
+  if(nf===0) push('wuhua');
   if(ctx.useFlowers){
     if(ctx.seatWind!=null&&ctx.seatWind>=0) push('zhenghua',(fl[ctx.seatWind]?1:0)+(fl[ctx.seatWind+4]?1:0));
-    if(nf===0) push('wuhua');
     if(fl.slice(0,4).every(Boolean)) push('yitaihua');
     if(fl.slice(4).every(Boolean)) push('yitaihua');
     if(nf===8) push('dahuahu');
