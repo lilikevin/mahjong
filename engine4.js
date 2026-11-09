@@ -46,11 +46,18 @@ const SUP={
  quanzimei:['zimei','shuangzimei'], shuangzimei:['zimei'], sanxiangfeng:['zimei'],
  tong5:['tong4','banggao','zimei','quanzimei'], tong4:['banggao'], quanyibu:['yibu3','yibu3t'], quansanbu:['sanbu3','sanbu3t'],
  hunx:['hundaix','duidui'], quandaix:['hundaix'],
- xiaosixi:['dasanfeng','xiaosanfeng'], dasanfeng:['xiaosanfeng'], dasanyuan:['xiaosanyuan']
+ xiaosixi:['dasanfeng','xiaosanfeng'],  dasanfeng:['xiaosanfeng'], dasanyuan:['xiaosanyuan'],
+ huashang:['zimo','menmo'], kongshang:['zimo','menmo']
 };
 function applySuppress(items){
   const ids=new Set(items.map(i=>i.id)), kill=new Set();
   Object.keys(SUP).forEach(a=>{ if(ids.has(a)) SUP[a].forEach(b=>kill.add(b)); });
+  if(ids.has('huashang')||ids.has('kongshang')){
+    kill.add('zimo'); kill.add('menmo'); kill.add('mqdingdimo');
+    if(ids.has('menmo')&&!ids.has('menqing')&&FANS.some(f=>f.id==='menqing')){
+      items.push({id:'menqing',n:1,closed:false}); kill.delete('menqing');
+    }
+  }
   return items.filter(i=>!kill.has(i.id));
 }
 function buildRules(over){

@@ -105,6 +105,15 @@ function makeEngine(spec){
   function applySuppress(items,info){
     const ids=new Set(items.map(i=>i.id)), kill=new Set();
     Object.keys(SUP).forEach(a=>{ if(ids.has(a)) SUP[a].forEach(b=>kill.add(b)); });
+    if(ids.has('huashang')||ids.has('kongshang')){
+      kill.add('zimo'); kill.add('menmo');
+      if(ids.has('menqing_zimo')){
+        kill.add('menqing_zimo');
+        if(spec.RAW.some(row=>row[0]==='menqing')&&!ids.has('menqing')){
+          items.push({id:'menqing',n:1,closed:false}); kill.delete('menqing');
+        }
+      }
+    }
     if(spec.ziyiseKillAn&&ids.has('ziyise')&&info.concealed) ['an2','an3','an4','an5'].forEach(b=>kill.add(b));
     if(info.dx&&[1,2,8,9].indexOf(info.dx)>=0) kill.add('quewu');
     let out=items.filter(i=>!kill.has(i.id));

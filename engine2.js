@@ -65,7 +65,7 @@ const SUP={
  xiaosixi:['dasanfeng','xiaosanfeng'], dasanfeng:['xiaosanfeng'], dasanyuan:['xiaosanyuan'],
  tianting:['menqing','menting'], diting:['menqing','menting'],
  tianhu:['menqing','zimo','menmo'], dihu:['menqing'], renhu:['menqing'],
- sanxiang:['shuangxiang'], huashang:['zimo'], kongshang:['zimo'], weipai:['zimo','huashang','kongshang'],
+ sanxiang:['shuangxiang'], huashang:['zimo','menmo'], kongshang:['zimo','menmo'], weipai:['zimo','huashang','kongshang'],
  sijinei:['qijinei','shijinei'], qijinei:['shijinei'],
  shisanyao:['menqing','xiaowumen','dawumen'], shiliubuda:['menqing','xiaowumen','dawumen'],
  likgu:['menqing','jiangyan','zipai','zhengzi'], lianduei8:['qingyise'], shierguei:['bagui']

@@ -8,8 +8,8 @@ const isHon=i=>i>=27;
 const FLOWERS=['春','夏','秋','冬','梅','蘭','菊','竹'];
 const YAO=[0,8,9,17,18,26,27,28,29,30,31,32,33];
 const RAW=[
-['pinghu','平糊',1],['zimo','自摸',1],['sanyuan','三元牌(每坎)',1],['fengpai','風牌(門風 / 圈風)',1],['huayao','花么',1],
-['qiangkong','搶槓',1],['kongshang','槓上自摸',1],['haidi','海底撈月',1],['menqing','門前清(無花規則)',1],
+['pinghu','平糊',1],['zimo','自摸',1],['shuangxiang','雙響',1],['sanyuan','三元牌(每坎)',1],['fengpai','風牌(門風 / 圈風)',1],['huayao','花么',1],
+['qiangkong','搶槓',1],['kongshang','槓上自摸',1],['huashang','花上自摸',1],['haidi','海底撈月',1],['menqing','門前清(無花規則)',1],
 ['zhenghua','門風花(正花)',1],['wuhua','無花',1],['yitaihua','一台花',1],
 ['hunyise','混一色',3],['duidui','對對糊',3],['xiaosanyuan','小三元',3],['xiaohuahu','小花糊(七張花,不加自摸)',3],
 ['dasanyuan','大三元',5],['qingyise','清一色',7],
@@ -19,7 +19,7 @@ const RAW=[
 ];
 const MANUAL=['xiaohuahu','dahuahu'];
 const FANS=RAW.map(r=>({id:r[0],name:r[1],fan:r[2],fanC:null,manual:MANUAL.indexOf(r[0])>=0}));
-const FLAGS=[['menqing','門前清'],['qiangkong','搶槓'],['kongshang','槓上自摸'],['haidi','海底撈月'],['gsg','槓上槓自摸'],['tianhu','天糊'],['dihu','地糊']];
+const FLAGS=[['menqing','門前清'],['qiangkong','搶槓'],['kongshang','槓上自摸'],['huashang','花上自摸'],['haidi','海底撈月'],['gsg','槓上槓自摸'],['tianhu','天糊'],['dihu','地糊'],['shuangxiang','雙響']];
 const INSTANT=[
  {id:'zhahu',name:'詐糊(賠最大番數分給三家)',amt:'cap',mode:'payall'},
 {id:'penalty',name:'其他賠錢情況（自訂）',amt:0,mode:'payall'}
@@ -73,8 +73,8 @@ function placements(D,w){
 function stateItems(ctx,items,concealedAll){
   const R=ctx.R; const push=(id,n)=>{ n=n===undefined?1:n; if(n>0&&R[id]) items.push({id,n,closed:false}); };
   const f=ctx.flags||{};
-  if(ctx.selfDraw) push('zimo');
-  ['qiangkong','kongshang','haidi','gsg','tianhu','dihu'].forEach(k=>{ if(f[k]) push(k); });
+  if(ctx.selfDraw&&!f.huashang&&!f.kongshang) push('zimo');
+  ['qiangkong','kongshang','huashang','haidi','gsg','tianhu','dihu','shuangxiang'].forEach(k=>{ if(f[k]) push(k); });
   const fl=ctx.flowers||Array(8).fill(false), nf=fl.filter(Boolean).length;
   if(nf===0) push('wuhua');
   if(ctx.useFlowers){
