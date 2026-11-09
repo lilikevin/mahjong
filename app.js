@@ -1,7 +1,7 @@
 (function(){
 'use strict';
 if(!window.MJ){const a=document.getElementById('app');if(a)a.textContent='計番引擎未能載入，請確認 engine.js 已上傳。';return;}
-const APP_VERSION='2.0.27';
+const APP_VERSION='2.0.28';
 const DEV_IG='kevinli999';
 let M=window.MJ;
 const KEY='mj_v2_full_merge_1';
@@ -452,11 +452,35 @@ async function checkUpdate(manual){
 async function doUpgrade(){
   toast('正在更新…');
   try{
-    if('serviceWorker' in navigator){ const rs=await navigator.serviceWorker.getRegistrations(); await Promise.all(rs.map(r=>r.unregister())); }
-    if(window.caches){ const ks=await caches.keys(); await Promise.all(ks.map(k=>caches.delete(k))); }
-    await Promise.all(['./','index.html','app.html','app.js?v='+APP_VERSION,'app.css?v='+APP_VERSION,'engine.js?v='+APP_VERSION,'engine2.js?v='+APP_VERSION,'mj-core.js?v='+APP_VERSION,'engine_hk.js?v='+APP_VERSION,'engine4.js?v='+APP_VERSION,'engine_wild.js?v='+APP_VERSION,'wild-worker.js?v='+APP_VERSION,'manifest.json?v='+APP_VERSION,'sw.js','version.json','icon-192.png?v='+APP_VERSION,'icon-512.png?v='+APP_VERSION].map(f=>fetch(f,{cache:'reload'}).catch(()=>{})));
-  }catch(e){}
-  location.reload();
+    const base=new URL('.',location.href);
+    const vr=await fetch(new URL('version.json?t='+Date.now(),base),{cache:'no-store'});
+    if(!vr.ok)throw new Error('無法下載版本資料');
+    const latest=await vr.json();
+    if(!latest||typeof latest.version!=='string'||!latest.version)throw new Error('版本資料格式錯誤');
+    if(latest.version===APP_VERSION){upd=null;toast('目前已是最新版本');render();return;}
+    const files=['index.html','app.html','app.js','app.css','mj-core.js','engine.js','engine2.js','engine4.js','engine_hk.js','engine_wild.js','wild-worker.js','manifest.json','sw.js','icon-192.png','icon-512.png'];
+    const responses=await Promise.all(files.map(file=>fetch(new URL(file+'?v='+encodeURIComponent(latest.version)+'&refresh='+Date.now(),base),{cache:'reload'})));
+    const failed=responses.findIndex(r=>!r.ok);
+    if(failed>=0)throw new Error('無法下載 '+files[failed]+'（HTTP '+responses[failed].status+'）');
+    await Promise.all(responses.map(r=>r.arrayBuffer()));
+    if('serviceWorker' in navigator){
+      const regs=await navigator.serviceWorker.getRegistrations();
+      await Promise.all(regs.filter(r=>{
+        const script=r.active?.scriptURL||r.waiting?.scriptURL||r.installing?.scriptURL;
+        return r.scope===base.href||(script&&new URL(script).origin===base.origin&&new URL(script).pathname===new URL('sw.js',base).pathname);
+      }).map(r=>r.unregister()));
+    }
+    if(window.caches){
+      const keys=await caches.keys();
+      await Promise.all(keys.filter(k=>k.startsWith('mj-')).map(k=>caches.delete(k)));
+    }
+    upd=null;
+    location.replace(new URL('index.html?v='+encodeURIComponent(latest.version)+'&refresh='+Date.now(),base).href);
+  }catch(e){
+    console.error('Upgrade failed',e);
+    toast('更新失敗：'+(e&&e.message?e.message:'請檢查網絡後重試'));
+    render();
+  }
 }
 function mkTxns(ws,dealer,streak){
   const bonus=1+2*streak, bf=baseFan(), fv=S.cfg.fanValue, tx=[];
@@ -3622,7 +3646,6 @@ function render(){if(window.__UI_TEST__)return;derive();applyTheme();document.bo
 function uiAction(a,d){
  if(a==='close-panel'||a==='close')a='uiClose';
  if(tab==='calc'&&((a==='tab'&&d.v!=='calc')||['editorBack','uiBack','toChooser','newGame'].includes(a)))uiResume=uiCurrentLocation();
- if(['upgrade','checkUpd'].includes(a)){toast('請透過測試網站更新檔案');return true;}
  if(a==='toChooser'||a==='newGame'){uiModal=null;setTab('chooser');return true;}
  if(a==='startWinner'&&(E.winner!=null||draftCache)){if(E.winner===+d.p){uiContinue();return true;}uPopup('有未完成輸入','<p>請先繼續或放棄目前輸入，再記錄另一手。</p>',ub('繼續輸入','uiContinue','','primary')+ub('放棄目前輸入','uiDiscard')+ub('取消','uiClose'));return true;}
 if (a === 'poolTap' && E.mode === 'meld' && +d.t !== 34) {
