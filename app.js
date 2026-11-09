@@ -808,7 +808,7 @@ function curItems(res){
   else it=M.basic(Object.assign({flowers:E.flowers,selfDraw:E.self,flags:E.flags,concealed:!!E.flags.menqing},ctxExtra())).filter(x=>!E.excl[x.id]);
   if(!isHK()&&curPreset()!==4) HUAHU.forEach(h=>{ if(E.flags[h[0]]&&!E.excl[h[0]]) it.push({id:h[0],n:1,closed:false}); });
   it=it.concat(E.extra.map(x=>({id:x.id,n:(x.id==='weiwei'?Math.max(2,x.n):x.n),closed:false})));
-  if(!isHK()&&!it.some(x=>x.id==='di')) it.unshift({id:'di',n:1,closed:false});
+  if(!isHK()&&!E.excl.di&&!it.some(x=>x.id==='di')) it.unshift({id:'di',n:1,closed:false});
   it=hkFlowerAdjust(it,r);
   if(it.some(x=>x.id==='huashang'||x.id==='kongshang')){
     const closedSelfDraw=it.some(x=>x.id==='menqing_zimo'||x.id==='menmo');
@@ -2911,7 +2911,7 @@ function diTotal(items){ const d=(items||[]).find(x=>x.id==='di'); return (!isHK
 function directInputHtml(){
   const fans=fanList().filter(f=>f.id!=='di'&&f.id!=='zimo');
   if(!fans.some(f=>f.id===uiDirectFanId))uiDirectFanId=fans[0]?.id||'';
-  return '<div class="u-stack"><p>可按番種加入計算，或輸入要加／減的番數。</p><label>番種<select data-chg="directFanId">'+fans.map(f=>'<option value="'+esc(f.id)+'"'+(f.id===uiDirectFanId?' selected':'')+'>'+esc(f.name)+' ('+f.fan+'番)</option>').join('')+'</select></label><label>番種數量<input type="number" min="1" max="9" step="1" data-chg="directFanCount" value="'+uiDirectFanCount+'"></label>'+ub('加入所選番種','uiDirectAdd','','primary')+'<hr><label>直接輸入加／減番數<input type="number" min="-999" max="999" step="1" data-chg="directValue" value="'+esc(uiDirectValue)+'"></label>'+ub('套用番數','uiDirectApply','','primary')+'</div>';
+  return '<div class="u-stack"><p>可按番種加入計算，或輸入要加／減的番數。</p><label>番種<select data-chg="directFanId">'+fans.map(f=>'<option value="'+esc(f.id)+'"'+(f.id===uiDirectFanId?' selected':'')+'>'+esc(f.name)+' ('+f.fan+'番)</option>').join('')+'</select></label><label>番種數量<input type="number" min="1" max="9" step="1" data-chg="directFanCount" value="'+uiDirectFanCount+'"></label>'+ub('加入所選番種','uiDirectAdd','','primary')+'<hr><label>直接輸入加／減番數<input type="number" min="-999" max="999" step="1" data-chg="directValue" value="'+esc(uiDirectValue)+'"></label><small>套用後不會再另外計底。</small>'+ub('套用番數','uiDirectApply','','primary')+'</div>';
 }
 function adjustUI(){
   const v=E.adjust||0;
@@ -3822,7 +3822,7 @@ case 'uiGroupPage':uiGroupPage=Math.max(0,uiGroupPage+(+d.d));uShowGroups(uiGrou
  case 'uiDirectApply':{
    const n=Number(uiDirectValue);
    if(!uiDirectValue.trim()||!Number.isInteger(n)||n<-999||n>999){toast('請輸入-999至999的整數番數');break;}
-   E.adjust=n;uiModal=null;uiReview='fans';uiPage=0;break;
+   E.adjust=n;E.excl.di=true;uiModal=null;uiReview='fans';uiPage=0;break;
  }
  case 'uiExtra':uPopup('補加番種','<select data-chg="addId"><option value="">選擇番種</option>'+fanList().filter(x=>x.id!=='di').map(x=>'<option value="'+x.id+'">'+esc(x.name)+'</option>').join('')+'</select>',ub('完成','uiClose'));break;
  case 'uiExcluded':uPopup('恢復番種',Object.keys(E.excl).filter(k=>E.excl[k]).map(k=>ub(esc(RL()[k]?.name||k),'unexcl','data-id="'+k+'"')).join('')||'<p>沒有取消的番種。</p>',ub('完成','uiClose'));break;
