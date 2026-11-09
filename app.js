@@ -1,7 +1,7 @@
 (function(){
 'use strict';
 if(!window.MJ){const a=document.getElementById('app');if(a)a.textContent='計番引擎未能載入，請確認 engine.js 已上傳。';return;}
-const APP_VERSION='2.0.26';
+const APP_VERSION='2.0.27';
 const DEV_IG='kevinli999';
 let M=window.MJ;
 const KEY='mj_v2_full_merge_1';
@@ -3162,7 +3162,7 @@ function physCounts(win){
 }
 function ronEntry(){
   const w=curWinTile();
-  return {winTile:w==null?null:w,phys:physCounts(w),flowers:E.flowers.map((f,i)=>f?i:-1).filter(i=>i>=0),has:E.all.length>0||E.wildGroups.length>0||w!=null,all:E.all.slice()};
+  return {winTile:w==null?null:w,phys:physCounts(w),flowers:E.flowers.map((f,i)=>f?i:-1).filter(i=>i>=0),has:E.all.length>0||E.wildGroups.length>0||w!=null,all:E.all.slice(),quick:!!E.quick};
 }
 function hasCurrentData(){
   return E.all.length>0 || E.wildGroups.length>0 || curWinTile()!=null || !!E.quick;
@@ -3176,6 +3176,7 @@ function getLockedCommon(ws){
 function checkWinnerSet(ws){
   const out=[];
   if(ws.length>3) out.push('最多三位食糊者');
+  if(ws.some(w=>w.quick)&&ws.some(w=>!w.quick)) out.push('快速記番不能與牌型輸入混用');
   if(new Set(ws.map(w=>w.p)).size!==ws.length) out.push('同一玩家不能重複加入');
   if(ws.length>1 && ws.some(w=>w.self)) out.push('已有出銃記錄時不能混入自摸');
   if(ws.some(w=>!w.self && w.disc==null)) out.push('請指定出銃者');
@@ -3185,6 +3186,7 @@ function checkWinnerSet(ws){
   return [...new Set(out)];
 }
 function checkRonSet(ws,{allowPartial=false}={}){
+  ws=ws.filter(w=>!w.quick);
   if(!ws.length)return [];
   const out=[],def=[...new Set(ws.map(w=>w.winTile).filter(t=>t!=null))];
   const unknown=ws.filter(w=>w.winTile==null),common=getLockedCommon(ws),tot=Array(35).fill(0);
