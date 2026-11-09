@@ -2233,7 +2233,7 @@ case 'mode': {
     case 'extraN': { const x=E.extra[+d.i]; x.n+=+d.d; if(x.id==='weiwei'&&x.n<2) x.n=2; if(x.n<1) E.extra.splice(+d.i,1); break; }
     case 'rmExtra': E.extra.splice(+d.i,1); break;
     case 'hkWin': { if(!(pending.length&&pending[0].ron)) E.hkWin=(E.hkWin===+d.t)?null:+d.t; E.excl={}; break; }
-    case 'clearEntry':if(hasEntryDraft()&&!confirm('放棄本局所有未記錄輸入（包括已加入的食糊者）？'))return;wildStop();wildDone=null;wildKey='';E=newEntry();pending=[];entryStep='pick';break;
+    case 'clearEntry':if((hasEntryDraft()||draftCache)&&!confirm('放棄本局所有未記錄輸入（包括已加入的食糊者）？'))return;wildStop();wildDone=null;wildKey='';E=newEntry();pending=[];entryStep='pick';uiResume=null;uiModal=null;discardDraft();break;
     case 'addWinner': {
       if(isHK()&&!E.self&&E.hkWin==null){E.shapeDone=false;E.mode='win';editorError='加入另一位前，先指定共同放炮牌';setTab('calc');render();return;}
       // 1. 先檢查已加入者
@@ -3653,7 +3653,7 @@ if (a === 'poolTap' && E.mode === 'meld' && +d.t !== 34) {
  if(a==='tab'){uiModal=null;if(d.v!=='calc')uiPage=0;if(d.v==='history')uiHistory=-1;}
  if(['choosePayer','chooseMethod','instSave','rmMeld','wildRemoveGroup','kongToggle','editOpen','payAll','payoff'].includes(a))uiModal=null;
  if(a==='quickStart')uiReview='quick';if(a==='editorFinish'){uiReview='fans';uiPage=0;}if(a==='confirm')uiHistory=-1;
- if(a==='discardDraft'||a==='clearEntry')uiResume=null;
+ if(a==='discardDraft')uiResume=null;
  if(!a.startsWith('ui'))return false;
  switch(a){
    case 'uiRestoreDraft':if(applyDraft()){uiModal=null;setTab('calc');toast('已恢復未完成的輸入');}else{toast('未能恢復草稿，請返回牌桌後重試');}break;
