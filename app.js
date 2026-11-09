@@ -1,7 +1,7 @@
 (function(){
 'use strict';
 if(!window.MJ){const a=document.getElementById('app');if(a)a.textContent='計番引擎未能載入，請確認 engine.js 已上傳。';return;}
-const APP_VERSION='2.0.25';
+const APP_VERSION='2.0.26';
 const DEV_IG='kevinli999';
 let M=window.MJ;
 const KEY='mj_v2_full_merge_1';
@@ -164,7 +164,7 @@ pickM();
 if(!window.MJ4){ try{ const sc=document.createElement('script'); sc.src='engine4.js?v='+APP_VERSION; sc.onload=()=>{ pickM(); render(); }; document.head.appendChild(sc); }catch(e){} }
 let lastSaveWarn=0;
 const save=()=>{ if(uiWizard)return;finalizeFinancialSnapshots(); try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){ const t=Date.now(); if(t-lastSaveWarn>8000){ lastSaveWarn=t; toast('儲存失敗(記憶體可能已滿)。請到「設定」匯出備份'); } } try{ saveDraft(); }catch(e){} };
-const newEntry=()=>({shapeDone:false,hkKongs:{},winner:null,self:true,disc:null,hkWin:null,all:[],wildGroups:[],jsel:{},adjust:0,pickRep:null,marks:Array(34).fill(0),kongOpen:{},melds:[],hand:[],win:null,partBad:false,mode:'pick',flowers:Array(8).fill(false),flags:{},excl:{},extra:[],bao:null});
+const newEntry=()=>({shapeDone:false,hkKongs:{},winner:null,self:true,disc:null,hkWin:null,all:[],wildGroups:[],jsel:{},adjust:0,quickTotal:null,quickTarget:1,pickRep:null,marks:Array(34).fill(0),kongOpen:{},melds:[],hand:[],win:null,partBad:false,mode:'pick',flowers:Array(8).fill(false),flags:{},excl:{},extra:[],bao:null});
 let _savedTab=null; try{ _savedTab=localStorage.getItem('mj_v2_full_tab'); }catch(e){}
 let E=newEntry(), pending=[], tab=(_savedTab && ['chooser','players','calc','table','history','settings'].includes(_savedTab) ? _savedTab : (S.game? 'table' : 'chooser')), wildPick=false;
 let inst={id:null,mode:'one',payee:null,payer:null,mult:1};
@@ -803,6 +803,10 @@ function firstStepIssue() {
 }
 function curItems(res){
   const r=RL(); let it;
+  if(E.quick&&E.quickTotal!=null){
+    const n=Math.max(0,Math.min(999,Math.floor(Number(E.quickTotal)||0)));
+    return E.excl.quickTotal?[]:[{id:'quickTotal',name:'直接輸入總番數',n:1,unit:n,total:n}];
+  }
   if(E.quick){ it=Object.keys(E.quick).filter(id=>E.quick[id]>0&&id!=='zimo'&&r[id]).map(id=>({id,n:E.quick[id],closed:false})).filter(x=>!E.excl[x.id]); if(E.self&&r.zimo&&!E.excl.zimo) it.unshift({id:'zimo',n:1,closed:false}); }
   else if(res&&res.items) it=res.items.filter(x=>!E.excl[x.id]);
   else it=M.basic(Object.assign({flowers:E.flowers,selfDraw:E.self,flags:E.flags,concealed:!!E.flags.menqing},ctxExtra())).filter(x=>!E.excl[x.id]);
@@ -943,7 +947,7 @@ function beginWinner(p){
   if(current&&E.winner===p){setTab('calc');entryStep='hand';window.scrollTo(0,0);return true;}
   if(current&&!confirm('改選食糊者會清除目前這手輸入；已加入的食糊者會保留。繼續嗎？'))return false;
   wildStop();wildDone=null;wildKey='';E=newEntry();E.winner=p;setTab('calc');lastEntryMessage='';
-  if(pending.length){E.self=false;E.disc=pending[0].disc;entryStep='hand';}else entryStep='method';
+  if(pending.length){E.self=false;E.disc=pending[0].disc;if(pending.every(w=>w.quick)){E.quick={};E.quickTarget=pending[0].quickTarget||1;E.shapeDone=true;uiReview='quick';}entryStep='hand';}else entryStep='method';
   window.scrollTo(0,0);return true;
 }
 function viewEntryFlow(){
@@ -1466,7 +1470,10 @@ function base_quickPanelHtml(){
 function quickPanelHtml(){
   const R=RL(),ids=quickFanIds(),pageCount=Math.max(1,Math.ceil(ids.length/6));
   uiQuickPage=Math.max(0,Math.min(Number.isInteger(uiQuickPage)?uiQuickPage:0,pageCount-1));
-  let h='<section class="card quickpanel u-quick-panel"><div class="zl" style="margin-top:0">選擇番種'+(E.self?' <small>(自摸 1 番已自動計入)</small>':'')+'</div>'+(isHK()?'':'<small>台牌番數含底，不含莊家／連莊加成；確認記錄時會按本局規則計算莊家加成。</small>'),last=null;
+  const target=Math.max(1,Math.min(3,E.quickTarget||1));
+  let h='<section class="card quickpanel u-quick-panel"><div class="zl" style="margin-top:0">直接輸入總番數</div><label>總番數'+(isHK()?'':'（含底）')+'<input type="number" step="1" min="0" max="999" data-chg="quickTotal" value="'+(E.quickTotal==null?'':E.quickTotal)+'"></label><small>輸入後會以此數字作為總番數，不再另加其他番種。'+(isHK()?'':'已含底，不含莊家／連莊加成；收付時按本局規則另計。')+'</small><hr><div class="hint">如不輸入總番數，請在下方選擇番種'+(E.self?'（自摸番會自動計入）':'')+'。</div>'+(isHK()?'':'<small>選擇番種時計入底；不含莊家／連莊加成。</small>')+'<div class="zl">食糊人數</div><div class="seg three">'+[[1,'單響'],[2,'雙響'],[3,'三響']].map(([n,label])=>ub(label,'uiQuickTarget','data-n="'+n+'"'+(n<pending.length+1||(E.self&&n>1)?' disabled':''),target===n?'on':'')).join('')+'</div>';
+  h+='<div class="zl">選擇番種</div>';
+  let last=null;
   ids.slice(uiQuickPage*6,uiQuickPage*6+6).forEach(id=>{
     const f=R[id];
     if(f.fan!==last){h+='<div class="zl">'+esc(f.fan)+' 番</div>';last=f.fan;}
@@ -1475,7 +1482,6 @@ function quickPanelHtml(){
   });
   const cf=quickConflicts();
   if(cf.length)h+=cf.map(x=>'<div class="warn">'+esc(x)+'</div>').join('');
-  h+='<div class="zl">直接輸入番數</div><label>加／減番數 <input type="number" step="1" min="-999" max="999" data-chg="adjv" value="'+(E.adjust||0)+'"></label><small>數值會加入已選番種及自摸番，並計入收付。</small>';
   return h+'</section>';
 }
 function uQuickPager(page,total){
@@ -1956,7 +1962,7 @@ function collectCurrent(){
   derive();
   const res=analyze(); const items=curItems(res); const raw=Math.max(0,items.reduce((a,x)=>a+x.total,0));
   const total=isHK()?Math.min(raw,hkCap()):raw;
-  return {ron:ronEntry(),wild:isWild()&&!E.quick?{limit:S.cfg.wildLimit,preset:S.cfg.wildPreset,physical:E.all.slice(),groups:E.wildGroups,replacements:res.replacements,assigned:res.assigned,win:res.win}:null,mult:wildMult(),p:E.winner,self:E.self,disc:E.disc,total,raw,fans:wildMult()>1?items.concat([{id:'nojoker',name:'冇用百搭 全部番數',n:1,total:'×'+wildMult()}]):items,qiang:!!E.flags.qiangkong&&!E.self,bao:baoVisible()?E.bao:null,quick:!!E.quick};
+  return {ron:ronEntry(),wild:isWild()&&!E.quick?{limit:S.cfg.wildLimit,preset:S.cfg.wildPreset,physical:E.all.slice(),groups:E.wildGroups,replacements:res.replacements,assigned:res.assigned,win:res.win}:null,mult:wildMult(),p:E.winner,self:E.self,disc:E.disc,total,raw,fans:wildMult()>1?items.concat([{id:'nojoker',name:'冇用百搭 全部番數',n:1,total:'×'+wildMult()}]):items,qiang:!!E.flags.qiangkong&&!E.self,bao:baoVisible()?E.bao:null,quick:!!E.quick,quickTarget:E.quickTarget||1};
 }
 function validateCur(){
   // 舊函數保留作兼容，實際驗證由新流程處理
@@ -1989,9 +1995,9 @@ function resetGameData(){try{localStorage.setItem(PREV_KEY,JSON.stringify(S));}c
     case 'quickStart': {
       if(pending.length){toast('快速記番只可用於單人食糊');return;}
       if((E.all.length||E.wildGroups.length||E.melds.length)&&!confirm('快速記番會忽略已輸入的牌型,繼續嗎?'))return;
-      E.all=[];E.wildGroups=[];E.melds=[];E.jsel={};E.hand=[];E.win=null;E.marks=Array(34).fill(0);E.kongOpen={};E.hkKongs={};E.hkWin=null;E.excl={};E.quick={};E.shapeDone=true;setTab('calc');window.scrollTo(0,0);break; }
-    case 'quickStop': E.quick=null;E.excl={};E.shapeDone=false;setTab('calc');window.scrollTo(0,0);break;
-    case 'quickN': { if(!E.quick)E.quick={}; const id=d.id,n=Math.max(0,Math.min(9,(E.quick[id]||0)+(+d.d))); if(n)E.quick[id]=n; else delete E.quick[id]; E.excl={}; break; }
+      E.all=[];E.wildGroups=[];E.melds=[];E.jsel={};E.hand=[];E.win=null;E.marks=Array(34).fill(0);E.kongOpen={};E.hkKongs={};E.hkWin=null;E.excl={};E.quick={};E.quickTotal=null;E.quickTarget=1;E.shapeDone=true;setTab('calc');window.scrollTo(0,0);break; }
+    case 'quickStop': E.quick=null;E.quickTotal=null;E.quickTarget=1;E.excl={};E.shapeDone=false;setTab('calc');window.scrollTo(0,0);break;
+    case 'quickN': { if(!E.quick)E.quick={}; E.quickTotal=null;const id=d.id,n=Math.max(0,Math.min(9,(E.quick[id]||0)+(+d.d))); if(n)E.quick[id]=n; else delete E.quick[id]; E.excl={}; break; }
     case 'editorEdit':E.shapeDone=false;setTab('calc');window.scrollTo(0,0);break;
     case 'editorFinish':{
       if(!isHK()&&!quadReminder()){render();return;}
@@ -2235,11 +2241,11 @@ case 'mode': {
     case 'hkWin': { if(!(pending.length&&pending[0].ron)) E.hkWin=(E.hkWin===+d.t)?null:+d.t; E.excl={}; break; }
     case 'clearEntry':if((hasEntryDraft()||draftCache)&&!confirm('放棄本局所有未記錄輸入（包括已加入的食糊者）？'))return;wildStop();wildDone=null;wildKey='';E=newEntry();pending=[];entryStep='pick';uiResume=null;uiModal=null;discardDraft();break;
     case 'addWinner': {
-      if(isHK()&&!E.self&&E.hkWin==null){E.shapeDone=false;E.mode='win';editorError='加入另一位前，先指定共同放炮牌';setTab('calc');render();return;}
+      if(isHK()&&!E.quick&&!E.self&&E.hkWin==null){E.shapeDone=false;E.mode='win';editorError='加入另一位前，先指定共同放炮牌';setTab('calc');render();return;}
       // 1. 先檢查已加入者
       {
         const pendRon = pending.map(w=>w.ron).filter(Boolean);
-        if(pending.length>0 && pending.some(w=>!w.ron)){ toast('部分食糊者缺少牌型資料，請重新輸入'); return; }
+        if(pending.length>0 && pending.some(w=>!w.ron&&!w.quick)){ toast('部分食糊者缺少牌型資料，請重新輸入'); return; }
         let err = checkWinnerSet(pending);
         if(err.length){ toast(err[0]); return; }
         err = checkRonSet(pendRon, {allowPartial:false});
@@ -2251,8 +2257,11 @@ case 'mode': {
       if(pending.some(w=>w.p===E.winner)){ toast('同一玩家不能重複加入'); return; }
       if(pending.length>=3){ toast('最多三位食糊者'); return; }
       if(pending.length>0 && pending[0].disc!==E.disc){ toast('所有食糊者必須來自同一位出銃者'); return; }
+      const target=E.quickTarget||pending[0]?.quickTarget||1;
+      if(E.quick&&pending.length+1>=target){toast(target===1?'目前設定為單響':'已達所選食糊人數');return;}
 
       const cur = collectCurrent();
+      cur.quickTarget=target;
       const ws = pending.concat([cur]);
       let err = checkWinnerSet(ws);
       if(err.length){ toast(err[0]); return; }
@@ -2260,14 +2269,14 @@ case 'mode': {
       if(err.length){ toast(err[0]); return; }
 
       pending.push(cur);
-      const disc=E.disc; E=newEntry(); E.self=false; E.disc=disc;
+      const disc=E.disc; E=newEntry(); E.self=false; E.disc=disc;if(cur.quick){E.quick={};E.quickTarget=target;E.shapeDone=true;uiReview='quick';}
       E.winner=null;entryStep='pick';window.scrollTo(0,0);toast(pending.length>=3?'已加入三位，請確認本局':'已加入，請選擇另一位食糊者或確認本局'); break; }
     case 'confirm': {
       if(editorActive()){editorError='完成五段輸入後，先查看結果再確認記錄';render();return;}
       // 1. 先檢查已加入者完整性
       {
         const pendRon = pending.map(w=>w.ron).filter(Boolean);
-        if(pending.length>0 && pending.some(w=>!w.ron)){ toast('部分食糊者缺少牌型資料，請重新輸入'); return; }
+        if(pending.length>0 && pending.some(w=>!w.ron&&!w.quick)){ toast('部分食糊者缺少牌型資料，請重新輸入'); return; }
         let err = checkWinnerSet(pending);
         if(err.length){ toast(err[0]); return; }
         err = checkRonSet(pendRon, {allowPartial:false});
@@ -2291,7 +2300,9 @@ case 'mode': {
       {
         let err = checkWinnerSet(ws);
         if(err.length){ toast(err[0]); return; }
-        if(ws.some(w=>!w.ron)){ toast('部分食糊者缺少牌型資料，請重新輸入'); return; }
+        if(ws.some(w=>!w.ron&&!w.quick)){ toast('部分食糊者缺少牌型資料，請重新輸入'); return; }
+        const quickTarget=ws.find(w=>w.quick)?.quickTarget;
+        if(quickTarget&&ws.length!==quickTarget){toast('請完成所選的'+(quickTarget===2?'雙響':'三響')+'食糊者輸入');return;}
         err = checkFinalTiles(ws);
         if(err.length){ toast(err[0]); return; }
       }
@@ -2311,7 +2322,7 @@ case 'mode': {
       }
       for(const w of ws)if(w.total===0&&!confirm(S.names[w.p]+' 合計 0 番,仍要記錄?'))return;
       if(isHK()){
-        pushRec({kind:'win',winners:ws.map(w=>({p:w.p,self:w.self,disc:w.disc,total:w.total,raw:w.raw,fans:w.fans,bao:w.bao,qiang:w.qiang,ron:w.ron,quick:!!w.quick})),deltas:settleHK(ws),events:[]});
+        pushRec({kind:'win',winners:ws.map(w=>({p:w.p,self:w.self,disc:w.disc,total:w.total,raw:w.raw,fans:w.fans,bao:w.bao,qiang:w.qiang,ron:w.ron,quick:!!w.quick,quickTarget:w.quickTarget})),deltas:settleHK(ws),events:[]});
         advance(ws.some(w=>w.p===dealer)&&S.cfg.hk.renzhuang,false);finishEntry('已記錄',undoInfoForLast());break;
       }
       const out=applyHand(S.ledger,mkTxns(ws,dealer,S.streak),true);
@@ -2323,7 +2334,7 @@ case 'mode': {
         }
       });
       const lb=copyL(S.ledger);
-      S.history.push({id:Date.now(),time:Date.now(),kind:'win',dealer,streak:S.streak,wind:S.wind,winners:ws.map(w=>({p:w.p,self:w.self,disc:w.disc,total:w.total,mult:w.mult,fans:w.fans,wild:w.wild,raw:w.raw,bao:w.bao,qiang:w.qiang,ron:w.ron})),deltas:cash,events:ev,before:before(),ledgerBefore:lb,financePending:true,financeMode:S.game,rulesSnapshot:JSON.parse(JSON.stringify(S.cfg))});
+      S.history.push({id:Date.now(),time:Date.now(),kind:'win',dealer,streak:S.streak,wind:S.wind,winners:ws.map(w=>({p:w.p,self:w.self,disc:w.disc,total:w.total,mult:w.mult,fans:w.fans,wild:w.wild,raw:w.raw,bao:w.bao,qiang:w.qiang,ron:w.ron,quick:!!w.quick,quickTarget:w.quickTarget})),deltas:cash,events:ev,before:before(),ledgerBefore:lb,financePending:true,financeMode:S.game,rulesSnapshot:JSON.parse(JSON.stringify(S.cfg))});
       S.ledger=copyL(ledger);
       advance(ws.some(w=>w.p===dealer),false);
       finishEntry('已記錄',undoInfoForLast()); break; }
@@ -2468,6 +2479,7 @@ function chg(k,el){
     case 'wizard': S.cfg.wizard=false; break;
     case 'largeFont': S.cfg.largeFont=v==='1'; break;
     case 'useShortAnim': S.cfg.useShortAnim=v==='1'; break;
+    case 'quickTotal': { if(String(v).trim()===''){E.quickTotal=null;E.excl.di=false;break;}const n=Number(v);if(!Number.isInteger(n)||n<0||n>999){toast('總番數請輸入0至999的整數');return;}E.quickTotal=n;E.excl.di=true;break; }
     case 'adjv': { const n=Math.round(Number(v)); E.adjust=isNaN(n)?0:Math.max(-999,Math.min(999,n)); break; }
     case 'tblName': tblDraft=String(v).replace(/[\u0000-\u001f<>]/g,'').slice(0,24); break;
     case 'rule': { const o=OV(); const q=o[d.id]=o[d.id]||{}; q[d.f]=parseFloat(v); break; }
@@ -2907,7 +2919,7 @@ function hkHintHtml(){
   return out.length?'<div class="note">'+out.map(esc).join('<br>')+'</div>':'';
 }
 function diRow(){ return (isHK()||M.FANS.some(f=>f.id==='di'))?[]:[{id:'di',name:'底',fan:S.cfg.baseMult,fanC:null,manual:false}]; }
-function diTotal(items){ const d=(items||[]).find(x=>x.id==='di'); return (!isHK()&&d&&typeof d.total==='number')?d.total:0; }
+function diTotal(items){ const list=items||[],d=list.find(x=>x.id==='di');if(!isHK()&&list.some(x=>x.id==='quickTotal'))return S.cfg.baseMult;return (!isHK()&&d&&typeof d.total==='number')?d.total:0; }
 function directInputHtml(){
   const fans=fanList().filter(f=>f.id!=='di'&&f.id!=='zimo');
   if(!fans.some(f=>f.id===uiDirectFanId))uiDirectFanId=fans[0]?.id||'';
@@ -3169,7 +3181,7 @@ function checkWinnerSet(ws){
   if(ws.some(w=>!w.self && w.disc==null)) out.push('請指定出銃者');
   if(ws.some(w=>!w.self && w.disc===w.p)) out.push('出銃者不能是食糊者');
   if(ws.length>1 && new Set(ws.map(w=>w.disc)).size!==1) out.push('所有食糊者必須來自同一位出銃者');
-  if(ws.length>1 && ws.some(w=>!w.ron)) out.push('部分食糊者缺少牌型資料，請重新輸入');
+  if(ws.length>1 && ws.some(w=>!w.ron&&!w.quick)) out.push('部分食糊者缺少牌型資料，請重新輸入');
   return [...new Set(out)];
 }
 function checkRonSet(ws,{allowPartial=false}={}){
@@ -3200,6 +3212,7 @@ function checkRonSet(ws,{allowPartial=false}={}){
   return [...new Set(out)];
 }
 function checkFinalTiles(ws){
+  if(ws.length&&ws.every(w=>w.quick))return [];
   if(ws.length===1&&(ws[0].self||(isHK()&&ws[0].ron&&ws[0].ron.winTile==null))){
     const r=ws[0].ron;if(!r)return ['缺少牌型資料，請重新輸入'];
     const c=r.phys.slice(),out=[];if(r.winTile!=null&&r.winTile<34)c[r.winTile]++;
@@ -3239,8 +3252,8 @@ function ronProblems(strict){
 function validateCurrentEntry(){
   if(!Number.isInteger(E.winner)||!S.seat.includes(E.winner)){toast('請選擇食糊者');return false;}
   if(E.quick){
-    if(pending.length){toast('快速記番只可用於單人食糊');return false;}
-    if(!curItems(null).some(x=>!['adjust','zimo','di'].includes(x.id))&&!E.adjust){toast('請先選擇番種或輸入番數');return false;}
+    if(pending.some(w=>!w.quick)){toast('快速記番不能與牌型輸入混用');return false;}
+    if(E.quickTotal==null&&!curItems(null).some(x=>!['adjust','zimo','di'].includes(x.id))&&!E.adjust){toast('請輸入總番數或選擇番種');return false;}
     if(!E.self){
       if(E.disc==null){toast('請選擇出銃者(放槍)');return false;}
       if(E.disc===E.winner){toast('出銃者不能是食糊者');return false;}
@@ -3402,7 +3415,7 @@ if(stage==='players'){title='確認本場玩家';body='<div class="u-stack">'+S.
 function uTable(){const a=tableDisplayBalances(),card=i=>{const p=S.seat[i],dealer=p===dealerPid(),starter=Number.isInteger(S.startDealerPid)&&p===S.startDealerPid;return '<button class="u-seat '+(dealer?'dealer':'')+'" style="position:relative;'+(dealer?'border:2px solid var(--acc,#e6b422);box-shadow:0 0 0 1px var(--acc,#e6b422);':'')+'" data-act="uiPlayer" data-p="'+p+'"><small>'+windOf(p)+'</small>'+(dealer?'<span style="position:absolute;top:4px;right:4px;display:inline-flex;align-items:center;justify-content:center;width:25px;height:31px;border-radius:5px;background:#e6b422;color:#201b0a;font-size:17px;font-weight:700;border-bottom:3px solid #a67d12">莊</span>':'')+'<span class="u-avatar">'+avatar(p)+'</span><span>'+nm(p)+'</span>'+(starter?'<small style="color:var(--acc,#e6b422)">起莊</small>':'')+'<b class="'+(a[p]<0?'neg':'pos')+'">'+money(a[p])+'</b>'+(dealer&&S.streak>0?'<small style="color:var(--acc,#e6b422)">連莊 ×'+S.streak+'</small>':'')+'</button>';};return '<p class="u-caption">'+esc(gameLabel(S.game))+'</p><div class="u-board"><div></div>'+card(2)+'<div></div>'+card(3)+'<div class="u-middle"><span class="mt hon" style="width:40px;height:54px;min-width:40px;min-height:54px"><b>'+WIND[S.wind]+'</b></span><span style="font-weight:700;color:var(--acc,#e6b422)">'+WIND[S.wind]+'圈</span>'+ub('流局','draw')+'</div>'+card(1)+'<div></div>'+card(0)+'<div></div></div><div class="btnrow">'+(!isHK()?ub('未結拉數 '+S.ledger.length+' 筆','uiLedger'):'')+'</div>';}
  function uTableFooter(){return '<div class="btnrow">'+ub('記錄賞罰','uiInstant')+(uiCanResume()? ub('繼續輸入','uiContinue','','primary')+ub('重新開始輸入','clearEntry'):ub('記錄食糊','uiWinner','','primary'))+'</div>';}
 function uEntry(){let h='<section class="u-flow"><p class="u-caption">'+WIND[S.wind]+'風圈 · 莊 '+playerLabel(dealerPid())+'</p>';if(pending.length)h+='<p>本局已加入 '+pending.length+' 位</p>';
- if(entryStep==='pick')h+='<h3>誰食糊？</h3><div class="u-winners">'+S.seat.map(p=>ub('<span class="u-avatar">'+avatar(p)+'</span>'+nm(p),'startWinner','data-p="'+p+'"'+(pending.some(w=>w.p===p)||(pending.length&&pending[0].disc===p)||pending.length>=3?' disabled':''))).join('')+'</div>'+(pending.length?ub('確認本局','confirm','','primary'):'');
+ if(entryStep==='pick'){const target=pending.find(w=>w.quick)?.quickTarget,needsMore=target&&pending.length<target,atTarget=target&&pending.length>=target;h+='<h3>誰食糊？</h3><div class="u-winners">'+S.seat.map(p=>ub('<span class="u-avatar">'+avatar(p)+'</span>'+nm(p),'startWinner','data-p="'+p+'"'+(pending.some(w=>w.p===p)||(pending.length&&pending[0].disc===p)||pending.length>=3||atTarget?' disabled':''))).join('')+'</div>'+(needsMore?'<p class="hint">已選'+(target===2?'雙響':'三響')+'，請再選 '+(target-pending.length)+' 位食糊者。</p>':'')+(pending.length&&!needsMore?ub('確認本局','confirm','','primary'):'');}
  else if(entryStep==='method')h+='<h3>'+playerLabel(E.winner)+' 食糊</h3><div class="seg two">'+ub('自摸','chooseMethod','data-v="self"')+ub('別家出銃','chooseMethod','data-v="ron"')+'</div>'+ub('改選食糊者','entryPick');
  else h+='<h3>'+playerLabel(E.winner)+' 食糊</h3><p>誰出銃？</p>'+payerRow(S.seat.filter(p=>p!==E.winner&&!pending.some(w=>w.p===p)),'choosePayer',E.disc)+ub('返回食糊方式','entryMethod');return h+'</section>';}
 function bestMelds(){if(!E.uGroups?.length)return base_bestMelds();const c=E.marks.slice(),kept=[];for(const g of E.uGroups){const ts=g.t==='chow'?[g.tile,g.tile+1,g.tile+2]:Array(g.t==='kong'?4:3).fill(g.tile),need=Array(34).fill(0);ts.forEach(t=>need[t]++);if(need.every((n,t)=>c[t]>=n)){ts.forEach(t=>c[t]--);kept.push(g);}}E.uGroups=kept;const rest=partitions(c);E.partBad=!rest.length;return rest.length?kept.map(g=>({t:g.t,tile:g.tile,open:g.t==='kong'?E.kongOpen[g.tile]!==false:true})).concat(toMelds(rest[0])):[];}
@@ -3552,7 +3565,8 @@ function editorHtml() {
 function uShowGroups(t){uiGroupTile=t;uiGroups=[];if(isHK()){if(allCounts()[t]!==4){toast('這款牌不足四張，不需標示槓；請確認門清狀態後繼續。');return;}for(const open of [true,false])uiGroups.push({t:'kong',tile:t,open,physical:Array(4).fill(t)});}else{const c=allCounts().map((n,tile)=>n-(E.marks[tile]||0));if(t<27)for(let n=Math.max(0,t%9-2);n<=Math.min(6,t%9);n++){const a=Math.floor(t/9)*9+n;if([a,a+1,a+2].every(tile=>c[tile]>0))uiGroups.push({t:'chow',tile:a,open:true,physical:[a,a+1,a+2]});}if(c[t]>=3)uiGroups.push({t:'pung',tile:t,open:true,physical:Array(3).fill(t)});if(c[t]>=4)for(const open of [true,false])uiGroups.push({t:'kong',tile:t,open,physical:Array(4).fill(t)});}const n=Math.max(1,Math.ceil(uiGroups.length/4));uiGroupPage=Math.max(0,Math.min(uiGroupPage,n-1));const groupsHtml=uiGroups.slice(uiGroupPage*4,uiGroupPage*4+4).map((g,i)=>{const label=g.t==='chow'?'上':g.t==='pung'?'碰':g.open?'明槓':'暗槓';const tilesHtml=g.physical.map((tile,j)=>mt(tile,{back:g.open===false&&(j===0||j===3)})).join('');return ub('<span>'+label+'</span><div class="u-minirow">'+tilesHtml+'</div>','uiGroup','data-i="'+(uiGroupPage*4+i)+'"','u-group');}).join('');const emptyHtml=!uiGroups.length?'<p>這張牌目前沒有可標示的明牌組合；沒有明牌可直接下一步。</p>':'';uPopup(isHK()?'選擇槓的類型':'選擇明牌組合','<div class="grid2">'+groupsHtml+'</div>'+emptyHtml,up(uiGroupPage,n,'uiGroupPage')+ub('取消','uiClose'));}
  function uResult(){if(entryStep!=='hand')return {body:uEntry(),footer:ub('返回牌桌','tab','data-v="table"')};const r=analyze(),quick=!!E.quick,hasWild=isWild()&&jokerTotal()>0;let body='<p class="u-caption">'+playerLabel(E.winner)+' '+(E.self?'自摸':'食 '+nm(E.disc))+'</p>';
  const valid=quick||!!(r&&!r.error&&(!hasWild||r.complete));
- const actions='<div class="btnrow">'+ub('返回修改','editorEdit')+ub('一炮多響','addWinner',(!valid||quick||E.self)?' disabled':'')+ub('確認記錄','confirm',!valid?' disabled':'','primary')+'</div>';
+ const quickTarget=E.quickTarget||pending[0]?.quickTarget||1,quickCount=pending.length+1,canAdd=quick?quickTarget>1&&quickCount<quickTarget&&!E.self:!E.self;
+ const actions='<div class="btnrow">'+ub('返回修改','editorEdit')+ub(quick&&quickTarget>1?'加入下一位（'+(quickTarget===2?'雙響':'三響')+'）':'一炮多響','addWinner',(!valid||!canAdd)?' disabled':'')+ub('確認記錄','confirm',(!valid||(quick&&quickTarget>quickCount))?' disabled':'','primary')+'</div>';
  if(quick&&uiReview==='quick'){
   const n=Math.max(1,Math.ceil(quickFanIds().length/6));
   return {body:body+quickPanelHtml(),footer:uPagerSlot(uiQuickPage,n,'uiQuickPage')+'<div class="btnrow">'+ub('返回','uiReview','data-v="fans"')+ub('確認番數','uiReview','data-v="fans"','primary')+'</div>'};
@@ -3735,6 +3749,7 @@ case 'uiSaveSeats':{
  case 'uiReview':uiReview=d.v;uiPage=0;break;
  case 'uiFlagPage':uiFlagPage=Math.max(0,uiFlagPage+(+d.d));break;
 case 'uiQuickPage':{const count=Math.max(1,Math.ceil(quickFanIds().length/6)),page=Number(d.page);uiQuickPage=Number.isInteger(page)?Math.max(0,Math.min(page,count-1)):Math.max(0,Math.min(count-1,uiQuickPage+(+d.d)));break;}
+ case 'uiQuickTarget':{const n=Number(d.n);if(![1,2,3].includes(n)||n<pending.length+1||(n>1&&E.self)){toast('雙響／三響只適用於出銃，並須包含目前食糊者');break;}E.quickTarget=n;pending.forEach(w=>{if(w.quick)w.quickTarget=n;});break;}
 
 
 case 'uiGroupPage':uiGroupPage=Math.max(0,uiGroupPage+(+d.d));uShowGroups(uiGroupTile);break;
